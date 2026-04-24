@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">3xui Panel</string>
+    <string name="label_mvp_placeholder">MVP in development</string>
+    <string name="label_panels">Panels</string>
+    <string name="label_dashboard">Dashboard</string>
+    <string name="label_inbounds">Inbounds</string>
+    <string name="label_clients">Clients</string>
+    <string name="label_share">Share</string>
+    <string name="label_stats">Stats</string>
+</resources>
