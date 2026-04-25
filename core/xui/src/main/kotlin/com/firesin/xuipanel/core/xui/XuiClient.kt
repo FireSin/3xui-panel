@@ -3,6 +3,7 @@ package com.firesin.xuipanel.core.xui
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
+import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
@@ -113,6 +114,88 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Fetches the list of inbounds, mapping exceptions to typed [DomainError].
+     */
+    suspend fun fetchInbounds(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        trustSelfSigned: Boolean,
+    ): Result<List<InboundDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            listInbounds(panelId, baseUrl, username, password, trustSelfSigned)
+        }.fold(
+            onSuccess = { response ->
+                val list = response.obj
+                if (response.success && list != null) {
+                    Result.Success(list)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError() },
+        )
+    }
+
+    /**
+     * Toggles an inbound's enabled state.
+     * Calls POST /panel/api/inbounds/onOff/{id} — the 3x-ui server flips the state server-side,
+     * so [enabled] is not sent in the request body; callers should refetch after success.
+     */
+    suspend fun setInboundEnabled(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        trustSelfSigned: Boolean,
+        @Suppress("UNUSED_PARAMETER") enabled: Boolean,
+        id: Int,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, trustSelfSigned) { api ->
+                api.onOffInbound(id)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError() },
+        )
+    }
+
+    /**
+     * Deletes an inbound by id.
+     */
+    suspend fun deleteInbound(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        trustSelfSigned: Boolean,
+        id: Int,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, trustSelfSigned) { api ->
+                api.deleteInbound(id)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError() },
+        )
+    }
+
+    /**
      * Fetches server status, mapping exceptions to typed [DomainError].
      */
     suspend fun fetchServerStatus(
@@ -133,14 +216,7 @@ class XuiClient @Inject constructor(
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
-            onFailure = { cause ->
-                when (cause) {
-                    is XuiAuthException -> Result.Failure(DomainError.InvalidCredentials)
-                    is SSLException -> Result.Failure(DomainError.Tls(cause.message ?: cause.javaClass.simpleName))
-                    is IOException -> Result.Failure(DomainError.Network(cause))
-                    else -> Result.Failure(DomainError.Unexpected(cause))
-                }
-            },
+            onFailure = { cause -> cause.toDomainError() },
         )
     }
 
@@ -191,3 +267,12 @@ class XuiClient @Inject constructor(
         const val HTTP_FORBIDDEN = 403
     }
 }
+
+private fun Throwable.toDomainError(): Result.Failure<DomainError> = Result.Failure(
+    when (this) {
+        is XuiAuthException -> DomainError.InvalidCredentials
+        is SSLException -> DomainError.Tls(message ?: javaClass.simpleName)
+        is IOException -> DomainError.Network(this)
+        else -> DomainError.Unexpected(this)
+    },
+)

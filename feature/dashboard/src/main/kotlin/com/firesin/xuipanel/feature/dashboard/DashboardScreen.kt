@@ -47,10 +47,10 @@ import com.firesin.xuipanel.core.xui.dto.NetTrafficDto
 import com.firesin.xuipanel.core.xui.dto.PublicIpDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.XrayStatusDto
+import com.firesin.xuipanel.core.designsystem.format.formatBytes
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardUiState
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardViewModel
 import java.time.Instant
-import java.util.Locale
 
 @Composable
 fun DashboardScreen(
@@ -434,18 +434,6 @@ private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.PanelUnreachable -> stringResource(R.string.dashboard_error_unreachable)
     is DomainError.PanelResponse -> stringResource(R.string.dashboard_error_response, body)
     is DomainError.Unexpected -> stringResource(R.string.dashboard_error_unexpected)
-}
-
-private fun formatBytes(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
-    val units = listOf("KB", "MB", "GB", "TB", "PB")
-    var value = bytes.toDouble() / 1024.0
-    var idx = 0
-    while (value >= 1024.0 && idx < units.lastIndex) {
-        value /= 1024.0
-        idx++
-    }
-    return String.format(Locale.US, "%.2f %s", value, units[idx])
 }
 
 private fun formatUptime(seconds: Long): String {

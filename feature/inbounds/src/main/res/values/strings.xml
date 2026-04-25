@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- InboundsListScreen -->
+    <string name="inbounds_title">Инбаунды</string>
+    <string name="inbounds_empty">Нет инбаундов</string>
+    <string name="inbounds_no_active_panel">Нет активной панели</string>
+    <string name="inbounds_add_panel">Добавить панель</string>
+    <string name="inbounds_retry">Повторить</string>
+    <string name="inbounds_traffic">%1$s ↑ / %2$s ↓</string>
+    <string name="inbounds_cd_toggle">Включить/выключить инбаунд</string>
+    <string name="inbounds_cd_menu">Меню инбаунда</string>
+    <string name="inbounds_menu_delete">Удалить</string>
+
+    <!-- InboundDeleteConfirmDialog -->
+    <string name="inbound_delete_title">Удалить инбаунд \"%s\"?</string>
+    <string name="inbound_delete_message">Инбаунд и все связанные клиенты будут удалены с панели 3x-ui. Это действие необратимо.</string>
+    <string name="inbound_delete_confirm">Удалить</string>
+    <string name="inbound_delete_cancel">Отмена</string>
+
+    <!-- Error messages -->
+    <string name="inbounds_error_invalid_credentials">Неверный логин или пароль</string>
+    <string name="inbounds_error_tls">Ошибка TLS: %s</string>
+    <string name="inbounds_error_network">Нет соединения с панелью</string>
+    <string name="inbounds_error_unreachable">Панель недоступна</string>
+    <string name="inbounds_error_response">Ответ панели: %s</string>
+    <string name="inbounds_error_unexpected">Неожиданная ошибка</string>
+</resources>

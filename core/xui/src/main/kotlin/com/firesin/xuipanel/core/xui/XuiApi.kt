@@ -31,6 +31,14 @@ interface XuiApi {
     @POST("/panel/api/inbounds/del/{id}")
     suspend fun deleteInbound(@Path("id") id: Int): Response<LoginResponseDto>
 
+    /**
+     * Toggles the inbound enable/disable state.
+     * 3x-ui v2 API: POST /panel/api/inbounds/onOff/{id}
+     * Response reuses the generic success/msg envelope (LoginResponseDto shape).
+     */
+    @POST("/panel/api/inbounds/onOff/{id}")
+    suspend fun onOffInbound(@Path("id") id: Int): Response<LoginResponseDto>
+
     @POST("/server/status")
     suspend fun serverStatus(): Response<ServerStatusResponseDto>
 
