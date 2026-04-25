@@ -5,10 +5,13 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.db.dao.PanelDao
 import com.firesin.xuipanel.core.data.db.entity.PanelEntity
 import com.firesin.xuipanel.core.data.model.PanelDraft
+import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.xui.XuiClient
+import com.firesin.xuipanel.core.xui.XuiSessionCache
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -21,6 +24,8 @@ class PanelRepositoryImplTest {
 
     private lateinit var dao: PanelDao
     private lateinit var xuiClient: XuiClient
+    private lateinit var clientFactory: OkHttpClientFactory
+    private lateinit var sessionCache: XuiSessionCache
     private lateinit var repository: PanelRepositoryImpl
 
     private val draft = PanelDraft(
@@ -35,7 +40,9 @@ class PanelRepositoryImplTest {
     fun setUp() {
         dao = mockk(relaxed = true)
         xuiClient = mockk()
-        repository = PanelRepositoryImpl(dao, xuiClient)
+        clientFactory = mockk(relaxed = true)
+        sessionCache = mockk(relaxed = true)
+        repository = PanelRepositoryImpl(dao, xuiClient, clientFactory, sessionCache)
     }
 
     @Test
@@ -126,6 +133,76 @@ class PanelRepositoryImplTest {
 
         assertInstanceOf(Result.Failure::class.java, result)
         assertInstanceOf(DomainError.Unexpected::class.java, (result as Result.Failure).error)
+    }
+
+    @Test
+    fun `delete invalidates client and session cache`() = runTest {
+        val entity = fakePanelEntity("panel-1", isActive = 0)
+        coEvery { dao.getById("panel-1") } returns entity
+        coEvery { dao.getAll() } returns emptyList()
+
+        repository.delete("panel-1")
+
+        verify(exactly = 1) { clientFactory.invalidate("panel-1") }
+        verify(exactly = 1) { sessionCache.invalidate("panel-1") }
+    }
+
+    @Test
+    fun `update with changed credentials invalidates client and session cache, no-op when only name changes`() = runTest {
+        val existing = fakePanelEntity("panel-2", isActive = 0)
+        coEvery { dao.getById("panel-2") } returns existing
+        coEvery { xuiClient.probeLogin(any()) } returns Result.Success(Unit)
+
+        // Changed credential (password differs)
+        val changedDraft = draft.copy(password = "new-secret")
+        repository.update("panel-2", changedDraft)
+
+        verify(exactly = 1) { clientFactory.invalidate("panel-2") }
+        verify(exactly = 1) { sessionCache.invalidate("panel-2") }
+
+        // Only name changed — baseUrl/login/password/trustSelfSigned match the stored entity exactly
+        val nameOnlyDraft = PanelDraft(
+            name = "Renamed Panel",
+            baseUrl = "https://example.com",
+            login = "admin",
+            password = "pass",
+            trustSelfSigned = false,
+        )
+        repository.update("panel-2", nameOnlyDraft)
+
+        // Still exactly 1 call each (no additional call for name-only change)
+        verify(exactly = 1) { clientFactory.invalidate("panel-2") }
+        verify(exactly = 1) { sessionCache.invalidate("panel-2") }
+    }
+
+    @Test
+    fun `update with trustSelfSigned flip invalidates client and session cache`() = runTest {
+        val existing = fakePanelEntity("panel-3", isActive = 0)
+        coEvery { dao.getById("panel-3") } returns existing
+        coEvery { xuiClient.probeLogin(any()) } returns Result.Success(Unit)
+
+        val flippedDraft = PanelDraft(
+            name = "Panel panel-3",
+            baseUrl = "https://example.com",
+            login = "admin",
+            password = "pass",
+            trustSelfSigned = true,
+        )
+        repository.update("panel-3", flippedDraft)
+
+        verify(exactly = 1) { clientFactory.invalidate("panel-3") }
+        verify(exactly = 1) { sessionCache.invalidate("panel-3") }
+    }
+
+    @Test
+    fun `delete of non-existent panel does not invalidate client or session cache`() = runTest {
+        coEvery { dao.getById("missing") } returns null
+
+        val result = repository.delete("missing")
+
+        assertInstanceOf(Result.Failure::class.java, result)
+        verify(exactly = 0) { clientFactory.invalidate(any()) }
+        verify(exactly = 0) { sessionCache.invalidate(any()) }
     }
 
     private fun fakePanelEntity(

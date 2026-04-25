@@ -7,8 +7,10 @@ import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.PanelDraft
 import com.firesin.xuipanel.core.data.model.toEntity
 import com.firesin.xuipanel.core.data.model.toPanel
+import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.xui.ProbeCredentials
 import com.firesin.xuipanel.core.xui.XuiClient
+import com.firesin.xuipanel.core.xui.XuiSessionCache
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -20,6 +22,8 @@ import javax.inject.Singleton
 class PanelRepositoryImpl @Inject constructor(
     private val dao: PanelDao,
     private val xuiClient: XuiClient,
+    private val clientFactory: OkHttpClientFactory,
+    private val sessionCache: XuiSessionCache,
 ) : PanelRepository {
 
     override fun observeAll(): Flow<List<Panel>> =
@@ -60,6 +64,15 @@ class PanelRepositoryImpl @Inject constructor(
         val probeResult = xuiClient.probeLogin(draft.toProbeCredentials())
         if (probeResult is Result.Failure) return probeResult
 
+        val credentialsChanged = existing.baseUrl != draft.baseUrl ||
+            existing.login != draft.login ||
+            existing.password != draft.password ||
+            (existing.trustSelfSigned != 0) != draft.trustSelfSigned
+        if (credentialsChanged) {
+            clientFactory.invalidate(id)
+            sessionCache.invalidate(id)
+        }
+
         val updated = Panel(
             id = id,
             name = draft.name,
@@ -80,6 +93,8 @@ class PanelRepositoryImpl @Inject constructor(
             ?: return Result.Failure(DomainError.Unexpected(NoSuchElementException("Panel $id not found")))
 
         dao.deleteById(id)
+        clientFactory.invalidate(id)
+        sessionCache.invalidate(id)
 
         if (target.isActive != 0) {
             val remaining = dao.getAll()

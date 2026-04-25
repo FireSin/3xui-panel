@@ -31,6 +31,7 @@ room {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:crypto"))
+    implementation(project(":core:network"))
     implementation(project(":core:xui"))
 
     implementation(libs.hilt.android)

@@ -21,5 +21,8 @@ object NetworkModule {
             } else {
                 HttpLoggingInterceptor.Level.NONE
             }
+            redactHeader("Cookie")
+            redactHeader("Set-Cookie")
+            redactHeader("Authorization")
         }
 }
