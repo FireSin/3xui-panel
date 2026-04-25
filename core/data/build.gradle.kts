@@ -18,6 +18,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
+
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
 }
 
 room {
@@ -27,6 +31,7 @@ room {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:crypto"))
+    implementation(project(":core:xui"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)

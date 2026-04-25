@@ -2,7 +2,6 @@ package com.firesin.xuipanel.core.network
 
 import com.firesin.xuipanel.core.network.cookiejar.PanelCookieJar
 import com.firesin.xuipanel.core.network.tls.NoOpTrustManager
-import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.ConcurrentHashMap
@@ -38,6 +37,12 @@ class OkHttpClientFactory @Inject constructor(
     fun invalidate(panelId: String) {
         cache.keys.filter { it.panelId == panelId }.forEach { cache.remove(it) }
     }
+
+    /**
+     * Builds a one-off client not attached to any panelId cache entry.
+     * Use for probe logins before a panel is persisted.
+     */
+    fun buildTransient(trustSelfSigned: Boolean): OkHttpClient = buildEntry(trustSelfSigned).first
 
     private fun buildEntry(trustSelfSigned: Boolean): Pair<OkHttpClient, PanelCookieJar> {
         val cookieJar = PanelCookieJar()

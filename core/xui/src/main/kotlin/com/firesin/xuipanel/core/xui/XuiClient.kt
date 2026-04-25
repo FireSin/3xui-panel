@@ -1,15 +1,21 @@
 package com.firesin.xuipanel.core.xui
 
+import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
 import retrofit2.Retrofit
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import javax.net.ssl.SSLException
 
 /**
  * High-level facade for talking to a single 3x-ui panel.
@@ -105,7 +111,50 @@ class XuiClient @Inject constructor(
         sessionCache.put(panelId)
     }
 
+    /**
+     * Attempts a one-off login against [credentials] without persisting the session.
+     * Returns [Result.Success] if login succeeds, or a typed [DomainError] otherwise.
+     */
+    suspend fun probeLogin(credentials: ProbeCredentials): Result<Unit, DomainError> =
+        withContext(Dispatchers.IO) {
+            val client = clientFactory.buildTransient(credentials.trustSelfSigned)
+            val api = Retrofit.Builder()
+                .baseUrl(credentials.baseUrl)
+                .client(client)
+                .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
+                .build()
+                .create(XuiApi::class.java)
+
+            runCatching {
+                api.login(credentials.login, credentials.password)
+            }.fold(
+                onSuccess = { response ->
+                    when {
+                        response.code() == HTTP_UNAUTHORIZED || response.code() == HTTP_FORBIDDEN ->
+                            Result.Failure(DomainError.InvalidCredentials)
+
+                        response.isSuccessful && response.body()?.success == true ->
+                            Result.Success(Unit)
+
+                        response.isSuccessful ->
+                            Result.Failure(DomainError.InvalidCredentials)
+
+                        else ->
+                            Result.Failure(DomainError.PanelUnreachable(response.code()))
+                    }
+                },
+                onFailure = { cause ->
+                    when (cause) {
+                        is SSLException -> Result.Failure(DomainError.Tls(cause.message ?: cause.javaClass.simpleName))
+                        is IOException -> Result.Failure(DomainError.Network(cause))
+                        else -> Result.Failure(DomainError.Unexpected(cause))
+                    }
+                },
+            )
+        }
+
     private companion object {
         const val HTTP_UNAUTHORIZED = 401
+        const val HTTP_FORBIDDEN = 403
     }
 }

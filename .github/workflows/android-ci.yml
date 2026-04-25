@@ -25,4 +25,4 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build debug, lint, unit tests
-        run: ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest
+        run: ./gradlew :app:assembleDebug :app:lintDebug testDebugUnitTest

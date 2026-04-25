@@ -14,11 +14,17 @@ interface PanelDao {
     @Query("SELECT * FROM panels ORDER BY created_at ASC")
     fun observeAll(): Flow<List<PanelEntity>>
 
+    @Query("SELECT * FROM panels ORDER BY created_at ASC")
+    suspend fun getAll(): List<PanelEntity>
+
     @Query("SELECT * FROM panels WHERE id = :id")
     suspend fun getById(id: String): PanelEntity?
 
     @Query("SELECT * FROM panels WHERE is_active = 1 LIMIT 1")
     suspend fun getActive(): PanelEntity?
+
+    @Query("SELECT * FROM panels WHERE is_active = 1 LIMIT 1")
+    fun observeActive(): Flow<PanelEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(panel: PanelEntity)
