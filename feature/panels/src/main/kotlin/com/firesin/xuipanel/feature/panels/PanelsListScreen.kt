@@ -67,9 +67,10 @@ fun PanelsListScreen(
 
     var pendingDeletePanel by remember { mutableStateOf<Panel?>(null) }
 
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let { error ->
-            snackbarHostState.showSnackbar(error.toUserMessage())
+    val resolvedError = errorMessage?.toUserMessage()
+    LaunchedEffect(resolvedError) {
+        resolvedError?.let { message ->
+            snackbarHostState.showSnackbar(message)
             viewModel.errorShown()
         }
     }
