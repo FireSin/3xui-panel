@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dashboard_title">Дашборд</string>
+    <string name="dashboard_xray">Xray</string>
+    <string name="dashboard_xray_version">Версия %1$s</string>
+    <string name="dashboard_cpu">CPU</string>
+    <string name="dashboard_load">Load avg: %1$.2f / %2$.2f / %3$.2f</string>
+    <string name="dashboard_memory">Память</string>
+    <string name="dashboard_memory_value">%1$s / %2$s</string>
+    <string name="dashboard_uptime">Аптайм</string>
+    <string name="dashboard_speed">Скорость сети</string>
+    <string name="dashboard_up">Отдача</string>
+    <string name="dashboard_down">Приём</string>
+    <string name="dashboard_total_traffic">Суммарный трафик</string>
+    <string name="dashboard_sent">Отправлено</string>
+    <string name="dashboard_received">Получено</string>
+    <string name="dashboard_public_ip">Публичный IP</string>
+    <string name="dashboard_no_active_panel">Нет активной панели</string>
+    <string name="dashboard_add_panel">Добавить панель</string>
+    <string name="dashboard_retry">Повторить</string>
+
+    <string name="dashboard_error_invalid_credentials">Неверный логин или пароль</string>
+    <string name="dashboard_error_tls">Ошибка TLS: %s</string>
+    <string name="dashboard_error_network">Нет соединения с панелью</string>
+    <string name="dashboard_error_unreachable">Панель недоступна</string>
+    <string name="dashboard_error_response">Ответ панели: %s</string>
+    <string name="dashboard_error_unexpected">Неожиданная ошибка</string>
+</resources>

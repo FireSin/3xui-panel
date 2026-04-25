@@ -5,8 +5,15 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.firesin.xuipanel.feature.dashboard.DashboardScreen
 
-fun NavGraphBuilder.dashboardGraph(navController: NavController) {
-    composable(route = "dashboard") {
-        DashboardScreen()
+const val DashboardRoute = "dashboard"
+
+fun NavGraphBuilder.dashboardGraph(
+    navController: NavController,
+    panelsAddRoute: String,
+) {
+    composable(route = DashboardRoute) {
+        DashboardScreen(
+            onAddPanel = { navController.navigate(panelsAddRoute) },
+        )
     }
 }

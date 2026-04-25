@@ -4,6 +4,7 @@ import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
+import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.coroutines.Dispatchers
@@ -109,6 +110,38 @@ class XuiClient @Inject constructor(
             throw XuiAuthException(panelId)
         }
         sessionCache.put(panelId)
+    }
+
+    /**
+     * Fetches server status, mapping exceptions to typed [DomainError].
+     */
+    suspend fun fetchServerStatus(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        trustSelfSigned: Boolean,
+    ): Result<ServerStatusDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            serverStatus(panelId, baseUrl, username, password, trustSelfSigned)
+        }.fold(
+            onSuccess = { response ->
+                val obj = response.obj
+                if (response.success && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                when (cause) {
+                    is XuiAuthException -> Result.Failure(DomainError.InvalidCredentials)
+                    is SSLException -> Result.Failure(DomainError.Tls(cause.message ?: cause.javaClass.simpleName))
+                    is IOException -> Result.Failure(DomainError.Network(cause))
+                    else -> Result.Failure(DomainError.Unexpected(cause))
+                }
+            },
+        )
     }
 
     /**
