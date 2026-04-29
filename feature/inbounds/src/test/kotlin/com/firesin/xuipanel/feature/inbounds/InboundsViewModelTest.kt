@@ -3,7 +3,9 @@ package com.firesin.xuipanel.feature.inbounds
 import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.InboundDto
@@ -79,7 +81,7 @@ class InboundsViewModelTest {
         }
 
         coVerify(exactly = 1) {
-            xuiClient.fetchInbounds(panel.id, panel.baseUrl, panel.login, panel.password, panel.trustSelfSigned)
+            xuiClient.fetchInbounds(panel.id, panel.baseUrl, panel.login, panel.password, panel.toPanelTls())
         }
     }
 
@@ -120,7 +122,7 @@ class InboundsViewModelTest {
                 baseUrl = panel.baseUrl,
                 username = panel.login,
                 password = panel.password,
-                trustSelfSigned = panel.trustSelfSigned,
+                tls = panel.toPanelTls(),
                 enabled = false,
                 id = 1,
             )
@@ -180,7 +182,7 @@ class InboundsViewModelTest {
                 baseUrl = panel.baseUrl,
                 username = panel.login,
                 password = panel.password,
-                trustSelfSigned = panel.trustSelfSigned,
+                tls = panel.toPanelTls(),
                 id = 1,
             )
         }
@@ -312,7 +314,7 @@ class InboundsViewModelTest {
 
         // Verify first panel was fetched
         coVerify(exactly = 1) {
-            xuiClient.fetchInbounds(panel1.id, panel1.baseUrl, panel1.login, panel1.password, panel1.trustSelfSigned)
+            xuiClient.fetchInbounds(panel1.id, panel1.baseUrl, panel1.login, panel1.password, panel1.toPanelTls())
         }
 
         // Switch to second panel
@@ -321,7 +323,7 @@ class InboundsViewModelTest {
 
         // Verify second panel was also fetched
         coVerify {
-            xuiClient.fetchInbounds(panel2.id, panel2.baseUrl, panel2.login, panel2.password, panel2.trustSelfSigned)
+            xuiClient.fetchInbounds(panel2.id, panel2.baseUrl, panel2.login, panel2.password, panel2.toPanelTls())
         }
     }
 
@@ -352,7 +354,9 @@ class InboundsViewModelTest {
         baseUrl = "https://example.com",
         login = "admin",
         password = "secret",
-        trustSelfSigned = false,
+        tlsMode = TlsMode.SYSTEM,
+        pinnedSpkiSha256 = null,
+        pinnedAt = null,
         isActive = true,
         createdAt = Instant.now(),
         lastLoginAt = null,

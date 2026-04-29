@@ -18,6 +18,13 @@ interface PanelRepository {
 
     suspend fun update(id: String, draft: PanelDraft): Result<Panel, DomainError>
 
+    /**
+     * Re-probes the panel with a null pin (ignoring any stored pin) and overwrites the stored
+     * SPKI with the newly observed one. Use when the user explicitly confirms a pin-mismatch
+     * dialog. Always invalidates the client and session caches for [id].
+     */
+    suspend fun rePin(id: String, draft: PanelDraft): Result<Panel, DomainError>
+
     suspend fun delete(id: String): Result<Unit, DomainError>
 
     suspend fun setActive(id: String): Result<Unit, DomainError>

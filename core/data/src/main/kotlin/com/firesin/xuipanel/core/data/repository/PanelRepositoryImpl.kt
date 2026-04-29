@@ -1,7 +1,9 @@
 package com.firesin.xuipanel.core.data.repository
 
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.db.dao.PanelDao
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.PanelDraft
@@ -39,16 +41,25 @@ class PanelRepositoryImpl @Inject constructor(
         val probeResult = xuiClient.probeLogin(draft.toProbeCredentials())
         if (probeResult is Result.Failure) return probeResult
 
+        val capturedSpki = (probeResult as Result.Success).data.capturedSpkiBase64
+        val now = Instant.now()
+
+        val (resolvedTlsMode, resolvedSpki, resolvedPinnedAt) = when (draft.tlsMode) {
+            TlsMode.PINNED -> Triple(TlsMode.PINNED, capturedSpki, if (capturedSpki != null) now else null)
+            TlsMode.SYSTEM -> Triple(TlsMode.SYSTEM, null, null)
+        }
+
         val existing = dao.getAll()
         val isFirst = existing.isEmpty()
-        val now = Instant.now()
         val panel = Panel(
             id = UUID.randomUUID().toString(),
             name = draft.name,
             baseUrl = draft.baseUrl,
             login = draft.login,
             password = draft.password,
-            trustSelfSigned = draft.trustSelfSigned,
+            tlsMode = resolvedTlsMode,
+            pinnedSpkiSha256 = resolvedSpki,
+            pinnedAt = resolvedPinnedAt,
             isActive = isFirst,
             createdAt = now,
             lastLoginAt = now,
@@ -61,14 +72,36 @@ class PanelRepositoryImpl @Inject constructor(
         val existing = dao.getById(id)
             ?: return Result.Failure(DomainError.Unexpected(NoSuchElementException("Panel $id not found")))
 
-        val probeResult = xuiClient.probeLogin(draft.toProbeCredentials())
+        val existingPanel = existing.toPanel()
+
+        val probeResult = xuiClient.probeLogin(draft.toProbeCredentials(existingPanel))
         if (probeResult is Result.Failure) return probeResult
+
+        val capturedSpki = (probeResult as Result.Success).data.capturedSpkiBase64
+        val now = Instant.now()
+
+        // Determine new pin state:
+        // - SYSTEM: clear any pin
+        // - PINNED: if probe captured a new SPKI (user switched to PINNED or re-pinning), use it;
+        //           otherwise preserve existing pin (no change to credentials).
+        val (resolvedSpki, resolvedPinnedAt) = when (draft.tlsMode) {
+            TlsMode.SYSTEM -> null to null
+            TlsMode.PINNED -> {
+                val newSpki = capturedSpki ?: existingPanel.pinnedSpkiSha256
+                val newPinnedAt = if (capturedSpki != null) now else existingPanel.pinnedAt
+                newSpki to newPinnedAt
+            }
+        }
 
         val credentialsChanged = existing.baseUrl != draft.baseUrl ||
             existing.login != draft.login ||
             existing.password != draft.password ||
-            (existing.trustSelfSigned != 0) != draft.trustSelfSigned
-        if (credentialsChanged) {
+            existingPanel.tlsMode != draft.tlsMode
+
+        // Also invalidate when pin itself changed so the old PanelCookieJar entry is evicted.
+        val pinChanged = resolvedSpki != existingPanel.pinnedSpkiSha256
+
+        if (credentialsChanged || pinChanged) {
             clientFactory.invalidate(id)
             sessionCache.invalidate(id)
         }
@@ -79,10 +112,53 @@ class PanelRepositoryImpl @Inject constructor(
             baseUrl = draft.baseUrl,
             login = draft.login,
             password = draft.password,
-            trustSelfSigned = draft.trustSelfSigned,
+            tlsMode = draft.tlsMode,
+            pinnedSpkiSha256 = resolvedSpki,
+            pinnedAt = resolvedPinnedAt,
             isActive = existing.isActive != 0,
             createdAt = Instant.ofEpochMilli(existing.createdAt),
-            lastLoginAt = Instant.now(),
+            lastLoginAt = now,
+        )
+        dao.insert(updated.toEntity())
+        return Result.Success(updated)
+    }
+
+    override suspend fun rePin(id: String, draft: PanelDraft): Result<Panel, DomainError> {
+        val existing = dao.getById(id)
+            ?: return Result.Failure(DomainError.Unexpected(NoSuchElementException("Panel $id not found")))
+
+        val existingPanel = existing.toPanel()
+
+        // Force a fresh TOFU probe by passing null pin — CapturingTrustManager accepts anything.
+        val probeCredentials = ProbeCredentials(
+            baseUrl = draft.baseUrl,
+            login = draft.login,
+            password = draft.password,
+            tlsMode = TlsMode.PINNED,
+            pinnedSpkiSha256 = null,
+        )
+        val probeResult = xuiClient.probeLogin(probeCredentials)
+        if (probeResult is Result.Failure) return probeResult
+
+        val capturedSpki = (probeResult as Result.Success).data.capturedSpkiBase64
+        val now = Instant.now()
+
+        // Always invalidate — pin has definitely changed (that's why we're re-pinning).
+        clientFactory.invalidate(id)
+        sessionCache.invalidate(id)
+
+        val updated = Panel(
+            id = id,
+            name = draft.name,
+            baseUrl = draft.baseUrl,
+            login = draft.login,
+            password = draft.password,
+            tlsMode = TlsMode.PINNED,
+            pinnedSpkiSha256 = capturedSpki,
+            pinnedAt = if (capturedSpki != null) now else existingPanel.pinnedAt,
+            isActive = existing.isActive != 0,
+            createdAt = Instant.ofEpochMilli(existing.createdAt),
+            lastLoginAt = now,
         )
         dao.insert(updated.toEntity())
         return Result.Success(updated)
@@ -113,10 +189,11 @@ class PanelRepositoryImpl @Inject constructor(
         return Result.Success(Unit)
     }
 
-    private fun PanelDraft.toProbeCredentials() = ProbeCredentials(
+    private fun PanelDraft.toProbeCredentials(existing: Panel? = null) = ProbeCredentials(
         baseUrl = baseUrl,
         login = login,
         password = password,
-        trustSelfSigned = trustSelfSigned,
+        tlsMode = tlsMode,
+        pinnedSpkiSha256 = if (tlsMode == TlsMode.PINNED) existing?.pinnedSpkiSha256 else null,
     )
 }

@@ -19,14 +19,31 @@
     <string name="panel_field_login">Логин</string>
     <string name="panel_field_password">Пароль</string>
     <string name="panel_action_save">Сохранить</string>
-    <string name="panel_switch_trust_self_signed">Доверять самоподписанному сертификату</string>
-    <string name="panel_warning_trust_self_signed">Проверка сертификата отключена. Используйте только если полностью доверяете владельцу панели.</string>
     <string name="panel_cd_show_password">Показать пароль</string>
     <string name="panel_cd_hide_password">Скрыть пароль</string>
     <string name="panel_error_name_empty">Введите название</string>
     <string name="panel_error_base_url_invalid">Введите корректный адрес (https://host:port)</string>
     <string name="panel_error_login_empty">Введите логин</string>
     <string name="panel_error_password_empty">Введите пароль</string>
+
+    <!-- TLS mode -->
+    <string name="panel_tls_mode_label">Режим TLS</string>
+    <string name="panel_tls_mode_system">Системный CA</string>
+    <string name="panel_tls_mode_pinned">Самоподписанный (с пинингом)</string>
+    <string name="panel_tls_pinned_warning">Первое подключение зафиксирует сертификат. Используйте только если доверяете владельцу панели.</string>
+    <string name="panel_tls_pinned_at">Запинено: %s</string>
+    <string name="panel_tls_repin">Перезапинить</string>
+
+    <!-- Pin mismatch dialog -->
+    <string name="panel_pin_mismatch_title">Сертификат изменился</string>
+    <string name="panel_pin_mismatch_message">Сертификат панели не совпадает с сохранённым. Это может быть плановое обновление или MITM-атака. Подтвердить смену пина?</string>
+    <string name="panel_pin_mismatch_panel_name">Панель: %s</string>
+    <string name="panel_pin_mismatch_pinned_at">Запинено: %s</string>
+    <string name="panel_pin_mismatch_existing_fp">Ожидаемый отпечаток: %s…</string>
+    <string name="panel_pin_mismatch_observed_fp">Наблюдаемый отпечаток: %s…</string>
+    <string name="panel_pin_mismatch_verified_checkbox">Я проверил новый отпечаток вне приложения</string>
+    <string name="panel_pin_mismatch_confirm">Перезапинить</string>
+    <string name="panel_pin_mismatch_cancel">Отмена</string>
 
     <!-- PanelDeleteConfirmDialog -->
     <string name="panel_delete_title">Удалить панель \"%s\"?</string>
@@ -40,4 +57,5 @@
     <string name="error_network">Нет соединения с панелью</string>
     <string name="error_panel_unreachable">Панель недоступна</string>
     <string name="error_unexpected">Неожиданная ошибка</string>
+    <string name="error_pin_mismatch">Сертификат панели изменился</string>
 </resources>

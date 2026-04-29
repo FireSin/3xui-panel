@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.panels.navigation
 
+import android.net.Uri
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -24,7 +25,7 @@ const val StatsRoute = "stats"
 // Kept for backward compat with XuiNavHost startDestination.
 const val PanelsRoute = PanelsListRoute
 
-fun panelEditRoute(panelId: String) = "panels_edit/$panelId"
+fun panelEditRoute(panelId: String) = "panels_edit/${Uri.encode(panelId)}"
 
 fun NavGraphBuilder.panelsGraph(navController: NavController) {
     composable(route = PanelsListRoute) {

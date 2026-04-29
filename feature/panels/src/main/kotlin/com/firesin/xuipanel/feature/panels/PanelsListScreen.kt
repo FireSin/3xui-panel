@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.feature.panels.ui.PanelsListUiState
@@ -229,7 +230,7 @@ private fun PanelCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (panel.trustSelfSigned) {
+                    if (panel.tlsMode == TlsMode.PINNED) {
                         Icon(
                             imageVector = Icons.Default.ShieldMoon,
                             contentDescription = stringResource(R.string.panels_cd_trust_self_signed),
@@ -295,6 +296,7 @@ private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.PanelUnreachable -> stringResource(R.string.error_panel_unreachable)
     is DomainError.PanelResponse -> stringResource(R.string.error_unexpected)
     is DomainError.Unexpected -> stringResource(R.string.error_unexpected)
+    is DomainError.PinMismatch -> stringResource(R.string.error_pin_mismatch)
 }
 
 @Preview(showBackground = true)
@@ -308,7 +310,9 @@ private fun PanelsListContentPreview() {
                 baseUrl = "https://panel.example.com:2053",
                 login = "admin",
                 password = "pass",
-                trustSelfSigned = false,
+                tlsMode = TlsMode.SYSTEM,
+                pinnedSpkiSha256 = null,
+                pinnedAt = null,
                 isActive = true,
                 createdAt = Instant.now(),
                 lastLoginAt = null,
@@ -319,7 +323,9 @@ private fun PanelsListContentPreview() {
                 baseUrl = "https://backup.example.com:2053",
                 login = "admin",
                 password = "pass",
-                trustSelfSigned = true,
+                tlsMode = TlsMode.PINNED,
+                pinnedSpkiSha256 = "abc123",
+                pinnedAt = Instant.now(),
                 isActive = false,
                 createdAt = Instant.now(),
                 lastLoginAt = null,

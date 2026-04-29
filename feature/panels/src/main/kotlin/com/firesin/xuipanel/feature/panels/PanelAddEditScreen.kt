@@ -15,18 +15,24 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,11 +52,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.feature.panels.ui.PanelAddEditUiState
+import com.firesin.xuipanel.feature.panels.ui.PanelAddEditViewModel
 import com.firesin.xuipanel.feature.panels.ui.PanelFormErrors
 import com.firesin.xuipanel.feature.panels.ui.PanelFormState
-import com.firesin.xuipanel.feature.panels.ui.PanelAddEditViewModel
+import com.firesin.xuipanel.feature.panels.ui.PinMismatchDialogState
 
 @Composable
 fun PanelAddEditScreen(
@@ -71,8 +79,11 @@ fun PanelAddEditScreen(
         onBaseUrlChange = viewModel::updateBaseUrl,
         onLoginChange = viewModel::updateLogin,
         onPasswordChange = viewModel::updatePassword,
-        onTrustSelfSignedChange = viewModel::updateTrustSelfSigned,
+        onTlsModeChange = viewModel::updateTlsMode,
         onSubmit = viewModel::submit,
+        onConfirmRePin = viewModel::confirmRePin,
+        onDismissPinMismatch = viewModel::dismissPinMismatchDialog,
+        onRePinVerifiedChange = viewModel::updateRePinVerifiedCheckbox,
     )
 }
 
@@ -85,8 +96,11 @@ private fun PanelAddEditContent(
     onBaseUrlChange: (String) -> Unit,
     onLoginChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onTrustSelfSignedChange: (Boolean) -> Unit,
+    onTlsModeChange: (TlsMode) -> Unit,
     onSubmit: () -> Unit,
+    onConfirmRePin: () -> Unit,
+    onDismissPinMismatch: () -> Unit,
+    onRePinVerifiedChange: (Boolean) -> Unit,
 ) {
     val isSaving = uiState is PanelAddEditUiState.Saving
     val form = when (uiState) {
@@ -97,6 +111,7 @@ private fun PanelAddEditContent(
     val errors = (uiState as? PanelAddEditUiState.Editing)?.errors
     val submitError = (uiState as? PanelAddEditUiState.Editing)?.submitError
     val isEditMode = (uiState as? PanelAddEditUiState.Editing)?.isEditMode ?: false
+    val pinMismatchDialog = (uiState as? PanelAddEditUiState.Editing)?.pinMismatchDialog
 
     val title = if (isEditMode) {
         stringResource(R.string.panel_edit_title)
@@ -110,6 +125,15 @@ private fun PanelAddEditContent(
             form.login.isNotBlank() && form.password.isNotBlank()
     } ?: (form.name.isNotBlank() && form.baseUrl.isNotBlank() &&
         form.login.isNotBlank() && form.password.isNotBlank())
+
+    if (pinMismatchDialog != null) {
+        PinMismatchDialog(
+            state = pinMismatchDialog,
+            onConfirm = onConfirmRePin,
+            onDismiss = onDismissPinMismatch,
+            onVerifiedChange = onRePinVerifiedChange,
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -193,15 +217,15 @@ private fun PanelAddEditContent(
 
             Spacer(Modifier.height(16.dp))
 
-            TrustSelfSignedRow(
-                checked = form.trustSelfSigned,
-                onCheckedChange = onTrustSelfSignedChange,
+            TlsModeDropdown(
+                selected = form.tlsMode,
+                onSelected = onTlsModeChange,
                 enabled = !isSaving,
             )
 
-            if (form.trustSelfSigned) {
+            if (form.tlsMode == TlsMode.PINNED) {
                 Spacer(Modifier.height(8.dp))
-                TrustSelfSignedWarning()
+                TlsPinnedWarning()
             }
 
             submitError?.let { error ->
@@ -274,32 +298,57 @@ private fun PasswordField(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TrustSelfSignedRow(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+private fun TlsModeDropdown(
+    selected: TlsMode,
+    onSelected: (TlsMode) -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = stringResource(R.string.panel_switch_trust_self_signed),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
+        OutlinedTextField(
+            value = selected.toLabel(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.panel_tls_mode_label)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             enabled = enabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
         )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            TlsMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(mode.toLabel()) },
+                    onClick = {
+                        onSelected(mode)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun TrustSelfSignedWarning(modifier: Modifier = Modifier) {
+private fun TlsMode.toLabel(): String = when (this) {
+    TlsMode.SYSTEM -> stringResource(R.string.panel_tls_mode_system)
+    TlsMode.PINNED -> stringResource(R.string.panel_tls_mode_pinned)
+}
+
+@Composable
+private fun TlsPinnedWarning(modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
@@ -315,12 +364,67 @@ private fun TrustSelfSignedWarning(modifier: Modifier = Modifier) {
                 modifier = Modifier.padding(end = 8.dp, top = 2.dp),
             )
             Text(
-                text = stringResource(R.string.panel_warning_trust_self_signed),
+                text = stringResource(R.string.panel_tls_pinned_warning),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
         }
     }
+}
+
+@Composable
+private fun PinMismatchDialog(
+    state: PinMismatchDialogState,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    onVerifiedChange: (Boolean) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.panel_pin_mismatch_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.panel_pin_mismatch_panel_name, state.panelName))
+                Text(state.baseUrl, style = MaterialTheme.typography.bodySmall)
+                if (state.pinnedAtFormatted.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.panel_pin_mismatch_pinned_at, state.pinnedAtFormatted))
+                }
+                if (state.existingSpkiFingerprint.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.panel_pin_mismatch_existing_fp, state.existingSpkiFingerprint))
+                }
+                if (state.observedSpkiFingerprint.isNotEmpty()) {
+                    Text(stringResource(R.string.panel_pin_mismatch_observed_fp, state.observedSpkiFingerprint))
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = state.verifiedByUser,
+                        onCheckedChange = onVerifiedChange,
+                    )
+                    Text(
+                        text = stringResource(R.string.panel_pin_mismatch_verified_checkbox),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = state.verifiedByUser,
+            ) {
+                Text(stringResource(R.string.panel_pin_mismatch_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.panel_pin_mismatch_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -331,6 +435,7 @@ private fun DomainError.toSubmitErrorMessage(): String = when (this) {
     is DomainError.PanelUnreachable -> stringResource(R.string.error_panel_unreachable)
     is DomainError.PanelResponse -> stringResource(R.string.error_unexpected)
     is DomainError.Unexpected -> stringResource(R.string.error_unexpected)
+    is DomainError.PinMismatch -> stringResource(R.string.error_pin_mismatch)
 }
 
 @Preview(showBackground = true)
@@ -344,7 +449,7 @@ private fun PanelAddEditContentPreview() {
                     baseUrl = "https://panel.example.com:2053",
                     login = "admin",
                     password = "",
-                    trustSelfSigned = true,
+                    tlsMode = TlsMode.PINNED,
                 ),
                 errors = PanelFormErrors(password = ""),
             ),
@@ -353,8 +458,11 @@ private fun PanelAddEditContentPreview() {
             onBaseUrlChange = {},
             onLoginChange = {},
             onPasswordChange = {},
-            onTrustSelfSignedChange = {},
+            onTlsModeChange = {},
             onSubmit = {},
+            onConfirmRePin = {},
+            onDismissPinMismatch = {},
+            onRePinVerifiedChange = {},
         )
     }
 }

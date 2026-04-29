@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.designsystem.format.formatBytes
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
@@ -325,6 +326,7 @@ private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.PanelUnreachable -> stringResource(R.string.inbounds_error_unreachable)
     is DomainError.PanelResponse -> stringResource(R.string.inbounds_error_response, body)
     is DomainError.Unexpected -> stringResource(R.string.inbounds_error_unexpected)
+    is DomainError.PinMismatch -> stringResource(R.string.inbounds_error_pin_mismatch)
 }
 
 @Preview(showBackground = true)
@@ -337,7 +339,9 @@ private fun InboundsContentPreview() {
             baseUrl = "https://panel.example.com:2053",
             login = "admin",
             password = "pass",
-            trustSelfSigned = false,
+            tlsMode = TlsMode.SYSTEM,
+            pinnedSpkiSha256 = null,
+            pinnedAt = null,
             isActive = true,
             createdAt = Instant.now(),
             lastLoginAt = null,

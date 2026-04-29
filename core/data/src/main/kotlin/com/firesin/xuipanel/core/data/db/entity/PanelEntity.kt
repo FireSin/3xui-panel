@@ -22,7 +22,7 @@ data class PanelEntity(
     @ColumnInfo(name = "password")
     val password: String,
 
-    /** 0 = strict TLS, 1 = accept self-signed. */
+    /** Kept for migration compatibility — no longer read after schema v2. */
     @ColumnInfo(name = "trust_self_signed")
     val trustSelfSigned: Int,
 
@@ -35,4 +35,16 @@ data class PanelEntity(
 
     @ColumnInfo(name = "last_login_at")
     val lastLoginAt: Long?,
+
+    /** "SYSTEM" or "PINNED". Defaults to "SYSTEM" for new rows. */
+    @ColumnInfo(name = "tls_mode", defaultValue = "SYSTEM")
+    val tlsMode: String,
+
+    /** Base64 SHA-256 of the leaf certificate SPKI. Null when tlsMode = SYSTEM or pin not yet captured. */
+    @ColumnInfo(name = "pinned_spki_sha256")
+    val pinnedSpkiSha256: String?,
+
+    /** Epoch millis when the pin was last set. */
+    @ColumnInfo(name = "pinned_at")
+    val pinnedAt: Long?,
 )

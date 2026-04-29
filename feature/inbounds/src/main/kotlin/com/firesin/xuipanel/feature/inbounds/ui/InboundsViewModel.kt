@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.InboundDto
@@ -70,7 +71,7 @@ class InboundsViewModel @Inject constructor(
                 baseUrl = panel.baseUrl,
                 username = panel.login,
                 password = panel.password,
-                trustSelfSigned = panel.trustSelfSigned,
+                tls = panel.toPanelTls(),
                 enabled = enable,
                 id = id,
             )
@@ -89,7 +90,7 @@ class InboundsViewModel @Inject constructor(
                 baseUrl = panel.baseUrl,
                 username = panel.login,
                 password = panel.password,
-                trustSelfSigned = panel.trustSelfSigned,
+                tls = panel.toPanelTls(),
                 id = id,
             )
             when (result) {
@@ -116,7 +117,7 @@ class InboundsViewModel @Inject constructor(
             baseUrl = panel.baseUrl,
             username = panel.login,
             password = panel.password,
-            trustSelfSigned = panel.trustSelfSigned,
+            tls = panel.toPanelTls(),
         )
         _uiState.value = when (result) {
             is Result.Success -> InboundsUiState.Content(panel, result.data)

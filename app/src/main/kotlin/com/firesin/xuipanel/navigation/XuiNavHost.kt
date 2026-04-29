@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.firesin.xuipanel.feature.clients.navigation.clientsGraph
@@ -13,8 +14,9 @@ import com.firesin.xuipanel.feature.share.navigation.shareGraph
 import com.firesin.xuipanel.feature.stats.navigation.statsGraph
 
 @Composable
-fun XuiNavHost() {
-    val navController = rememberNavController()
+fun XuiNavHost(
+    navController: NavHostController = rememberNavController(),
+) {
     NavHost(
         navController = navController,
         startDestination = PanelsRoute,

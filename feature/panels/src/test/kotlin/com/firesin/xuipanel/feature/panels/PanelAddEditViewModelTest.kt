@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.PanelDraft
 import com.firesin.xuipanel.core.data.repository.PanelRepository
@@ -169,13 +170,43 @@ class PanelAddEditViewModelTest {
         coVerify { repository.update("edit-id", any()) }
     }
 
+    @Test
+    fun `PinMismatch error shows dialog instead of submitError`() = runTest {
+        coEvery { repository.add(any()) } returns Result.Failure(
+            DomainError.PinMismatch(panelId = "", observedSpki = "newSpki==")
+        )
+
+        val vm = createViewModel()
+        vm.updateName("My Panel")
+        vm.updateBaseUrl("https://panel.example.com:2053")
+        vm.updateLogin("admin")
+        vm.updatePassword("secret")
+
+        vm.uiState.test {
+            skipItems(1)
+
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            skipItems(1) // Saving
+
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assertNull(editing.submitError)
+            assertNotNull(editing.pinMismatchDialog)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun fakePanel(id: String) = Panel(
         id = id,
         name = "Panel $id",
         baseUrl = "https://panel.example.com:2053",
         login = "admin",
         password = "pass",
-        trustSelfSigned = false,
+        tlsMode = TlsMode.SYSTEM,
+        pinnedSpkiSha256 = null,
+        pinnedAt = null,
         isActive = false,
         createdAt = Instant.now(),
         lastLoginAt = null,

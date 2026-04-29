@@ -3,7 +3,9 @@ package com.firesin.xuipanel.feature.dashboard
 import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.MemDto
@@ -82,7 +84,7 @@ class DashboardViewModelTest {
         }
 
         coVerify(exactly = 1) {
-            xuiClient.fetchServerStatus(panel.id, panel.baseUrl, panel.login, panel.password, panel.trustSelfSigned)
+            xuiClient.fetchServerStatus(panel.id, panel.baseUrl, panel.login, panel.password, panel.toPanelTls())
         }
     }
 
@@ -125,7 +127,9 @@ class DashboardViewModelTest {
         baseUrl = "https://example.com",
         login = "admin",
         password = "secret",
-        trustSelfSigned = false,
+        tlsMode = TlsMode.SYSTEM,
+        pinnedSpkiSha256 = null,
+        pinnedAt = null,
         isActive = true,
         createdAt = Instant.now(),
         lastLoginAt = null,

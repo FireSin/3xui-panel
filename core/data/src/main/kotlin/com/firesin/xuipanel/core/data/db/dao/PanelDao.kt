@@ -38,6 +38,9 @@ interface PanelDao {
     @Query("UPDATE panels SET is_active = 1 WHERE id = :id")
     suspend fun setActive(id: String)
 
+    @Query("UPDATE panels SET pinned_spki_sha256 = :spkiBase64, pinned_at = :pinnedAt, tls_mode = 'PINNED' WHERE id = :id")
+    suspend fun updatePin(id: String, spkiBase64: String, pinnedAt: Long)
+
     /**
      * Atomically clears the active flag from all panels, then sets it on [id].
      * Ensures at most one active panel at all times.

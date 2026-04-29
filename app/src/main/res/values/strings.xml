@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">3xui Panel</string>
+    <!-- Global pin-mismatch dialog (shown by MainActivity) -->
+    <string name="global_pin_mismatch_title">Сессия прервана: сертификат изменился</string>
+    <string name="global_pin_mismatch_message">Сессия панели «%s» прервана. Сертификат изменился — это может быть атакой. Откройте настройки панели, чтобы перепроверить и перезапинить сертификат.</string>
+    <string name="global_pin_mismatch_go_to_settings">Перейти к настройкам пина</string>
+    <string name="global_pin_mismatch_cancel">Отмена</string>
     <string name="label_mvp_placeholder">MVP in development</string>
     <string name="label_panels">Panels</string>
     <string name="label_dashboard">Dashboard</string>

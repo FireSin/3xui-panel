@@ -1,14 +1,20 @@
 package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.PanelTls
+import com.firesin.xuipanel.core.common.PinMismatchEvent
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
+import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
+import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -29,15 +35,18 @@ import javax.net.ssl.SSLException
 class XuiClient @Inject constructor(
     private val clientFactory: OkHttpClientFactory,
     private val sessionCache: XuiSessionCache,
+    private val pinMismatchEvents: PinMismatchEventDispatcher,
 ) {
+
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
 
-    private fun apiFor(baseUrl: String, panelId: String, trustSelfSigned: Boolean): XuiApi {
-        val client = clientFactory.getClient(panelId, trustSelfSigned)
+    private fun apiFor(baseUrl: String, panelId: String, tls: PanelTls): XuiApi {
+        val client = clientFactory.getClient(panelId, tls)
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
@@ -51,9 +60,9 @@ class XuiClient @Inject constructor(
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
     ): InboundListResponseDto {
-        return withSession(panelId, baseUrl, username, password, trustSelfSigned) { api ->
+        return withSession(panelId, baseUrl, username, password, tls) { api ->
             api.listInbounds()
         }
     }
@@ -63,9 +72,9 @@ class XuiClient @Inject constructor(
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
     ): ServerStatusResponseDto {
-        return withSession(panelId, baseUrl, username, password, trustSelfSigned) { api ->
+        return withSession(panelId, baseUrl, username, password, tls) { api ->
             api.serverStatus()
         }
     }
@@ -79,10 +88,10 @@ class XuiClient @Inject constructor(
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
         call: suspend (XuiApi) -> Response<T>,
     ): T {
-        val api = apiFor(baseUrl, panelId, trustSelfSigned)
+        val api = apiFor(baseUrl, panelId, tls)
 
         if (sessionCache.get(panelId) == null) {
             login(api, panelId, username, password)
@@ -92,7 +101,7 @@ class XuiClient @Inject constructor(
 
         if (response.code() == HTTP_UNAUTHORIZED) {
             sessionCache.invalidate(panelId)
-            clientFactory.getCookieJar(panelId, trustSelfSigned).clear()
+            clientFactory.getCookieJar(panelId, tls).clear()
             login(api, panelId, username, password)
 
             val retryResponse = call(api)
@@ -121,10 +130,10 @@ class XuiClient @Inject constructor(
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
     ): Result<List<InboundDto>, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            listInbounds(panelId, baseUrl, username, password, trustSelfSigned)
+            listInbounds(panelId, baseUrl, username, password, tls)
         }.fold(
             onSuccess = { response ->
                 val list = response.obj
@@ -134,26 +143,24 @@ class XuiClient @Inject constructor(
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
-            onFailure = { cause -> cause.toDomainError() },
+            onFailure = { cause -> cause.toDomainError(panelId) },
         )
     }
 
     /**
      * Toggles an inbound's enabled state.
-     * Calls POST /panel/api/inbounds/onOff/{id} — the 3x-ui server flips the state server-side,
-     * so [enabled] is not sent in the request body; callers should refetch after success.
      */
     suspend fun setInboundEnabled(
         panelId: String,
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
         @Suppress("UNUSED_PARAMETER") enabled: Boolean,
         id: Int,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, trustSelfSigned) { api ->
+            withSession(panelId, baseUrl, username, password, tls) { api ->
                 api.onOffInbound(id)
             }
         }.fold(
@@ -164,7 +171,7 @@ class XuiClient @Inject constructor(
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
-            onFailure = { cause -> cause.toDomainError() },
+            onFailure = { cause -> cause.toDomainError(panelId) },
         )
     }
 
@@ -176,11 +183,11 @@ class XuiClient @Inject constructor(
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
         id: Int,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, trustSelfSigned) { api ->
+            withSession(panelId, baseUrl, username, password, tls) { api ->
                 api.deleteInbound(id)
             }
         }.fold(
@@ -191,7 +198,7 @@ class XuiClient @Inject constructor(
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
-            onFailure = { cause -> cause.toDomainError() },
+            onFailure = { cause -> cause.toDomainError(panelId) },
         )
     }
 
@@ -203,10 +210,10 @@ class XuiClient @Inject constructor(
         baseUrl: String,
         username: String,
         password: String,
-        trustSelfSigned: Boolean,
+        tls: PanelTls,
     ): Result<ServerStatusDto, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            serverStatus(panelId, baseUrl, username, password, trustSelfSigned)
+            serverStatus(panelId, baseUrl, username, password, tls)
         }.fold(
             onSuccess = { response ->
                 val obj = response.obj
@@ -216,17 +223,22 @@ class XuiClient @Inject constructor(
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
-            onFailure = { cause -> cause.toDomainError() },
+            onFailure = { cause -> cause.toDomainError(panelId) },
         )
     }
 
     /**
      * Attempts a one-off login against [credentials] without persisting the session.
-     * Returns [Result.Success] if login succeeds, or a typed [DomainError] otherwise.
+     * Returns [Result.Success] with [ProbeOutcome] (containing captured SPKI) if login succeeds,
+     * or a typed [DomainError] otherwise.
      */
-    suspend fun probeLogin(credentials: ProbeCredentials): Result<Unit, DomainError> =
+    suspend fun probeLogin(credentials: ProbeCredentials): Result<ProbeOutcome, DomainError> =
         withContext(Dispatchers.IO) {
-            val client = clientFactory.buildTransient(credentials.trustSelfSigned)
+            val tls = PanelTls(
+                mode = credentials.tlsMode,
+                pinnedSpkiSha256 = credentials.pinnedSpkiSha256,
+            )
+            val (client, probeCaptureListener) = clientFactory.buildTransient(tls)
             val api = Retrofit.Builder()
                 .baseUrl(credentials.baseUrl)
                 .client(client)
@@ -243,7 +255,7 @@ class XuiClient @Inject constructor(
                             Result.Failure(DomainError.InvalidCredentials)
 
                         response.isSuccessful && response.body()?.success == true ->
-                            Result.Success(Unit)
+                            Result.Success(ProbeOutcome(capturedSpkiBase64 = probeCaptureListener?.getOrNull()))
 
                         response.isSuccessful ->
                             Result.Failure(DomainError.InvalidCredentials)
@@ -252,15 +264,33 @@ class XuiClient @Inject constructor(
                             Result.Failure(DomainError.PanelUnreachable(response.code()))
                     }
                 },
-                onFailure = { cause ->
-                    when (cause) {
-                        is SSLException -> Result.Failure(DomainError.Tls(cause.message ?: cause.javaClass.simpleName))
-                        is IOException -> Result.Failure(DomainError.Network(cause))
-                        else -> Result.Failure(DomainError.Unexpected(cause))
-                    }
-                },
+                onFailure = { cause -> cause.toProbeDomainError() },
             )
         }
+
+    /**
+     * Maps a mid-session throwable to a [Result.Failure]. On [DomainError.PinMismatch], also
+     * fire-and-forgets a global [PinMismatchEvent] so [MainActivity] can show a kill-switch dialog.
+     */
+    private fun Throwable.toDomainError(panelId: String): Result.Failure<DomainError> {
+        val pinEx = generateSequence<Throwable?>(this) { it.cause }
+            .filterIsInstance<SpkiPinMismatchException>()
+            .firstOrNull()
+        if (pinEx != null) {
+            val error = DomainError.PinMismatch(panelId, pinEx.observedSpki)
+            scope.launch {
+                pinMismatchEvents.emit(PinMismatchEvent(panelId = error.panelId, observedSpki = error.observedSpki))
+            }
+            return Result.Failure(error)
+        }
+        val error = when {
+            this is XuiAuthException -> DomainError.InvalidCredentials
+            this is SSLException -> DomainError.Tls(message ?: javaClass.simpleName)
+            this is IOException -> DomainError.Network(this)
+            else -> DomainError.Unexpected(this)
+        }
+        return Result.Failure(error)
+    }
 
     private companion object {
         const val HTTP_UNAUTHORIZED = 401
@@ -268,11 +298,17 @@ class XuiClient @Inject constructor(
     }
 }
 
-private fun Throwable.toDomainError(): Result.Failure<DomainError> = Result.Failure(
-    when (this) {
-        is XuiAuthException -> DomainError.InvalidCredentials
-        is SSLException -> DomainError.Tls(message ?: javaClass.simpleName)
-        is IOException -> DomainError.Network(this)
-        else -> DomainError.Unexpected(this)
-    },
-)
+/** Probe path: no panelId yet; [SpkiPinMismatchException] from redirect-conflict is still typed. */
+private fun Throwable.toProbeDomainError(): Result.Failure<DomainError> {
+    val pinEx = generateSequence<Throwable?>(this) { it.cause }
+        .filterIsInstance<SpkiPinMismatchException>()
+        .firstOrNull()
+    if (pinEx != null) return Result.Failure(DomainError.PinMismatch(panelId = "", observedSpki = pinEx.observedSpki))
+    return Result.Failure(
+        when {
+            this is SSLException -> DomainError.Tls(message ?: javaClass.simpleName)
+            this is IOException -> DomainError.Network(this)
+            else -> DomainError.Unexpected(this)
+        },
+    )
+}

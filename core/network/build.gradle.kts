@@ -25,12 +25,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
+
     buildFeatures {
         buildConfig = true
     }
 }
 
 dependencies {
+    implementation(project(":core:common"))
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 

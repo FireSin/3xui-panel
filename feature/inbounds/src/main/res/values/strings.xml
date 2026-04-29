@@ -24,4 +24,5 @@
     <string name="inbounds_error_unreachable">Панель недоступна</string>
     <string name="inbounds_error_response">Ответ панели: %s</string>
     <string name="inbounds_error_unexpected">Неожиданная ошибка</string>
+    <string name="inbounds_error_pin_mismatch">Сертификат панели изменился</string>
 </resources>
