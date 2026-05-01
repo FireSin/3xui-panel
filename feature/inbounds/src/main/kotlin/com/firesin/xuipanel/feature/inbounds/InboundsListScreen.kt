@@ -57,6 +57,7 @@ import java.time.Instant
 @Composable
 fun InboundsListScreen(
     onAddPanel: () -> Unit = {},
+    onManageClients: (inboundId: Int) -> Unit = {},
     viewModel: InboundsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -86,6 +87,7 @@ fun InboundsListScreen(
             pendingDeleteId = id
             pendingDeleteName = name
         },
+        onManageClients = onManageClients,
     )
 
     pendingDeleteId?.let { id ->
@@ -110,6 +112,7 @@ private fun InboundsContent(
     onAddPanel: () -> Unit,
     onToggle: (id: Int, enable: Boolean) -> Unit,
     onDeleteRequest: (id: Int, name: String) -> Unit,
+    onManageClients: (inboundId: Int) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -191,6 +194,7 @@ private fun InboundsContent(
                                 inbound = inbound,
                                 onToggle = { enable -> onToggle(inbound.id, enable) },
                                 onDelete = { onDeleteRequest(inbound.id, inbound.displayName()) },
+                                onManageClients = { onManageClients(inbound.id) },
                             )
                         }
                     }
@@ -205,6 +209,7 @@ private fun InboundCard(
     inbound: InboundDto,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onManageClients: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -258,6 +263,13 @@ private fun InboundCard(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.inbounds_menu_manage_clients)) },
+                        onClick = {
+                            menuExpanded = false
+                            onManageClients()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.inbounds_menu_delete)) },
                         onClick = {
@@ -390,6 +402,7 @@ private fun InboundsContentPreview() {
             onAddPanel = {},
             onToggle = { _, _ -> },
             onDeleteRequest = { _, _ -> },
+            onManageClients = {},
         )
     }
 }
@@ -406,6 +419,7 @@ private fun InboundsLoadingPreview() {
             onAddPanel = {},
             onToggle = { _, _ -> },
             onDeleteRequest = { _, _ -> },
+            onManageClients = {},
         )
     }
 }

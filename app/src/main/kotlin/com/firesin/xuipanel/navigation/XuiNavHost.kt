@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.firesin.xuipanel.feature.clients.navigation.clientsGraph
 import com.firesin.xuipanel.feature.dashboard.navigation.dashboardGraph
 import com.firesin.xuipanel.feature.inbounds.navigation.inboundsGraph
+import com.firesin.xuipanel.feature.inbounds.navigation.navigateToManageClients
 import com.firesin.xuipanel.feature.panels.navigation.PanelAddRoute
 import com.firesin.xuipanel.feature.panels.navigation.PanelsRoute
 import com.firesin.xuipanel.feature.panels.navigation.panelsGraph
@@ -23,8 +24,11 @@ fun XuiNavHost(
     ) {
         panelsGraph(navController)
         dashboardGraph(navController, panelsAddRoute = PanelAddRoute)
-        inboundsGraph(navController)
-        clientsGraph(navController)
+        inboundsGraph(
+            navController = navController,
+            onManageClients = { inboundId -> navController.navigateToManageClients(inboundId) },
+        )
+        clientsGraph(navController, panelsAddRoute = PanelAddRoute)
         shareGraph(navController)
         statsGraph(navController)
     }

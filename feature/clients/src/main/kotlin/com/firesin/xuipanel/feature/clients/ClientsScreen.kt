@@ -1,25 +1,22 @@
 package com.firesin.xuipanel.feature.clients
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 
+/**
+ * Entry-point composable kept for backward compat with nav graph.
+ * All logic lives in [ClientsListScreen].
+ */
 @Composable
-fun ClientsScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "Clients — coming soon")
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ClientsScreenPreview() {
-    XuiPanelTheme {
-        ClientsScreen()
-    }
+fun ClientsScreen(
+    initialInboundId: Int? = null,
+    onAddPanel: () -> Unit = {},
+    onNavigateAdd: (inboundId: Int) -> Unit = {},
+    onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
+) {
+    ClientsListScreen(
+        initialInboundId = initialInboundId,
+        onAddPanel = onAddPanel,
+        onNavigateAdd = onNavigateAdd,
+        onNavigateEdit = onNavigateEdit,
+    )
 }

@@ -7,6 +7,12 @@ import androidx.compose.runtime.Composable
  * All logic lives in [InboundsListScreen].
  */
 @Composable
-fun InboundsScreen(onAddPanel: () -> Unit = {}) {
-    InboundsListScreen(onAddPanel = onAddPanel)
+fun InboundsScreen(
+    onAddPanel: () -> Unit = {},
+    onManageClients: (inboundId: Int) -> Unit = {},
+) {
+    InboundsListScreen(
+        onAddPanel = onAddPanel,
+        onManageClients = onManageClients,
+    )
 }

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ClientsListScreen -->
+    <string name="clients_title">Клиенты</string>
+    <string name="clients_empty">Нет клиентов</string>
+    <string name="clients_no_active_panel">Нет активной панели</string>
+    <string name="clients_add_panel">Добавить панель</string>
+    <string name="clients_retry">Повторить</string>
+    <string name="clients_cd_menu">Меню клиента</string>
+    <string name="clients_menu_edit">Редактировать</string>
+    <string name="clients_menu_reset_traffic">Сбросить трафик</string>
+    <string name="clients_menu_delete">Удалить</string>
+    <string name="clients_enabled">Включён</string>
+    <string name="clients_disabled">Выключен</string>
+    <string name="clients_traffic">%1$s лимит</string>
+    <string name="clients_traffic_unlimited">Без лимита</string>
+    <string name="clients_expiry">До %s</string>
+    <string name="clients_no_expiry">Без ограничения срока</string>
+    <string name="clients_limit_ip">Макс. IP: %d</string>
+    <string name="clients_limit_ip_unlimited">Без лимита IP</string>
+    <string name="clients_inbound_dropdown_label">Инбаунд</string>
+    <string name="clients_readonly_banner">Протокол %s не поддерживается. Только просмотр.</string>
+    <string name="clients_fab_add">Добавить клиента</string>
+
+    <!-- ClientDeleteConfirmDialog -->
+    <string name="client_delete_title">Удалить клиента \"%s\"?</string>
+    <string name="client_delete_message">Клиент будет удалён с панели 3x-ui. Это действие необратимо.</string>
+    <string name="client_delete_confirm">Удалить</string>
+    <string name="client_delete_cancel">Отмена</string>
+
+    <!-- ClientResetConfirmDialog -->
+    <string name="client_reset_title">Сбросить трафик \"%s\"?</string>
+    <string name="client_reset_message">Счётчики трафика клиента будут обнулены.</string>
+    <string name="client_reset_confirm">Сбросить</string>
+    <string name="client_reset_cancel">Отмена</string>
+
+    <!-- ClientFormScreen -->
+    <string name="client_form_title_add">Добавить клиента</string>
+    <string name="client_form_title_edit">Редактировать клиента</string>
+    <string name="client_form_section_identity">Идентификатор</string>
+    <string name="client_form_uuid_label">UUID</string>
+    <string name="client_form_password_label">Пароль</string>
+    <string name="client_form_method_label">Метод шифрования</string>
+    <string name="client_form_flow_label">Flow</string>
+    <string name="client_form_generate">Сгенерировать</string>
+    <string name="client_form_password_rekey_warning">Изменение пароля переключит ключ клиента</string>
+    <string name="client_form_email_label">Email (логин)</string>
+    <string name="client_form_section_limits">Лимиты</string>
+    <string name="client_form_total_gb_label">Лимит трафика (ГБ), 0 = без лимита</string>
+    <string name="client_form_expiry_label">Срок действия</string>
+    <string name="client_form_expiry_no_expiry">Без ограничения</string>
+    <string name="client_form_expiry_pick">Выбрать дату</string>
+    <string name="client_form_expiry_clear">Очистить</string>
+    <string name="client_form_limit_ip_label">Лимит IP, 0 = без лимита</string>
+    <string name="client_form_section_flags">Настройки</string>
+    <string name="client_form_enable_label">Включён</string>
+    <string name="client_form_section_meta">Метаданные</string>
+    <string name="client_form_sub_id_label">Sub ID</string>
+    <string name="client_form_comment_label">Комментарий</string>
+    <string name="client_form_submit_add">Добавить</string>
+    <string name="client_form_submit_save">Сохранить</string>
+    <string name="client_form_cancel">Отмена</string>
+    <string name="client_form_error_email_empty">Email не может быть пустым</string>
+    <string name="client_form_error_identity_empty">Идентификатор не может быть пустым</string>
+    <string name="client_form_error_total_gb_negative">Лимит не может быть отрицательным</string>
+    <string name="client_form_error_limit_ip_negative">Лимит IP не может быть отрицательным</string>
+    <string name="client_form_cd_back">Назад</string>
+
+    <!-- Error messages -->
+    <string name="clients_error_invalid_credentials">Неверный логин или пароль</string>
+    <string name="clients_error_tls">Ошибка TLS: %s</string>
+    <string name="clients_error_network">Нет соединения с панелью</string>
+    <string name="clients_error_unreachable">Панель недоступна</string>
+    <string name="clients_error_response">Ответ панели: %s</string>
+    <string name="clients_error_unexpected">Неожиданная ошибка</string>
+    <string name="clients_error_pin_mismatch">Сертификат панели изменился</string>
+</resources>

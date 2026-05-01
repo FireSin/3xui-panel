@@ -7,6 +7,8 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
+import com.firesin.xuipanel.core.xui.dto.ClientConfig
+import com.firesin.xuipanel.core.xui.dto.ClientsJson
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
@@ -219,6 +221,109 @@ class XuiClient @Inject constructor(
                 val obj = response.obj
                 if (response.success && obj != null) {
                     Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun addClient(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        inboundId: Int,
+        client: ClientConfig,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        val settings = ClientsJson.encodeSettingsBody(client)
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.addClient(inboundId, settings)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun updateClient(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        inboundId: Int,
+        clientKey: String,
+        client: ClientConfig,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        val settings = ClientsJson.encodeSettingsBody(client)
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.updateClient(clientKey, inboundId, settings)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun deleteClient(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        inboundId: Int,
+        clientKey: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.deleteClient(inboundId, clientKey)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun resetClientTraffic(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        inboundId: Int,
+        email: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.resetClientTraffic(inboundId, email)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
                 } else {
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }

@@ -44,4 +44,31 @@ interface XuiApi {
 
     @POST("/panel/inbound/onlines")
     suspend fun onlineClients(): Response<LoginResponseDto>
+
+    @FormUrlEncoded
+    @POST("/panel/api/inbounds/addClient")
+    suspend fun addClient(
+        @Field("id") inboundId: Int,
+        @Field("settings") settings: String,
+    ): Response<LoginResponseDto>
+
+    @FormUrlEncoded
+    @POST("/panel/api/inbounds/updateClient/{clientKey}")
+    suspend fun updateClient(
+        @Path("clientKey") clientKey: String,
+        @Field("id") inboundId: Int,
+        @Field("settings") settings: String,
+    ): Response<LoginResponseDto>
+
+    @POST("/panel/api/inbounds/{inboundId}/delClient/{clientKey}")
+    suspend fun deleteClient(
+        @Path("inboundId") inboundId: Int,
+        @Path("clientKey") clientKey: String,
+    ): Response<LoginResponseDto>
+
+    @POST("/panel/api/inbounds/{inboundId}/resetClientTraffic/{email}")
+    suspend fun resetClientTraffic(
+        @Path("inboundId") inboundId: Int,
+        @Path("email") email: String,
+    ): Response<LoginResponseDto>
 }

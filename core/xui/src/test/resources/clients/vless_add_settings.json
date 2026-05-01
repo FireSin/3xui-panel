@@ -1,0 +1,17 @@
+{
+  "clients": [
+    {
+      "id": "e927a2d3-0bbd-4f8b-9493-b65eab8bfbe3",
+      "flow": "xtls-rprx-vision",
+      "email": "testAdd",
+      "limitIp": 1,
+      "totalGB": 0,
+      "expiryTime": 1780126511926,
+      "enable": true,
+      "tgId": "",
+      "subId": "testAddSub",
+      "comment": "",
+      "reset": 0
+    }
+  ]
+}

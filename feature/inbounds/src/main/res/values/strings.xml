@@ -10,6 +10,7 @@
     <string name="inbounds_cd_toggle">Включить/выключить инбаунд</string>
     <string name="inbounds_cd_menu">Меню инбаунда</string>
     <string name="inbounds_menu_delete">Удалить</string>
+    <string name="inbounds_menu_manage_clients">Управлять клиентами</string>
 
     <!-- InboundDeleteConfirmDialog -->
     <string name="inbound_delete_title">Удалить инбаунд \"%s\"?</string>
