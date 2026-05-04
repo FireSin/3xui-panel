@@ -48,6 +48,7 @@ fun NavController.navigateToEditClient(inboundId: Int, clientKey: String) {
 fun NavGraphBuilder.clientsGraph(
     navController: NavController,
     panelsAddRoute: String = "panels_add",
+    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
 ) {
     // List screen — inboundId == -1 means no pre-selection
     composable(
@@ -66,6 +67,7 @@ fun NavGraphBuilder.clientsGraph(
             onAddPanel = { navController.navigate(panelsAddRoute) },
             onNavigateAdd = { inboundId -> navController.navigateToAddClient(inboundId) },
             onNavigateEdit = { inboundId, key -> navController.navigateToEditClient(inboundId, key) },
+            onNavigateShare = onNavigateShare,
         )
     }
 

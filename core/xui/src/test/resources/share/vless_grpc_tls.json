@@ -1,0 +1,25 @@
+{
+  "network": "grpc",
+  "security": "tls",
+  "externalProxy": [],
+  "grpcSettings": {
+    "serviceName": "svc",
+    "authority": "",
+    "multiMode": false,
+    "idle_timeout": 60,
+    "health_check_timeout": 20,
+    "permit_without_stream": false,
+    "initial_windows_size": 0
+  },
+  "tlsSettings": {
+    "serverName": "example.com",
+    "alpn": [
+      "h2"
+    ],
+    "certificates": [],
+    "settings": {
+      "allowInsecure": false,
+      "fingerprint": "firefox"
+    }
+  }
+}

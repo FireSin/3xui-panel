@@ -8,6 +8,7 @@
     <string name="clients_retry">Повторить</string>
     <string name="clients_cd_menu">Меню клиента</string>
     <string name="clients_menu_edit">Редактировать</string>
+    <string name="client_menu_share">Поделиться</string>
     <string name="clients_menu_reset_traffic">Сбросить трафик</string>
     <string name="clients_menu_delete">Удалить</string>
     <string name="clients_enabled">Включён</string>

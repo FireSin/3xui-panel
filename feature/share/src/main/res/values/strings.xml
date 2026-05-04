@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ClientShareScreen -->
+    <string name="share_title">Поделиться</string>
+    <string name="share_cd_back">Назад</string>
+    <string name="share_copy">Копировать</string>
+    <string name="share_send">Отправить</string>
+    <string name="share_copied">Скопировано</string>
+    <string name="share_retry">Повторить</string>
+    <string name="share_cd_qr">QR-код конфигурации</string>
+
+    <!-- Protocol/inbound header: "VLESS · 443 · panel.example.com" -->
+    <string name="share_header_format">%1$s · %2$d · %3$s</string>
+
+    <!-- Error messages -->
+    <string name="share_error_unsupported_transport">Транспорт «%s» не поддерживается для генерации ссылки</string>
+    <string name="share_error_invalid_stream_settings">Некорректные streamSettings: %s</string>
+    <string name="share_error_missing_inbound_password">Не удалось получить пароль инбаунда (SS-2022)</string>
+    <string name="share_error_unsupported_protocol">Протокол «%s» не поддерживается</string>
+    <string name="share_error_domain">Ошибка загрузки данных</string>
+</resources>

@@ -11,6 +11,7 @@ import com.firesin.xuipanel.feature.inbounds.navigation.navigateToManageClients
 import com.firesin.xuipanel.feature.panels.navigation.PanelAddRoute
 import com.firesin.xuipanel.feature.panels.navigation.PanelsRoute
 import com.firesin.xuipanel.feature.panels.navigation.panelsGraph
+import com.firesin.xuipanel.feature.share.navigation.navigateToShare
 import com.firesin.xuipanel.feature.share.navigation.shareGraph
 import com.firesin.xuipanel.feature.stats.navigation.statsGraph
 
@@ -28,7 +29,13 @@ fun XuiNavHost(
             navController = navController,
             onManageClients = { inboundId -> navController.navigateToManageClients(inboundId) },
         )
-        clientsGraph(navController, panelsAddRoute = PanelAddRoute)
+        clientsGraph(
+            navController = navController,
+            panelsAddRoute = PanelAddRoute,
+            onNavigateShare = { inboundId, clientKey ->
+                navController.navigateToShare(inboundId, clientKey)
+            },
+        )
         shareGraph(navController)
         statsGraph(navController)
     }

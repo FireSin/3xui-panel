@@ -73,6 +73,7 @@ fun ClientsListScreen(
     onAddPanel: () -> Unit = {},
     onNavigateAdd: (inboundId: Int) -> Unit = {},
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
+    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
     viewModel: ClientsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -112,6 +113,7 @@ fun ClientsListScreen(
         onSelectInbound = viewModel::selectInbound,
         onNavigateAdd = onNavigateAdd,
         onNavigateEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
+        onNavigateShare = { inboundId, key -> onNavigateShare(inboundId, key) },
         onDeleteRequest = { client -> pendingDelete = client },
         onResetRequest = { client -> pendingReset = client },
     )
@@ -152,6 +154,7 @@ private fun ClientsContent(
     onSelectInbound: (Int) -> Unit,
     onNavigateAdd: (inboundId: Int) -> Unit,
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit,
+    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit,
     onDeleteRequest: (ClientConfig) -> Unit,
     onResetRequest: (ClientConfig) -> Unit,
 ) {
@@ -275,6 +278,7 @@ private fun ClientsContent(
                                     inboundId = uiState.selectedInboundId ?: 0,
                                     isSupported = isSupported,
                                     onEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
+                                    onShare = { inboundId, key -> onNavigateShare(inboundId, key) },
                                     onReset = { onResetRequest(client) },
                                     onDelete = { onDeleteRequest(client) },
                                 )
@@ -351,6 +355,7 @@ private fun ClientCard(
     inboundId: Int,
     isSupported: Boolean,
     onEdit: (inboundId: Int, clientKey: String) -> Unit,
+    onShare: (inboundId: Int, clientKey: String) -> Unit,
     onReset: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -434,6 +439,13 @@ private fun ClientCard(
                             onClick = {
                                 menuExpanded = false
                                 onEdit(inboundId, client.urlKey)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.client_menu_share)) },
+                            onClick = {
+                                menuExpanded = false
+                                onShare(inboundId, client.urlKey)
                             },
                         )
                         DropdownMenuItem(
@@ -593,6 +605,7 @@ private fun ClientsContentPreview() {
             onSelectInbound = {},
             onNavigateAdd = {},
             onNavigateEdit = { _, _ -> },
+            onNavigateShare = { _, _ -> },
             onDeleteRequest = {},
             onResetRequest = {},
         )

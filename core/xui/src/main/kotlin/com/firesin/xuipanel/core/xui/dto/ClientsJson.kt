@@ -42,6 +42,21 @@ object ClientsJson {
         return json.encodeToString(JsonObject.serializer(), wrapper)
     }
 
+    /**
+     * Extracts the top-level `password` field from a Shadowsocks inbound `settings` JSON.
+     *
+     * Required for SS-2022 cipher userinfo: `method:inboundPassword:clientPassword`.
+     * Returns null if the field is absent or blank.
+     *
+     * upstream: sub/subService.go genShadowsocksLink reads settings["password"] @main
+     */
+    fun parseInboundPassword(settingsJson: String): String? {
+        return runCatching {
+            val root = json.parseToJsonElement(settingsJson).jsonObject
+            root["password"]?.jsonPrimitive?.content?.takeIf { it.isNotEmpty() }
+        }.getOrNull()
+    }
+
     private fun parseClient(protocol: String, obj: JsonObject): ClientConfig {
         val email = obj["email"]?.jsonPrimitive?.content.orEmpty()
         val enable = obj["enable"]?.jsonPrimitive?.boolean ?: true
