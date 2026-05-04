@@ -16,8 +16,8 @@ import javax.inject.Singleton
  * `internal`, so no code outside `:core:xui` can inject it directly or call [emit].
  */
 @Singleton
-internal class PinMismatchEventDispatcher @Inject constructor() : PinMismatchEventBus {
+class PinMismatchEventDispatcher @Inject constructor() : PinMismatchEventBus {
     private val _events = MutableSharedFlow<PinMismatchEvent>(extraBufferCapacity = 8)
     override val events: SharedFlow<PinMismatchEvent> = _events.asSharedFlow()
-    internal suspend fun emit(event: PinMismatchEvent) { _events.emit(event) }
+    suspend fun emit(event: PinMismatchEvent) { _events.emit(event) }
 }

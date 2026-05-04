@@ -142,7 +142,7 @@ class OkHttpClientFactory @Inject constructor(
     private fun applyTls(builder: OkHttpClient.Builder, tls: PanelTls) {
         when {
             tls.mode == TlsMode.PINNED && tls.pinnedSpkiSha256 != null -> {
-                val pinningTm = PinningTrustManager(systemTrustManager(), tls.pinnedSpkiSha256)
+                val pinningTm = PinningTrustManager(systemTrustManager(), tls.pinnedSpkiSha256!!)
                 val sslContext = SSLContext.getInstance("TLS").apply {
                     init(null, arrayOf(pinningTm), null)
                 }

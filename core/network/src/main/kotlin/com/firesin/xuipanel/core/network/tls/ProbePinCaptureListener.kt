@@ -13,7 +13,7 @@ import okhttp3.EventListener
  * host), the deferred is completed exceptionally with [SpkiPinMismatchException] — the
  * probe will surface this as [com.firesin.xuipanel.core.common.DomainError.PinMismatch].
  */
-internal class ProbePinCaptureListener : EventListener() {
+class ProbePinCaptureListener : EventListener() {
 
     /** Completed with the captured SPKI string, or exceptionally on conflicting SPKIs. */
     val capturedSpki: CompletableDeferred<String?> = CompletableDeferred()

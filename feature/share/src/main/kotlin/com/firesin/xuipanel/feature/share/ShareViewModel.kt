@@ -1,6 +1,5 @@
 package com.firesin.xuipanel.feature.share
 
-import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -101,7 +100,10 @@ class ShareViewModel @Inject constructor(
                         return@launch
                     }
 
-                    val host = Uri.parse(panel.baseUrl).host ?: panel.baseUrl
+                    // java.net.URI (not android.net.Uri) so unit tests don't hit the
+                    // un-mocked Android stub. Falls back to the raw baseUrl on parse failure.
+                    val host = runCatching { java.net.URI(panel.baseUrl).host }
+                        .getOrNull() ?: panel.baseUrl
                     val uriResult = ClientUri.build(client, inbound, host)
                     _uiState.value = when (uriResult) {
                         is Result.Success -> ShareUiState.Content(
