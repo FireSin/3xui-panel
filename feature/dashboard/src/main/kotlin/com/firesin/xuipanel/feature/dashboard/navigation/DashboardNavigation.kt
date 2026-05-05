@@ -10,10 +10,12 @@ const val DashboardRoute = "dashboard"
 fun NavGraphBuilder.dashboardGraph(
     navController: NavController,
     panelsAddRoute: String,
+    onNavigateToStats: () -> Unit,
 ) {
     composable(route = DashboardRoute) {
         DashboardScreen(
             onAddPanel = { navController.navigate(panelsAddRoute) },
+            onNavigateToStats = onNavigateToStats,
         )
     }
 }

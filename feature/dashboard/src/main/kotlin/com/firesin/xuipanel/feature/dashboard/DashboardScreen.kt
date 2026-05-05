@@ -52,10 +52,12 @@ import com.firesin.xuipanel.core.designsystem.format.formatBytes
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardUiState
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardViewModel
 import java.time.Instant
+import java.util.Locale
 
 @Composable
 fun DashboardScreen(
     onAddPanel: () -> Unit = {},
+    onNavigateToStats: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -66,6 +68,7 @@ fun DashboardScreen(
         isRefreshing = isRefreshing,
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
+        onNavigateToStats = onNavigateToStats,
     )
 }
 
@@ -76,6 +79,7 @@ private fun DashboardContent(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
+    onNavigateToStats: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -137,6 +141,7 @@ private fun DashboardContent(
                 StatusList(
                     status = uiState.status,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    onNavigateToStats = onNavigateToStats,
                 )
             }
         }
@@ -147,6 +152,7 @@ private fun DashboardContent(
 private fun StatusList(
     status: ServerStatusDto,
     contentPadding: PaddingValues,
+    onNavigateToStats: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -160,6 +166,7 @@ private fun StatusList(
         item { NetworkSpeedCard(netIO = status.netIO) }
         item { TotalTrafficCard(traffic = status.netTraffic) }
         item { PublicIpCard(ip = status.publicIP) }
+        item { StatisticsLinkCard(onClick = onNavigateToStats) }
     }
 }
 
@@ -454,6 +461,7 @@ private fun formatUptime(seconds: Long): String {
 private fun DashboardContentPreview() {
     XuiPanelTheme {
         DashboardContent(
+            onNavigateToStats = {},
             uiState = DashboardUiState.Content(
                 panel = Panel(
                     id = "1",

@@ -24,7 +24,11 @@ fun XuiNavHost(
         startDestination = PanelsRoute,
     ) {
         panelsGraph(navController)
-        dashboardGraph(navController, panelsAddRoute = PanelAddRoute)
+        dashboardGraph(
+            navController = navController,
+            panelsAddRoute = PanelAddRoute,
+            onNavigateToStats = { navController.navigate("stats") },
+        )
         inboundsGraph(
             navController = navController,
             onManageClients = { inboundId -> navController.navigateToManageClients(inboundId) },

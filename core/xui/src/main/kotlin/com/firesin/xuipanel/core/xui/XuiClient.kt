@@ -150,6 +150,33 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Fetches the set of currently-online client emails.
+     * Returns an empty set on an empty or absent [OnlinesResponseDto.obj].
+     */
+    suspend fun fetchOnlines(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<Set<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.onlines()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success((response.obj ?: emptyList()).toSet())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
      * Toggles an inbound's enabled state.
      */
     suspend fun setInboundEnabled(

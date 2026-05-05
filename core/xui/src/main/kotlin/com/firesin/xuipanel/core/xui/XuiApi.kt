@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
+import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import retrofit2.Response
 import retrofit2.http.Field
@@ -42,8 +43,8 @@ interface XuiApi {
     @POST("/server/status")
     suspend fun serverStatus(): Response<ServerStatusResponseDto>
 
-    @POST("/panel/inbound/onlines")
-    suspend fun onlineClients(): Response<LoginResponseDto>
+    @POST("/panel/api/inbounds/onlines")
+    suspend fun onlines(): Response<OnlinesResponseDto>
 
     @FormUrlEncoded
     @POST("/panel/api/inbounds/addClient")

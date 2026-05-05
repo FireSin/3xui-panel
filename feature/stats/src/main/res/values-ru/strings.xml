@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stats_title">Статистика</string>
+    <string name="stats_no_active_panel">Нет активной панели</string>
+    <string name="stats_retry">Повторить</string>
+    <string name="stats_online_unavailable">Статус онлайн недоступен</string>
+    <string name="stats_expiry_never">Бессрочно</string>
+    <string name="stats_server_summary">Сводка по серверу</string>
+    <string name="stats_total_up">Отдача</string>
+    <string name="stats_total_down">Приём</string>
+    <string name="stats_inbound_count">Inbound-ов</string>
+    <string name="stats_active_clients">Активных клиентов</string>
+    <string name="stats_link_title">Статистика →</string>
+    <string name="stats_link_subtitle">Трафик по inbound и онлайн-клиенты</string>
+    <string name="stats_expiry_in_days_prefix">Истекает через</string>
+    <string name="stats_expiry_ago_days_prefix">Истёк</string>
+    <string name="stats_expiry_ago_days_suffix">назад</string>
+    <string name="stats_online">онлайн</string>
+    <string name="stats_counters_note">Счётчики обновляются при каждом опросе сервера.</string>
+
+    <string name="stats_error_invalid_credentials">Неверный логин или пароль</string>
+    <string name="stats_error_tls">Ошибка TLS: %s</string>
+    <string name="stats_error_network">Нет соединения с панелью</string>
+    <string name="stats_error_unreachable">Панель недоступна</string>
+    <string name="stats_error_response">Ответ панели: %s</string>
+    <string name="stats_error_unexpected">Неожиданная ошибка</string>
+    <string name="stats_error_pin_mismatch">Сертификат панели изменился</string>
+
+    <plurals name="stats_expiry_in_days">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
+    </plurals>
+
+    <plurals name="stats_expiry_ago_days">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
+    </plurals>
+</resources>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stats_title">Statistics</string>
+    <string name="stats_no_active_panel">No active panel</string>
+    <string name="stats_retry">Retry</string>
+    <string name="stats_online_unavailable">Online status unavailable</string>
+    <string name="stats_expiry_never">No expiry</string>
+    <string name="stats_server_summary">Server summary</string>
+    <string name="stats_total_up">Upload</string>
+    <string name="stats_total_down">Download</string>
+    <string name="stats_inbound_count">Inbounds</string>
+    <string name="stats_active_clients">Active clients</string>
+    <string name="stats_link_title">Statistics →</string>
+    <string name="stats_link_subtitle">Per-inbound traffic and online clients</string>
+    <string name="stats_expiry_in_days_prefix">Expires in</string>
+    <string name="stats_expiry_ago_days_prefix">Expired</string>
+    <string name="stats_expiry_ago_days_suffix">ago</string>
+    <string name="stats_online">online</string>
+    <string name="stats_counters_note">Counters refresh every server poll.</string>
+
+    <string name="stats_error_invalid_credentials">Invalid login or password</string>
+    <string name="stats_error_tls">TLS error: %s</string>
+    <string name="stats_error_network">No connection to panel</string>
+    <string name="stats_error_unreachable">Panel unreachable</string>
+    <string name="stats_error_response">Panel response: %s</string>
+    <string name="stats_error_unexpected">Unexpected error</string>
+    <string name="stats_error_pin_mismatch">Panel certificate changed</string>
+
+    <plurals name="stats_expiry_in_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
+    <plurals name="stats_expiry_ago_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+</resources>
