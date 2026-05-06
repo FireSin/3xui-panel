@@ -17,19 +17,19 @@ interface XuiApi {
      * Form-encoded login. Successful response sets the `3x-ui` session cookie.
      */
     @FormUrlEncoded
-    @POST("/login")
+    @POST("login")
     suspend fun login(
         @Field("username") username: String,
         @Field("password") password: String,
     ): Response<LoginResponseDto>
 
-    @GET("/panel/api/inbounds/list")
+    @GET("panel/api/inbounds/list")
     suspend fun listInbounds(): Response<InboundListResponseDto>
 
-    @GET("/panel/api/inbounds/get/{id}")
+    @GET("panel/api/inbounds/get/{id}")
     suspend fun getInbound(@Path("id") id: Int): Response<InboundListResponseDto>
 
-    @POST("/panel/api/inbounds/del/{id}")
+    @POST("panel/api/inbounds/del/{id}")
     suspend fun deleteInbound(@Path("id") id: Int): Response<LoginResponseDto>
 
     /**
@@ -37,37 +37,37 @@ interface XuiApi {
      * 3x-ui v2 API: POST /panel/api/inbounds/onOff/{id}
      * Response reuses the generic success/msg envelope (LoginResponseDto shape).
      */
-    @POST("/panel/api/inbounds/onOff/{id}")
+    @POST("panel/api/inbounds/onOff/{id}")
     suspend fun onOffInbound(@Path("id") id: Int): Response<LoginResponseDto>
 
-    @POST("/server/status")
+    @GET("panel/api/server/status")
     suspend fun serverStatus(): Response<ServerStatusResponseDto>
 
-    @POST("/panel/api/inbounds/onlines")
+    @POST("panel/api/inbounds/onlines")
     suspend fun onlines(): Response<OnlinesResponseDto>
 
     @FormUrlEncoded
-    @POST("/panel/api/inbounds/addClient")
+    @POST("panel/api/inbounds/addClient")
     suspend fun addClient(
         @Field("id") inboundId: Int,
         @Field("settings") settings: String,
     ): Response<LoginResponseDto>
 
     @FormUrlEncoded
-    @POST("/panel/api/inbounds/updateClient/{clientKey}")
+    @POST("panel/api/inbounds/updateClient/{clientKey}")
     suspend fun updateClient(
         @Path("clientKey") clientKey: String,
         @Field("id") inboundId: Int,
         @Field("settings") settings: String,
     ): Response<LoginResponseDto>
 
-    @POST("/panel/api/inbounds/{inboundId}/delClient/{clientKey}")
+    @POST("panel/api/inbounds/{inboundId}/delClient/{clientKey}")
     suspend fun deleteClient(
         @Path("inboundId") inboundId: Int,
         @Path("clientKey") clientKey: String,
     ): Response<LoginResponseDto>
 
-    @POST("/panel/api/inbounds/{inboundId}/resetClientTraffic/{email}")
+    @POST("panel/api/inbounds/{inboundId}/resetClientTraffic/{email}")
     suspend fun resetClientTraffic(
         @Path("inboundId") inboundId: Int,
         @Path("email") email: String,

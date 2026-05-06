@@ -49,8 +49,9 @@ class XuiClient @Inject constructor(
 
     private fun apiFor(baseUrl: String, panelId: String, tls: PanelTls): XuiApi {
         val client = clientFactory.getClient(panelId, tls)
+        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
         return Retrofit.Builder()
-            .baseUrl(baseUrl)
+            .baseUrl(normalized)
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
             .build()

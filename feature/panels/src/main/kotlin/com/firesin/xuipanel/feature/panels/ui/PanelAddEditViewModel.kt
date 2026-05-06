@@ -231,7 +231,7 @@ class PanelAddEditViewModel @Inject constructor(
 
     private fun validate(form: PanelFormState): PanelFormErrors {
         val baseUrlValid = form.baseUrl.trim().let { url ->
-            url.startsWith("https://") && !url.endsWith("/") && isValidUrl(url)
+            url.startsWith("https://") && isValidUrl(url)
         }
         return PanelFormErrors(
             name = if (form.name.isBlank()) "" else null,
@@ -241,7 +241,11 @@ class PanelAddEditViewModel @Inject constructor(
         )
     }
 
-    private fun isValidUrl(url: String): Boolean = runCatching { URL(url).toURI() }.isSuccess
+    private fun isValidUrl(url: String): Boolean = runCatching {
+        val parsed = URL(url)
+        parsed.toURI()
+        parsed.userInfo == null
+    }.getOrDefault(false)
 
     private fun PanelFormErrors.isValid() =
         name == null && baseUrl == null && login == null && password == null

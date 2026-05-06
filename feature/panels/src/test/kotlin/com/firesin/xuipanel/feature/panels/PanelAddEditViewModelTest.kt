@@ -130,6 +130,29 @@ class PanelAddEditViewModelTest {
     }
 
     @Test
+    fun `submit with userinfo in baseUrl shows validation error`() = runTest {
+        val vm = createViewModel()
+        vm.updateName("My Panel")
+        vm.updateBaseUrl("https://user:pass@panel.example.com:2053")
+        vm.updateLogin("admin")
+        vm.updatePassword("secret")
+
+        vm.uiState.test {
+            skipItems(1)
+
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assertNotNull(editing.errors.baseUrl)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { repository.add(any()) }
+    }
+
+    @Test
     fun `edit mode loads panel data from repository`() = runTest {
         val panel = fakePanel("edit-id")
         coEvery { repository.get("edit-id") } returns panel

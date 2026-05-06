@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "obj": {
+    "cpu": 12.5,
+    "mem": {
+      "current": 1024000000,
+      "total": 2048000000
+    },
+    "xray": {
+      "state": "running",
+      "errorMsg": "",
+      "version": "1.8.0"
+    },
+    "uptime": 86400,
+    "loads": [0.5, 0.6, 0.7],
+    "tcpCount": 128,
+    "udpCount": 256,
+    "netIO": {
+      "up": 1000000,
+      "down": 2000000
+    },
+    "netTraffic": {
+      "sent": 5000000000,
+      "recv": 10000000000
+    },
+    "publicIP": {
+      "ipv4": "203.0.113.1",
+      "ipv6": "2001:db8::1"
+    },
+    "appStats": {
+      "threads": 42,
+      "mem": 512000000
+    }
+  }
+}

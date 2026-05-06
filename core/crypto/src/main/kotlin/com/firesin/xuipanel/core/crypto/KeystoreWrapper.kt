@@ -42,14 +42,18 @@ class KeystoreWrapper {
         val existing = ks.getKey(keyAlias, null) as? SecretKey
         if (existing != null) return existing
 
-        val spec = buildKeySpec()
         val kg = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER)
-        kg.init(spec)
-        return kg.generateKey()
+        return try {
+            kg.init(buildKeySpec(strongBox = true))
+            kg.generateKey()
+        } catch (_: android.security.keystore.StrongBoxUnavailableException) {
+            kg.init(buildKeySpec(strongBox = false))
+            kg.generateKey()
+        }
     }
 
-    private fun buildKeySpec(): KeyGenParameterSpec {
-        val builder = KeyGenParameterSpec.Builder(
+    private fun buildKeySpec(strongBox: Boolean): KeyGenParameterSpec =
+        KeyGenParameterSpec.Builder(
             keyAlias,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
         )
@@ -57,14 +61,8 @@ class KeystoreWrapper {
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setKeySize(256)
             .setUserAuthenticationRequired(false)
-
-        // Prefer StrongBox; fall back to TEE silently.
-        return try {
-            builder.setIsStrongBoxBacked(true).build()
-        } catch (_: Exception) {
-            builder.setIsStrongBoxBacked(false).build()
-        }
-    }
+            .setIsStrongBoxBacked(strongBox)
+            .build()
 
     private companion object {
         const val KEY_ALIAS = "db_passphrase_wrap_v1"
