@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lock_title">Приложение заблокировано</string>
+    <string name="lock_subtitle">Для доступа подтвердите личность</string>
+    <string name="lock_btn_unlock">Разблокировать</string>
+    <string name="lock_biometric_prompt_title">Разблокировать приложение</string>
+    <string name="lock_biometric_prompt_subtitle">Используйте биометрию или PIN</string>
+    <string name="lock_biometric_prompt_cancel">Отмена</string>
+    <string name="lock_system_biometry_removed_title">Биометрия отключена</string>
+    <string name="lock_system_biometry_removed_message">Биометрия и PIN отключены в системных настройках. Хотите снять блокировку приложения?</string>
+    <string name="lock_system_biometry_removed_confirm">Снять блокировку</string>
+    <string name="lock_system_biometry_removed_cancel">Закрыть приложение</string>
+</resources>

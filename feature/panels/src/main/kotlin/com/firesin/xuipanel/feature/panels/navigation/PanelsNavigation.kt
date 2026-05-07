@@ -27,12 +27,16 @@ const val PanelsRoute = PanelsListRoute
 
 fun panelEditRoute(panelId: String) = "panels_edit/${Uri.encode(panelId)}"
 
-fun NavGraphBuilder.panelsGraph(navController: NavController) {
+fun NavGraphBuilder.panelsGraph(
+    navController: NavController,
+    onNavigateToSettings: () -> Unit,
+) {
     composable(route = PanelsListRoute) {
         PanelsListScreen(
             onAddPanel = { navController.navigate(PanelAddRoute) },
             onEditPanel = { id -> navController.navigate(panelEditRoute(id)) },
             onPanelSelected = { navController.navigate(DashboardRoute) },
+            onNavigateToSettings = onNavigateToSettings,
         )
     }
 

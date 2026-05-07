@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
@@ -28,6 +29,7 @@ import com.firesin.xuipanel.feature.panels.navigation.PanelAddRoute
 import com.firesin.xuipanel.feature.panels.navigation.PanelsListRoute
 import com.firesin.xuipanel.feature.panels.navigation.PanelsRoute
 import com.firesin.xuipanel.feature.panels.navigation.panelsGraph
+import com.firesin.xuipanel.feature.settings.navigation.settingsGraph
 import com.firesin.xuipanel.feature.share.navigation.navigateToShare
 import com.firesin.xuipanel.feature.share.navigation.shareGraph
 import com.firesin.xuipanel.feature.stats.navigation.clientStatsGraph
@@ -90,7 +92,10 @@ fun XuiNavHost(
             navController = navController,
             startDestination = PanelsRoute,
         ) {
-            panelsGraph(navController)
+            panelsGraph(
+                navController = navController,
+                onNavigateToSettings = { navController.navigate("settings") },
+            )
             dashboardGraph(
                 navController = navController,
                 panelsAddRoute = PanelAddRoute,
@@ -112,6 +117,7 @@ fun XuiNavHost(
             shareGraph(navController)
             statsGraph(navController)
             clientStatsGraph(navController)
+            settingsGraph(onMenuClick = onMenuClick)
         }
     }
 }

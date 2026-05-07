@@ -1,6 +1,8 @@
 package com.firesin.xuipanel.core.data.di
 
 import com.firesin.xuipanel.core.common.PanelPinWriter
+import com.firesin.xuipanel.core.data.repository.AppSecurityRepository
+import com.firesin.xuipanel.core.data.repository.AppSecurityRepositoryImpl
 import com.firesin.xuipanel.core.data.repository.BackupRepository
 import com.firesin.xuipanel.core.data.repository.BackupRepositoryImpl
 import com.firesin.xuipanel.core.data.repository.PanelPinWriterImpl
@@ -33,4 +35,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindBackupRepository(impl: BackupRepositoryImpl): BackupRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppSecurityRepository(impl: AppSecurityRepositoryImpl): AppSecurityRepository
 }

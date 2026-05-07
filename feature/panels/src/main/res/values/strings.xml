@@ -55,6 +55,7 @@
     <string name="panels_cd_overflow_menu">Ещё</string>
     <string name="panels_overflow_export">Экспорт</string>
     <string name="panels_overflow_import">Импорт</string>
+    <string name="panels_overflow_settings">Настройки</string>
 
     <!-- Export dialog -->
     <string name="panels_export_dialog_title">Задайте парольную фразу</string>

@@ -1,14 +1,13 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.room)
 }
 
 android {
-    namespace = "com.firesin.xuipanel.core.data"
+    namespace = "com.firesin.xuipanel.feature.lock"
     compileSdk = 35
 
     defaultConfig {
@@ -20,34 +19,35 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    buildFeatures {
+        compose = true
+    }
+
     testOptions {
         unitTests.all { it.useJUnitPlatform() }
     }
 }
 
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
 dependencies {
-    implementation(project(":core:common"))
-    implementation(project(":core:crypto"))
-    implementation(project(":core:network"))
-    implementation(project(":core:xui"))
+    implementation(project(":core:data"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
+    implementation(libs.hilt.navigation.compose)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
-
-    implementation(libs.sqlcipher.android)
-    implementation(libs.androidx.sqlite)
-
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.datastore.preferences)
+
+    implementation(libs.androidx.biometric)
+
+    debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit5.api)
     testRuntimeOnly(libs.junit5.engine)

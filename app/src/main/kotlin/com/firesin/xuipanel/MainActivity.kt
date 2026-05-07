@@ -2,10 +2,10 @@ package com.firesin.xuipanel
 
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -14,12 +14,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
+import com.firesin.xuipanel.feature.lock.LockGate
 import com.firesin.xuipanel.feature.panels.navigation.panelEditRoute
 import com.firesin.xuipanel.navigation.XuiNavHost
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -63,7 +64,9 @@ class MainActivity : ComponentActivity() {
                         },
                     )
                 }
-                XuiNavHost(navController = navController)
+                LockGate(onFinishApp = ::finishAffinity) {
+                    XuiNavHost(navController = navController)
+                }
             }
         }
     }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_lock_card_title">Блокировка приложения</string>
+    <string name="settings_lock_card_description">Требовать биометрию или PIN при запуске</string>
+    <string name="settings_lock_unavailable_hint">Сначала настройте PIN или биометрию в системных настройках</string>
+    <string name="settings_lock_on_pause_title">Блокировать при сворачивании</string>
+    <string name="settings_lock_on_pause_description">Запрос разблокировки при возврате в приложение</string>
+</resources>

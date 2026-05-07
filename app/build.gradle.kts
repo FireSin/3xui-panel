@@ -90,6 +90,8 @@ dependencies {
     implementation(project(":feature:clients"))
     implementation(project(":feature:share"))
     implementation(project(":feature:stats"))
+    implementation(project(":feature:lock"))
+    implementation(project(":feature:settings"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

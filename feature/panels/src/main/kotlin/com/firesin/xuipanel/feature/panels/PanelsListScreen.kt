@@ -80,6 +80,7 @@ fun PanelsListScreen(
     onAddPanel: () -> Unit,
     onEditPanel: (String) -> Unit,
     onPanelSelected: (String) -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: PanelsListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -194,6 +195,7 @@ fun PanelsListScreen(
         onDeletePanel = { panel -> pendingDeletePanel = panel },
         onExportClick = viewModel::onExportClick,
         onImportClick = viewModel::onImportClick,
+        onNavigateToSettings = onNavigateToSettings,
     )
 
     pendingDeletePanel?.let { panel ->
@@ -247,6 +249,7 @@ private fun PanelsListContent(
     onDeletePanel: (Panel) -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
+    onNavigateToSettings: () -> Unit,
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
 
@@ -284,6 +287,13 @@ private fun PanelsListContent(
                                 onClick = {
                                     overflowExpanded = false
                                     onImportClick()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.panels_overflow_settings)) },
+                                onClick = {
+                                    overflowExpanded = false
+                                    onNavigateToSettings()
                                 },
                             )
                         }
@@ -642,6 +652,7 @@ private fun PanelsListContentPreview() {
             onDeletePanel = {},
             onExportClick = {},
             onImportClick = {},
+            onNavigateToSettings = {},
         )
     }
 }
@@ -659,6 +670,7 @@ private fun PanelsEmptyPreview() {
             onDeletePanel = {},
             onExportClick = {},
             onImportClick = {},
+            onNavigateToSettings = {},
         )
     }
 }
