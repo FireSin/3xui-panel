@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.repository.BackupRepository
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.feature.panels.ui.PanelsListUiState
 import com.firesin.xuipanel.feature.panels.ui.PanelsListViewModel
@@ -32,6 +33,7 @@ class PanelsListViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: PanelRepository
+    private val backupRepository: BackupRepository = mockk()
     private lateinit var viewModel: PanelsListViewModel
 
     @BeforeEach
@@ -40,7 +42,7 @@ class PanelsListViewModelTest {
         repository = mockk()
         every { repository.observeAll() } returns flowOf(emptyList())
         every { repository.observeActive() } returns flowOf(null)
-        viewModel = PanelsListViewModel(repository)
+        viewModel = PanelsListViewModel(repository, backupRepository)
     }
 
     @AfterEach
@@ -70,7 +72,7 @@ class PanelsListViewModelTest {
         val panel = fakePanel("id-1", isActive = true)
         every { repository.observeAll() } returns flowOf(listOf(panel))
         every { repository.observeActive() } returns flowOf(panel)
-        viewModel = PanelsListViewModel(repository)
+        viewModel = PanelsListViewModel(repository, backupRepository)
 
         viewModel.uiState.test {
             skipItems(1) // Loading

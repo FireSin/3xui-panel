@@ -1,9 +1,11 @@
 package com.firesin.xuipanel.core.data.repository
 
+import androidx.room.withTransaction
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.data.db.AppDatabase
 import com.firesin.xuipanel.core.data.db.dao.PanelDao
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.PanelDraft
@@ -22,6 +24,7 @@ import javax.inject.Singleton
 
 @Singleton
 class PanelRepositoryImpl @Inject constructor(
+    private val db: AppDatabase,
     private val dao: PanelDao,
     private val xuiClient: XuiClient,
     private val clientFactory: OkHttpClientFactory,
@@ -188,6 +191,18 @@ class PanelRepositoryImpl @Inject constructor(
         dao.setActivePanel(exists.id)
         return Result.Success(Unit)
     }
+
+    override suspend fun replaceAll(panels: List<Panel>): Result<Int, DomainError> =
+        runCatching {
+            db.withTransaction {
+                dao.deleteAll()
+                dao.upsertAll(panels.map { it.toEntity() })
+            }
+            panels.size
+        }.fold(
+            onSuccess = { Result.Success(it) },
+            onFailure = { Result.Failure(DomainError.Unexpected(it)) },
+        )
 
     private fun PanelDraft.toProbeCredentials(existing: Panel? = null) = ProbeCredentials(
         baseUrl = baseUrl,

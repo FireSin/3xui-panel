@@ -51,6 +51,32 @@
     <string name="panel_delete_confirm">Удалить</string>
     <string name="panel_delete_cancel">Отмена</string>
 
+    <!-- Overflow menu (backup) -->
+    <string name="panels_cd_overflow_menu">Ещё</string>
+    <string name="panels_overflow_export">Экспорт</string>
+    <string name="panels_overflow_import">Импорт</string>
+
+    <!-- Export dialog -->
+    <string name="panels_export_dialog_title">Задайте парольную фразу</string>
+    <string name="panels_passphrase_label">Парольная фраза</string>
+    <string name="panels_passphrase_confirm_label">Повторите фразу</string>
+    <string name="panels_passphrase_too_short">Минимум %d символов</string>
+
+    <!-- Import dialog -->
+    <string name="panels_import_dialog_title">Введите парольную фразу</string>
+
+    <!-- Confirm overwrite dialog -->
+    <string name="panels_confirm_import_title">Подтвердите импорт</string>
+    <string name="panels_confirm_import_message">Это перезапишет %d существующих панелей. Продолжить?</string>
+    <string name="panels_confirm_import_proceed">Продолжить</string>
+
+    <!-- Common dialog buttons (backup) -->
+    <string name="panels_dialog_confirm">Подтвердить</string>
+    <string name="panels_dialog_cancel">Отмена</string>
+
+    <!-- Backup import errors -->
+    <string name="panels_backup_file_too_large">Файл слишком большой</string>
+
     <!-- Error messages -->
     <string name="error_invalid_credentials">Неверный логин или пароль</string>
     <string name="error_tls">Ошибка TLS: %s</string>

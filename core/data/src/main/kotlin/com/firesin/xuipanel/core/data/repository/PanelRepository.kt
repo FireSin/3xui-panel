@@ -28,4 +28,10 @@ interface PanelRepository {
     suspend fun delete(id: String): Result<Unit, DomainError>
 
     suspend fun setActive(id: String): Result<Unit, DomainError>
+
+    /**
+     * Replaces ALL panels atomically with [panels].
+     * Returns the count of inserted panels on success.
+     */
+    suspend fun replaceAll(panels: List<Panel>): Result<Int, DomainError>
 }

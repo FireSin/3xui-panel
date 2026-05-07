@@ -41,6 +41,12 @@ interface PanelDao {
     @Query("UPDATE panels SET pinned_spki_sha256 = :spkiBase64, pinned_at = :pinnedAt, tls_mode = 'PINNED' WHERE id = :id")
     suspend fun updatePin(id: String, spkiBase64: String, pinnedAt: Long)
 
+    @Query("DELETE FROM panels")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(panels: List<PanelEntity>)
+
     /**
      * Atomically clears the active flag from all panels, then sets it on [id].
      * Ensures at most one active panel at all times.

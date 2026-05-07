@@ -3,6 +3,7 @@ package com.firesin.xuipanel.core.data.repository
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.data.db.AppDatabase
 import com.firesin.xuipanel.core.data.db.dao.PanelDao
 import com.firesin.xuipanel.core.data.db.entity.PanelEntity
 import com.firesin.xuipanel.core.data.model.PanelDraft
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test
 
 class PanelRepositoryImplTest {
 
+    private lateinit var db: AppDatabase
     private lateinit var dao: PanelDao
     private lateinit var xuiClient: XuiClient
     private lateinit var clientFactory: OkHttpClientFactory
@@ -40,11 +42,12 @@ class PanelRepositoryImplTest {
 
     @BeforeEach
     fun setUp() {
+        db = mockk(relaxed = true)
         dao = mockk(relaxed = true)
         xuiClient = mockk()
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        repository = PanelRepositoryImpl(dao, xuiClient, clientFactory, sessionCache)
+        repository = PanelRepositoryImpl(db, dao, xuiClient, clientFactory, sessionCache)
     }
 
     @Test

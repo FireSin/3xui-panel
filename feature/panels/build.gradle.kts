@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
+    implementation(project(":core:crypto"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)

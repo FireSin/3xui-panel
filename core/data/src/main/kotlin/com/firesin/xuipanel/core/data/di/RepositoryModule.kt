@@ -1,6 +1,8 @@
 package com.firesin.xuipanel.core.data.di
 
 import com.firesin.xuipanel.core.common.PanelPinWriter
+import com.firesin.xuipanel.core.data.repository.BackupRepository
+import com.firesin.xuipanel.core.data.repository.BackupRepositoryImpl
 import com.firesin.xuipanel.core.data.repository.PanelPinWriterImpl
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.data.repository.PanelRepositoryImpl
@@ -27,4 +29,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTrafficHistoryRepository(impl: TrafficHistoryRepositoryImpl): TrafficHistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBackupRepository(impl: BackupRepositoryImpl): BackupRepository
 }
