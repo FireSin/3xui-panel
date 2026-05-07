@@ -23,9 +23,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.firesin.xuipanel.core.common.util.prettyBytes
+import com.firesin.xuipanel.core.data.repository.DailyPoint
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientStatDto
 import com.firesin.xuipanel.core.xui.dto.InboundDto
+import com.firesin.xuipanel.feature.stats.chart.InboundTrafficChart
 
 @Composable
 fun InboundCard(
@@ -34,6 +36,7 @@ fun InboundCard(
     onlineEmails: Set<String>,
     onlinesAvailable: Boolean,
     onToggle: () -> Unit,
+    chartPoints: List<DailyPoint> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
@@ -90,7 +93,7 @@ fun InboundCard(
                 Spacer(Modifier.height(12.dp))
             }
 
-            // Expanded client list
+            // Expanded client list + traffic chart
             AnimatedVisibility(visible = expanded) {
                 Column {
                     inbound.clientStats.orEmpty().forEach { client ->
@@ -100,6 +103,10 @@ fun InboundCard(
                             showOnlineDot = onlinesAvailable,
                         )
                     }
+                    InboundTrafficChart(
+                        points = chartPoints,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
                     Spacer(Modifier.height(4.dp))
                 }
             }

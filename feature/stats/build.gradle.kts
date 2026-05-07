@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.vico.compose.m3)
 
     debugImplementation(libs.androidx.ui.tooling)
 

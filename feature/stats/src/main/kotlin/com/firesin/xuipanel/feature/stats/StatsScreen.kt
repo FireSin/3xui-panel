@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -38,13 +42,17 @@ fun StatsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val range by viewModel.range.collectAsStateWithLifecycle()
 
     StatsContent(
         uiState = uiState,
         isRefreshing = isRefreshing,
+        range = range,
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onToggleExpanded = viewModel::toggleExpanded,
+        onRangeChange = viewModel::setRange,
+        chartFlow = viewModel::chartFlow,
     )
 }
 
@@ -53,9 +61,12 @@ fun StatsScreen(
 private fun StatsContent(
     uiState: StatsUiState,
     isRefreshing: Boolean,
+    range: ChartRange,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onToggleExpanded: (Int) -> Unit,
+    onRangeChange: (ChartRange) -> Unit,
+    chartFlow: (panelId: String, inboundId: Int) -> kotlinx.coroutines.flow.Flow<List<com.firesin.xuipanel.core.data.repository.DailyPoint>>,
 ) {
     Scaffold(
         topBar = {
@@ -109,6 +120,13 @@ private fun StatsContent(
                     item {
                         ServerSummaryCard(summary = uiState.summary)
                     }
+                    item {
+                        RangeToggle(
+                            selected = range,
+                            onSelect = onRangeChange,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     if (!uiState.onlinesAvailable) {
                         item {
                             Text(
@@ -119,18 +137,48 @@ private fun StatsContent(
                         }
                     }
                     items(uiState.inbounds, key = { it.id }) { inbound ->
+                        val expanded = inbound.id in uiState.expandedIds
+                        val chartPoints by chartFlow(uiState.panel.id, inbound.id)
+                            .collectAsStateWithLifecycle(initialValue = emptyList())
                         InboundCard(
                             inbound = inbound,
-                            expanded = inbound.id in uiState.expandedIds,
+                            expanded = expanded,
                             onlineEmails = uiState.onlineEmails,
                             onlinesAvailable = uiState.onlinesAvailable,
                             onToggle = { onToggleExpanded(inbound.id) },
+                            chartPoints = chartPoints,
                         )
                     }
                 }
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RangeToggle(
+    selected: ChartRange,
+    onSelect: (ChartRange) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val options = ChartRange.entries
+    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+        options.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                label = { Text(text = stringResource(option.labelRes())) },
+            )
+        }
+    }
+}
+
+private fun ChartRange.labelRes(): Int = when (this) {
+    ChartRange.D7 -> R.string.stats_chart_range_7d
+    ChartRange.D30 -> R.string.stats_chart_range_30d
+    ChartRange.D90 -> R.string.stats_chart_range_90d
 }
 
 @Composable
@@ -174,9 +222,12 @@ private fun StatsScreenLoadingPreview() {
         StatsContent(
             uiState = StatsUiState.Loading,
             isRefreshing = false,
+            range = ChartRange.D7,
             onRefresh = {},
             onRetry = {},
             onToggleExpanded = {},
+            onRangeChange = {},
+            chartFlow = { _, _ -> kotlinx.coroutines.flow.flowOf(emptyList()) },
         )
     }
 }
@@ -188,9 +239,12 @@ private fun StatsScreenNoActivePanelPreview() {
         StatsContent(
             uiState = StatsUiState.NoActivePanel,
             isRefreshing = false,
+            range = ChartRange.D7,
             onRefresh = {},
             onRetry = {},
             onToggleExpanded = {},
+            onRangeChange = {},
+            chartFlow = { _, _ -> kotlinx.coroutines.flow.flowOf(emptyList()) },
         )
     }
 }

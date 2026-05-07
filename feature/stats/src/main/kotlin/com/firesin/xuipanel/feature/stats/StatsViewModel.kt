@@ -5,27 +5,34 @@ import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.toPanelTls
+import com.firesin.xuipanel.core.data.repository.DailyPoint
 import com.firesin.xuipanel.core.data.repository.PanelRepository
+import com.firesin.xuipanel.core.data.repository.TrafficHistoryRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import java.util.logging.Logger
 import javax.inject.Inject
 
 private val logger = Logger.getLogger("StatsViewModel")
 
+enum class ChartRange(val days: Long) { D7(7L), D30(30L), D90(90L) }
+
 @HiltViewModel
 class StatsViewModel @Inject constructor(
     private val panelRepository: PanelRepository,
     private val xuiClient: XuiClient,
+    private val historyRepository: TrafficHistoryRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<StatsUiState>(StatsUiState.Loading)
@@ -33,6 +40,25 @@ class StatsViewModel @Inject constructor(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
+    private val _range = MutableStateFlow(ChartRange.D7)
+    val range: StateFlow<ChartRange> = _range
+
+    fun setRange(range: ChartRange) { _range.value = range }
+
+    /**
+     * Returns a Flow of daily points for the given inbound, reacting to range changes.
+     * panelId is derived from current uiState — call only when state is Content.
+     */
+    fun chartFlow(panelId: String, inboundId: Int): Flow<List<DailyPoint>> =
+        _range.flatMapLatest { chartRange ->
+            val msPerDay = 86_400_000L
+            val now = System.currentTimeMillis()
+            val todayMidnight = (now / msPerDay) * msPerDay
+            val fromEpoch = todayMidnight - chartRange.days * msPerDay
+            val toEpoch = todayMidnight + msPerDay
+            historyRepository.observeInboundDaily(panelId, inboundId, fromEpoch, toEpoch)
+        }
 
     init {
         viewModelScope.launch {

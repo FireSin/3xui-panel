@@ -6,6 +6,7 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.repository.PanelRepository
+import com.firesin.xuipanel.core.data.repository.TrafficHistoryRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.ClientStatDto
 import com.firesin.xuipanel.core.xui.dto.InboundDto
@@ -34,12 +35,14 @@ class StatsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var panelRepository: PanelRepository
     private lateinit var xuiClient: XuiClient
+    private lateinit var historyRepository: TrafficHistoryRepository
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         panelRepository = mockk()
         xuiClient = mockk()
+        historyRepository = mockk(relaxed = true)
     }
 
     @AfterEach
@@ -69,7 +72,7 @@ class StatsViewModelTest {
         coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
             Result.Success(onlineEmails)
 
-        val vm = StatsViewModel(panelRepository, xuiClient)
+        val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
 
         vm.uiState.test {
             skipItems(1) // initial Loading
@@ -99,7 +102,7 @@ class StatsViewModelTest {
         coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
             Result.Success(emptySet())
 
-        val vm = StatsViewModel(panelRepository, xuiClient)
+        val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
 
         vm.uiState.test {
             skipItems(1) // initial Loading
@@ -123,7 +126,7 @@ class StatsViewModelTest {
         coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = StatsViewModel(panelRepository, xuiClient)
+        val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
 
         vm.uiState.test {
             skipItems(1) // initial Loading
@@ -143,7 +146,7 @@ class StatsViewModelTest {
     fun `no active panel - emits NoActivePanel`() = runTest {
         every { panelRepository.observeActive() } returns flowOf(null)
 
-        val vm = StatsViewModel(panelRepository, xuiClient)
+        val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertInstanceOf(StatsUiState.NoActivePanel::class.java, vm.uiState.value)
@@ -161,7 +164,7 @@ class StatsViewModelTest {
         coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
             Result.Success(emptySet())
 
-        val vm = StatsViewModel(panelRepository, xuiClient)
+        val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Initially not expanded
@@ -191,7 +194,7 @@ class StatsViewModelTest {
         coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
             Result.Success(emptySet())
 
-        val vm = StatsViewModel(panelRepository, xuiClient)
+        val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Expand inbound 5
