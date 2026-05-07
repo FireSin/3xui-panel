@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.feature.stats.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ fun ClientRow(
     client: ClientStatDto,
     online: Boolean,
     showOnlineDot: Boolean,
+    onClient: (emailKey: String, clientLabel: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val rowAlpha = if (client.enable) 1f else DISABLED_ALPHA
@@ -49,6 +51,7 @@ fun ClientRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onClient(client.email, client.email) }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,

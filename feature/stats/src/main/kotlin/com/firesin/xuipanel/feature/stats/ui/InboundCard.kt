@@ -37,6 +37,7 @@ fun InboundCard(
     onlinesAvailable: Boolean,
     onToggle: () -> Unit,
     chartPoints: List<DailyPoint> = emptyList(),
+    onClient: (emailKey: String, clientLabel: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
@@ -101,6 +102,7 @@ fun InboundCard(
                             client = client,
                             online = client.email in onlineEmails,
                             showOnlineDot = onlinesAvailable,
+                            onClient = onClient,
                         )
                     }
                     InboundTrafficChart(

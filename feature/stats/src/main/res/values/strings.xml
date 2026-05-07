@@ -21,6 +21,8 @@
     <string name="stats_chart_range_30d">30d</string>
     <string name="stats_chart_range_90d">90d</string>
     <string name="stats_chart_no_data">No data yet</string>
+    <string name="stats_client_back">Back</string>
+    <string name="stats_client_traffic_title">Client traffic</string>
 
     <string name="stats_error_invalid_credentials">Invalid login or password</string>
     <string name="stats_error_tls">TLS error: %s</string>

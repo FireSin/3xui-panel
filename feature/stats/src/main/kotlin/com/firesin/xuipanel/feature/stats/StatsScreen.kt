@@ -38,6 +38,7 @@ import com.firesin.xuipanel.feature.stats.ui.ServerSummaryCard
 
 @Composable
 fun StatsScreen(
+    onNavigateToClientStats: (panelId: String, inboundId: Int, emailKey: String, clientLabel: String) -> Unit = { _, _, _, _ -> },
     viewModel: StatsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -53,6 +54,7 @@ fun StatsScreen(
         onToggleExpanded = viewModel::toggleExpanded,
         onRangeChange = viewModel::setRange,
         chartFlow = viewModel::chartFlow,
+        onNavigateToClientStats = onNavigateToClientStats,
     )
 }
 
@@ -67,6 +69,7 @@ private fun StatsContent(
     onToggleExpanded: (Int) -> Unit,
     onRangeChange: (ChartRange) -> Unit,
     chartFlow: (panelId: String, inboundId: Int) -> kotlinx.coroutines.flow.Flow<List<com.firesin.xuipanel.core.data.repository.DailyPoint>>,
+    onNavigateToClientStats: (panelId: String, inboundId: Int, emailKey: String, clientLabel: String) -> Unit = { _, _, _, _ -> },
 ) {
     Scaffold(
         topBar = {
@@ -147,6 +150,9 @@ private fun StatsContent(
                             onlinesAvailable = uiState.onlinesAvailable,
                             onToggle = { onToggleExpanded(inbound.id) },
                             chartPoints = chartPoints,
+                            onClient = { emailKey, clientLabel ->
+                                onNavigateToClientStats(uiState.panel.id, inbound.id, emailKey, clientLabel)
+                            },
                         )
                     }
                 }

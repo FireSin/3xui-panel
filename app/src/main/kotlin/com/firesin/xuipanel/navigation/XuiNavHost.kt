@@ -13,6 +13,8 @@ import com.firesin.xuipanel.feature.panels.navigation.PanelsRoute
 import com.firesin.xuipanel.feature.panels.navigation.panelsGraph
 import com.firesin.xuipanel.feature.share.navigation.navigateToShare
 import com.firesin.xuipanel.feature.share.navigation.shareGraph
+import com.firesin.xuipanel.feature.stats.navigation.clientStatsGraph
+import com.firesin.xuipanel.feature.stats.navigation.navigateToClientStats
 import com.firesin.xuipanel.feature.stats.navigation.statsGraph
 
 @Composable
@@ -42,5 +44,6 @@ fun XuiNavHost(
         )
         shareGraph(navController)
         statsGraph(navController)
+        clientStatsGraph(navController)
     }
 }
