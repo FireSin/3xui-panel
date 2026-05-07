@@ -67,7 +67,7 @@ fun NavGraphBuilder.clientsGraph(
             onAddPanel = { navController.navigate(panelsAddRoute) },
             onNavigateAdd = { inboundId -> navController.navigateToAddClient(inboundId) },
             onNavigateEdit = { inboundId, key -> navController.navigateToEditClient(inboundId, key) },
-            onNavigateShare = onNavigateShare,
+            onPopBackStack = { navController.popBackStack() },
         )
     }
 
@@ -128,6 +128,12 @@ fun NavGraphBuilder.clientsGraph(
                     navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() },
+                onShare = { onNavigateShare(inboundId, clientKey) },
+                onResetTraffic = { viewModel.resetTraffic(inboundId, existing) },
+                onDelete = {
+                    viewModel.deleteClient(inboundId, existing)
+                    navController.popBackStack()
+                },
             )
         }
     }

@@ -11,11 +11,13 @@ fun NavGraphBuilder.dashboardGraph(
     navController: NavController,
     panelsAddRoute: String,
     onNavigateToStats: () -> Unit,
+    onMenuClick: () -> Unit = {},
 ) {
     composable(route = DashboardRoute) {
         DashboardScreen(
             onAddPanel = { navController.navigate(panelsAddRoute) },
             onNavigateToStats = onNavigateToStats,
+            onMenuClick = onMenuClick,
         )
     }
 }

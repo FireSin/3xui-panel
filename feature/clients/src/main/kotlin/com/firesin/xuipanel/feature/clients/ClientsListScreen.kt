@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.clients
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,22 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.util.formatRemainingTime
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.designsystem.format.formatBytes
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
@@ -73,7 +69,7 @@ fun ClientsListScreen(
     onAddPanel: () -> Unit = {},
     onNavigateAdd: (inboundId: Int) -> Unit = {},
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
-    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
+    onPopBackStack: () -> Unit = {},
     viewModel: ClientsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -93,8 +89,7 @@ fun ClientsListScreen(
         }
     }
 
-    var pendingDelete by remember { mutableStateOf<ClientConfig?>(null) }
-    var pendingReset by remember { mutableStateOf<ClientConfig?>(null) }
+    var pendingDeleteInbound by remember { mutableStateOf(false) }
 
     val resolvedError = errorMessage?.toUserMessage()
     LaunchedEffect(resolvedError) {
@@ -110,37 +105,56 @@ fun ClientsListScreen(
         snackbarHostState = snackbarHostState,
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
-        onSelectInbound = viewModel::selectInbound,
         onNavigateAdd = onNavigateAdd,
         onNavigateEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
-        onNavigateShare = { inboundId, key -> onNavigateShare(inboundId, key) },
-        onDeleteRequest = { client -> pendingDelete = client },
-        onResetRequest = { client -> pendingReset = client },
+        onDeleteInboundRequest = { pendingDeleteInbound = true },
     )
 
-    pendingDelete?.let { client ->
-        val inboundId = (uiState as? ClientsUiState.Content)?.selectedInboundId
-        ClientDeleteConfirmDialog(
-            clientEmail = client.email,
+    if (pendingDeleteInbound) {
+        val content = uiState as? ClientsUiState.Content
+        val inboundName = content?.selectedInbound()?.let { inboundDisplayName(it) } ?: ""
+        InboundDeleteConfirmDialogInline(
+            inboundName = inboundName,
             onConfirm = {
-                if (inboundId != null) viewModel.deleteClient(inboundId, client)
-                pendingDelete = null
+                val id = (uiState as? ClientsUiState.Content)?.selectedInboundId
+                if (id != null) {
+                    viewModel.deleteInbound(id)
+                }
+                pendingDeleteInbound = false
+                onPopBackStack()
             },
-            onDismiss = { pendingDelete = null },
+            onDismiss = { pendingDeleteInbound = false },
         )
     }
+}
 
-    pendingReset?.let { client ->
-        val inboundId = (uiState as? ClientsUiState.Content)?.selectedInboundId
-        ClientResetConfirmDialog(
-            clientEmail = client.email,
-            onConfirm = {
-                if (inboundId != null) viewModel.resetTraffic(inboundId, client)
-                pendingReset = null
-            },
-            onDismiss = { pendingReset = null },
-        )
-    }
+private fun ClientsUiState.Content.selectedInbound(): InboundDto? =
+    inbounds.firstOrNull { it.id == selectedInboundId }
+
+private fun inboundDisplayName(inbound: InboundDto): String =
+    inbound.remark.ifBlank { "${inbound.protocol}://${inbound.port}" }
+
+@Composable
+private fun InboundDeleteConfirmDialogInline(
+    inboundName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.clients_inbound_delete_title, inboundName)) },
+        text = { Text(stringResource(R.string.clients_inbound_delete_message)) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.clients_inbound_delete_confirm))
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.clients_inbound_delete_cancel))
+            }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -151,33 +165,47 @@ private fun ClientsContent(
     snackbarHostState: SnackbarHostState,
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
-    onSelectInbound: (Int) -> Unit,
     onNavigateAdd: (inboundId: Int) -> Unit,
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit,
-    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit,
-    onDeleteRequest: (ClientConfig) -> Unit,
-    onResetRequest: (ClientConfig) -> Unit,
+    onDeleteInboundRequest: () -> Unit,
 ) {
+    val content = uiState as? ClientsUiState.Content
+    val selectedInbound = content?.selectedInbound()
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    val panel = (uiState as? ClientsUiState.Content)?.panel
-                        ?: (uiState as? ClientsUiState.Error)?.panel
-                        ?: (uiState as? ClientsUiState.Loading)?.panel
                     Column {
                         Text(
-                            text = panel?.name ?: stringResource(R.string.clients_title),
+                            text = selectedInbound?.let { inboundDisplayName(it) }
+                                ?: (content?.panel?.name
+                                    ?: (uiState as? ClientsUiState.Error)?.panel?.name
+                                    ?: (uiState as? ClientsUiState.Loading)?.panel?.name
+                                    ?: stringResource(R.string.clients_title)),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (panel != null) {
+                        val panelUrl = (uiState as? ClientsUiState.Content)?.panel?.baseUrl
+                            ?: (uiState as? ClientsUiState.Error)?.panel?.baseUrl
+                            ?: (uiState as? ClientsUiState.Loading)?.panel?.baseUrl
+                        if (panelUrl != null) {
                             Text(
-                                text = panel.baseUrl,
+                                text = panelUrl,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (selectedInbound != null) {
+                        IconButton(onClick = onDeleteInboundRequest) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.clients_inbound_cd_delete),
                             )
                         }
                     }
@@ -188,7 +216,6 @@ private fun ClientsContent(
         floatingActionButton = {
             if (uiState is ClientsUiState.Content) {
                 val selectedId = uiState.selectedInboundId
-                val selectedInbound = uiState.inbounds.firstOrNull { it.id == selectedId }
                 val isSupported = selectedInbound?.protocol?.isSupportedProtocol() ?: false
                 if (isSupported && selectedId != null) {
                     FloatingActionButton(onClick = { onNavigateAdd(selectedId) }) {
@@ -232,18 +259,6 @@ private fun ClientsContent(
                     .padding(padding),
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    if (uiState.inbounds.isNotEmpty()) {
-                        InboundDropdown(
-                            inbounds = uiState.inbounds,
-                            selectedId = uiState.selectedInboundId,
-                            onSelect = onSelectInbound,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-
-                    val selectedInbound = uiState.inbounds.firstOrNull { it.id == uiState.selectedInboundId }
                     val isSupported = selectedInbound?.protocol?.isSupportedProtocol() ?: false
 
                     if (selectedInbound != null && !isSupported) {
@@ -278,53 +293,11 @@ private fun ClientsContent(
                                     inboundId = uiState.selectedInboundId ?: 0,
                                     isSupported = isSupported,
                                     onEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
-                                    onShare = { inboundId, key -> onNavigateShare(inboundId, key) },
-                                    onReset = { onResetRequest(client) },
-                                    onDelete = { onDeleteRequest(client) },
                                 )
                             }
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun InboundDropdown(
-    inbounds: List<InboundDto>,
-    selectedId: Int?,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedInbound = inbounds.firstOrNull { it.id == selectedId }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier,
-    ) {
-        OutlinedTextField(
-            value = selectedInbound?.displayName() ?: "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.clients_inbound_dropdown_label)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            inbounds.forEach { inbound ->
-                DropdownMenuItem(
-                    text = { Text(inbound.displayName()) },
-                    onClick = {
-                        onSelect(inbound.id)
-                        expanded = false
-                    },
-                )
             }
         }
     }
@@ -355,14 +328,14 @@ private fun ClientCard(
     inboundId: Int,
     isSupported: Boolean,
     onEdit: (inboundId: Int, clientKey: String) -> Unit,
-    onShare: (inboundId: Int, clientKey: String) -> Unit,
-    onReset: () -> Unit,
-    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Card(modifier = modifier.fillMaxWidth()) {
+    val cardModifier = if (isSupported) {
+        modifier.fillMaxWidth().clickable { onEdit(inboundId, client.urlKey) }
+    } else {
+        modifier.fillMaxWidth()
+    }
+    Card(modifier = cardModifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -421,50 +394,6 @@ private fun ClientCard(
                     )
                 }
             }
-
-            if (isSupported) {
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.clients_cd_menu),
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.clients_menu_edit)) },
-                            onClick = {
-                                menuExpanded = false
-                                onEdit(inboundId, client.urlKey)
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.client_menu_share)) },
-                            onClick = {
-                                menuExpanded = false
-                                onShare(inboundId, client.urlKey)
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.clients_menu_reset_traffic)) },
-                            onClick = {
-                                menuExpanded = false
-                                onReset()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.clients_menu_delete)) },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            },
-                        )
-                    }
-                }
-            }
         }
     }
 }
@@ -482,14 +411,13 @@ private fun expiryLabel(expiryTime: Long): String =
     if (expiryTime == 0L) {
         stringResource(R.string.clients_no_expiry)
     } else {
-        stringResource(
+        val base = stringResource(
             R.string.clients_expiry,
             SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(expiryTime)),
         )
+        val remaining = formatRemainingTime(expiryTime)
+        if (remaining != null) "$base ($remaining)" else base
     }
-
-private fun InboundDto.displayName(): String =
-    remark.ifBlank { "#${id} ${protocol}:${port}" }
 
 @Composable
 private fun NoActivePanelEmpty(
@@ -602,12 +530,9 @@ private fun ClientsContentPreview() {
             snackbarHostState = SnackbarHostState(),
             onRefresh = {},
             onAddPanel = {},
-            onSelectInbound = {},
             onNavigateAdd = {},
             onNavigateEdit = { _, _ -> },
-            onNavigateShare = { _, _ -> },
-            onDeleteRequest = {},
-            onResetRequest = {},
+            onDeleteInboundRequest = {},
         )
     }
 }

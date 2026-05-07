@@ -6,11 +6,12 @@
     <string name="clients_no_active_panel">Нет активной панели</string>
     <string name="clients_add_panel">Добавить панель</string>
     <string name="clients_retry">Повторить</string>
-    <string name="clients_cd_menu">Меню клиента</string>
-    <string name="clients_menu_edit">Редактировать</string>
-    <string name="client_menu_share">Поделиться</string>
-    <string name="clients_menu_reset_traffic">Сбросить трафик</string>
-    <string name="clients_menu_delete">Удалить</string>
+    <!-- Inbound-level actions in TopAppBar -->
+    <string name="clients_inbound_cd_delete">Удалить инбаунд</string>
+    <string name="clients_inbound_delete_title">Удалить инбаунд \"%s\"?</string>
+    <string name="clients_inbound_delete_message">Инбаунд и все связанные клиенты будут удалены с панели 3x-ui. Это действие необратимо.</string>
+    <string name="clients_inbound_delete_confirm">Удалить</string>
+    <string name="clients_inbound_delete_cancel">Отмена</string>
     <string name="clients_enabled">Включён</string>
     <string name="clients_disabled">Выключен</string>
     <string name="clients_traffic">%1$s лимит</string>
@@ -66,6 +67,19 @@
     <string name="client_form_error_total_gb_negative">Лимит не может быть отрицательным</string>
     <string name="client_form_error_limit_ip_negative">Лимит IP не может быть отрицательным</string>
     <string name="client_form_cd_back">Назад</string>
+    <string name="client_form_cd_more">Ещё действия</string>
+    <string name="client_form_menu_share">Поделиться</string>
+    <string name="client_form_menu_reset_traffic">Сбросить трафик</string>
+    <string name="client_form_menu_delete">Удалить</string>
+    <string name="client_form_reset_title">Сбросить трафик?</string>
+    <string name="client_form_reset_message">Счётчики трафика клиента будут обнулены.</string>
+    <string name="client_form_reset_confirm">Сбросить</string>
+    <string name="client_form_reset_cancel">Отмена</string>
+    <string name="client_form_delete_title">Удалить клиента?</string>
+    <string name="client_form_delete_message">Клиент будет удалён с панели 3x-ui. Это действие необратимо.</string>
+    <string name="client_form_delete_confirm">Удалить</string>
+    <string name="client_form_delete_cancel">Отмена</string>
+    <string name="client_form_expiry_no_limit_chip">Без ограничения</string>
 
     <!-- Error messages -->
     <string name="clients_error_invalid_credentials">Неверный логин или пароль</string>

@@ -10,9 +10,11 @@ import androidx.compose.runtime.Composable
 fun InboundsScreen(
     onAddPanel: () -> Unit = {},
     onManageClients: (inboundId: Int) -> Unit = {},
+    onMenuClick: () -> Unit = {},
 ) {
     InboundsListScreen(
         onAddPanel = onAddPanel,
         onManageClients = onManageClients,
+        onMenuClick = onMenuClick,
     )
 }

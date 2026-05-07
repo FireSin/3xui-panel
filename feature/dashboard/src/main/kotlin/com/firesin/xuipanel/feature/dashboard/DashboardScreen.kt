@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,6 +23,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -58,6 +60,7 @@ import java.util.Locale
 fun DashboardScreen(
     onAddPanel: () -> Unit = {},
     onNavigateToStats: () -> Unit,
+    onMenuClick: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -69,6 +72,7 @@ fun DashboardScreen(
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
         onNavigateToStats = onNavigateToStats,
+        onMenuClick = onMenuClick,
     )
 }
 
@@ -80,6 +84,7 @@ private fun DashboardContent(
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
     onNavigateToStats: () -> Unit,
+    onMenuClick: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -103,6 +108,14 @@ private fun DashboardContent(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = stringResource(R.string.dashboard_cd_menu),
+                        )
                     }
                 },
             )

@@ -7,10 +7,11 @@
     <string name="inbounds_add_panel">Добавить панель</string>
     <string name="inbounds_retry">Повторить</string>
     <string name="inbounds_traffic">%1$s ↑ / %2$s ↓</string>
-    <string name="inbounds_cd_toggle">Включить/выключить инбаунд</string>
-    <string name="inbounds_cd_menu">Меню инбаунда</string>
+    <string name="inbounds_cd_menu_open">Открыть меню навигации</string>
+    <!-- Delete/toggle actions moved to ClientsListScreen -->
     <string name="inbounds_menu_delete">Удалить</string>
-    <string name="inbounds_menu_manage_clients">Управлять клиентами</string>
+    <string name="inbounds_toggle_enable">Включить</string>
+    <string name="inbounds_toggle_disable">Выключить</string>
 
     <!-- InboundDeleteConfirmDialog -->
     <string name="inbound_delete_title">Удалить инбаунд \"%s\"?</string>

@@ -1,7 +1,10 @@
 package com.firesin.xuipanel.feature.clients
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,13 +16,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +55,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.firesin.xuipanel.core.common.util.addExpiry
+import com.firesin.xuipanel.core.common.util.addExpiryMonths
+import com.firesin.xuipanel.core.common.util.formatRemainingTime
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.util.randomShadowsocksPassword
@@ -60,6 +71,8 @@ private const val BYTES_PER_GB = 1_073_741_824L
 private val VLESS_FLOW_OPTIONS = listOf("", "xtls-rprx-vision")
 private const val SS_DEFAULT_METHOD = "chacha20-ietf-poly1305"
 
+private const val MS_PER_DAY = 86_400_000L
+
 /**
  * Single-form screen for both add and edit.
  *
@@ -67,6 +80,9 @@ private const val SS_DEFAULT_METHOD = "chacha20-ietf-poly1305"
  * @param protocol inbound protocol ("vmess", "vless", "shadowsocks").
  * @param onSubmit called with the constructed [ClientConfig] on valid submit.
  * @param onCancel called when user cancels.
+ * @param onShare called when user taps "Поделиться" (edit mode only).
+ * @param onResetTraffic called when user confirms "Сбросить трафик" (edit mode only).
+ * @param onDelete called when user confirms "Удалить" (edit mode only); caller does popBackStack.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +91,9 @@ fun ClientFormScreen(
     existingClient: ClientConfig? = null,
     onSubmit: (ClientConfig) -> Unit,
     onCancel: () -> Unit,
+    onShare: (() -> Unit)? = null,
+    onResetTraffic: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     val isEdit = existingClient != null
     val title = if (isEdit) {
@@ -144,6 +163,11 @@ fun ClientFormScreen(
     // --- DatePicker ---
     var showDatePicker by remember { mutableStateOf(false) }
 
+    // --- Overflow menu state ---
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -154,6 +178,55 @@ fun ClientFormScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.client_form_cd_back),
                         )
+                    }
+                },
+                actions = {
+                    if (isEdit) {
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(R.string.client_form_cd_more),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                            ) {
+                                if (onShare != null) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.client_form_menu_share)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onShare()
+                                        },
+                                    )
+                                }
+                                if (onResetTraffic != null) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.client_form_menu_reset_traffic)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showResetConfirm = true
+                                        },
+                                    )
+                                }
+                                if (onDelete != null) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = stringResource(R.string.client_form_menu_delete),
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showDeleteConfirm = true
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
             )
@@ -230,11 +303,12 @@ fun ClientFormScreen(
                 singleLine = true,
             )
 
-            // Expiry date picker row
+            // Expiry date picker row + quick-preset chips
             ExpiryRow(
                 expiryTime = expiryTime,
                 onPickDate = { showDatePicker = true },
                 onClear = { expiryTime = 0L },
+                onSetExpiryTime = { expiryTime = it },
             )
 
             OutlinedTextField(
@@ -365,6 +439,51 @@ fun ClientFormScreen(
             DatePicker(state = datePickerState)
         }
     }
+
+    if (showResetConfirm && onResetTraffic != null) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text(stringResource(R.string.client_form_reset_title)) },
+            text = { Text(stringResource(R.string.client_form_reset_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onResetTraffic()
+                    showResetConfirm = false
+                }) {
+                    Text(stringResource(R.string.client_form_reset_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text(stringResource(R.string.client_form_reset_cancel))
+                }
+            },
+        )
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.client_form_delete_title)) },
+            text = { Text(stringResource(R.string.client_form_delete_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete()
+                }) {
+                    Text(
+                        text = stringResource(R.string.client_form_delete_confirm),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.client_form_delete_cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -486,11 +605,13 @@ private fun FlowDropdown(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ExpiryRow(
     expiryTime: Long,
     onPickDate: () -> Unit,
     onClear: () -> Unit,
+    onSetExpiryTime: (Long) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -520,6 +641,45 @@ private fun ExpiryRow(
                     Text(stringResource(R.string.client_form_expiry_clear))
                 }
             }
+        }
+        val remaining = formatRemainingTime(expiryTime)
+        if (remaining != null) {
+            Text(
+                text = "($remaining)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        // Quick-preset chips
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            // Day-based presets
+            listOf(7, 10, 14, 20).forEach { days ->
+                AssistChip(
+                    onClick = {
+                        onSetExpiryTime(addExpiry(expiryTime, days * MS_PER_DAY))
+                    },
+                    label = { Text("+${days}д") },
+                )
+            }
+            // Month-based presets
+            listOf(1 to "+1 мес", 3 to "+3 мес", 6 to "+6 мес", 12 to "+12 мес").forEach { (months, label) ->
+                AssistChip(
+                    onClick = {
+                        onSetExpiryTime(addExpiryMonths(expiryTime, months))
+                    },
+                    label = { Text(label) },
+                )
+            }
+            // "No limit" chip
+            FilterChip(
+                selected = expiryTime == 0L,
+                onClick = { onSetExpiryTime(0L) },
+                label = { Text(stringResource(R.string.client_form_expiry_no_limit_chip)) },
+            )
         }
     }
 }
@@ -623,6 +783,9 @@ private fun ClientFormEditVlessPreview() {
             ),
             onSubmit = {},
             onCancel = {},
+            onShare = {},
+            onResetTraffic = {},
+            onDelete = {},
         )
     }
 }

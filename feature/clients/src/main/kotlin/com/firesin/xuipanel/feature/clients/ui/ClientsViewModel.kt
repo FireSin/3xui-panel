@@ -138,6 +138,24 @@ class ClientsViewModel @Inject constructor(
         }
     }
 
+    fun deleteInbound(inboundId: Int) {
+        val panel = activePanel() ?: return
+        viewModelScope.launch {
+            val result = xuiClient.deleteInbound(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                username = panel.login,
+                password = panel.password,
+                tls = panel.toPanelTls(),
+                id = inboundId,
+            )
+            when (result) {
+                is Result.Success -> fetchInbounds(panel, selectedInboundId = null)
+                is Result.Failure -> _errorMessage.value = result.error
+            }
+        }
+    }
+
     fun resetTraffic(inboundId: Int, client: ClientConfig) {
         val panel = activePanel() ?: return
         viewModelScope.launch {

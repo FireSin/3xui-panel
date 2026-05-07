@@ -15,11 +15,13 @@ fun NavGraphBuilder.inboundsGraph(
     navController: NavController,
     panelsAddRoute: String = "panels_add",
     onManageClients: (inboundId: Int) -> Unit = {},
+    onMenuClick: () -> Unit = {},
 ) {
     composable(route = InboundsRoute) {
         InboundsScreen(
             onAddPanel = { navController.navigate(panelsAddRoute) },
             onManageClients = onManageClients,
+            onMenuClick = onMenuClick,
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.inbounds
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,12 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +57,7 @@ import java.time.Instant
 fun InboundsListScreen(
     onAddPanel: () -> Unit = {},
     onManageClients: (inboundId: Int) -> Unit = {},
+    onMenuClick: () -> Unit = {},
     viewModel: InboundsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -82,12 +82,8 @@ fun InboundsListScreen(
         snackbarHostState = snackbarHostState,
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
-        onToggle = { id, enable -> viewModel.toggle(id, enable) },
-        onDeleteRequest = { id, name ->
-            pendingDeleteId = id
-            pendingDeleteName = name
-        },
         onManageClients = onManageClients,
+        onMenuClick = onMenuClick,
     )
 
     pendingDeleteId?.let { id ->
@@ -110,9 +106,8 @@ private fun InboundsContent(
     snackbarHostState: SnackbarHostState,
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
-    onToggle: (id: Int, enable: Boolean) -> Unit,
-    onDeleteRequest: (id: Int, name: String) -> Unit,
     onManageClients: (inboundId: Int) -> Unit = {},
+    onMenuClick: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -136,6 +131,14 @@ private fun InboundsContent(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = stringResource(R.string.inbounds_cd_menu_open),
+                        )
                     }
                 },
             )
@@ -192,8 +195,6 @@ private fun InboundsContent(
                         items(uiState.inbounds, key = { it.id }) { inbound ->
                             InboundCard(
                                 inbound = inbound,
-                                onToggle = { enable -> onToggle(inbound.id, enable) },
-                                onDelete = { onDeleteRequest(inbound.id, inbound.displayName()) },
                                 onManageClients = { onManageClients(inbound.id) },
                             )
                         }
@@ -207,14 +208,14 @@ private fun InboundsContent(
 @Composable
 private fun InboundCard(
     inbound: InboundDto,
-    onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit,
     onManageClients: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onManageClients),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -248,37 +249,9 @@ private fun InboundCard(
 
             Switch(
                 checked = inbound.enable,
-                onCheckedChange = onToggle,
+                onCheckedChange = null,
                 modifier = Modifier.padding(start = 8.dp),
             )
-
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.inbounds_cd_menu),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.inbounds_menu_manage_clients)) },
-                        onClick = {
-                            menuExpanded = false
-                            onManageClients()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.inbounds_menu_delete)) },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        },
-                    )
-                }
-            }
         }
     }
 }
@@ -400,8 +373,6 @@ private fun InboundsContentPreview() {
             snackbarHostState = SnackbarHostState(),
             onRefresh = {},
             onAddPanel = {},
-            onToggle = { _, _ -> },
-            onDeleteRequest = { _, _ -> },
             onManageClients = {},
         )
     }
@@ -417,8 +388,6 @@ private fun InboundsLoadingPreview() {
             snackbarHostState = SnackbarHostState(),
             onRefresh = {},
             onAddPanel = {},
-            onToggle = { _, _ -> },
-            onDeleteRequest = { _, _ -> },
             onManageClients = {},
         )
     }
