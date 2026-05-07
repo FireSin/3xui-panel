@@ -82,6 +82,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:crypto"))
     implementation(project(":core:xui"))
+    implementation(project(":core:sampler"))
 
     implementation(project(":feature:panels"))
     implementation(project(":feature:dashboard"))
@@ -101,9 +102,13 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
 
+    implementation(libs.androidx.work.runtime.ktx)
+
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
     ksp(libs.hilt.android.compiler)
+    ksp(libs.hilt.compiler.androidx)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

@@ -4,6 +4,8 @@ import com.firesin.xuipanel.core.common.PanelPinWriter
 import com.firesin.xuipanel.core.data.repository.PanelPinWriterImpl
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.data.repository.PanelRepositoryImpl
+import com.firesin.xuipanel.core.data.repository.TrafficHistoryRepository
+import com.firesin.xuipanel.core.data.repository.TrafficHistoryRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -21,4 +23,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPanelPinWriter(impl: PanelPinWriterImpl): PanelPinWriter
+
+    @Binds
+    @Singleton
+    abstract fun bindTrafficHistoryRepository(impl: TrafficHistoryRepositoryImpl): TrafficHistoryRepository
 }

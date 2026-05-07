@@ -31,6 +31,7 @@ include(":core:data")
 include(":core:network")
 include(":core:crypto")
 include(":core:xui")
+include(":core:sampler")
 
 // feature modules
 include(":feature:panels")
