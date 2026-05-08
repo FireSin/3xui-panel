@@ -82,6 +82,12 @@
     <string name="client_form_delete_confirm">Удалить</string>
     <string name="client_form_delete_cancel">Отмена</string>
     <string name="client_form_expiry_no_limit_chip">Без ограничения</string>
+    <!-- New strings for direction-A redesign -->
+    <string name="client_form_section_state">Состояние</string>
+    <string name="client_form_state_footer">Отключённые клиенты сохраняют настройки, но не могут подключиться.</string>
+    <string name="client_form_total_gb_label_short">Трафик</string>
+    <string name="client_form_limit_ip_label_short">Лимит IP</string>
+    <string name="client_form_flow_none">none</string>
 
     <!-- Error messages -->
     <string name="clients_error_invalid_credentials">Неверный логин или пароль</string>

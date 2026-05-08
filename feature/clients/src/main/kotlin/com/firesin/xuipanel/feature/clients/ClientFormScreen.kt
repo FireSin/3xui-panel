@@ -15,31 +15,23 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -52,12 +44,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.firesin.xuipanel.core.common.util.addExpiry
 import com.firesin.xuipanel.core.common.util.addExpiryMonths
 import com.firesin.xuipanel.core.common.util.formatRemainingTime
+import com.firesin.xuipanel.core.designsystem.component.FieldRow
+import com.firesin.xuipanel.core.designsystem.component.GroupCard
+import com.firesin.xuipanel.core.designsystem.component.IosToggle
+import com.firesin.xuipanel.core.designsystem.component.SectionHeader
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.util.randomShadowsocksPassword
@@ -70,7 +67,6 @@ import java.util.Locale
 private const val BYTES_PER_GB = 1_073_741_824L
 private val VLESS_FLOW_OPTIONS = listOf("", "xtls-rprx-vision")
 private const val SS_DEFAULT_METHOD = "chacha20-ietf-poly1305"
-
 private const val MS_PER_DAY = 86_400_000L
 
 /**
@@ -171,16 +167,65 @@ fun ClientFormScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onCancel) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.client_form_cd_back),
+                    TextButton(onClick = onCancel) {
+                        Text(
+                            text = stringResource(R.string.client_form_cancel),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 },
                 actions = {
+                    TextButton(
+                        onClick = {
+                            val totalGbBytes = (totalGbText.toLongOrNull() ?: 0L) * BYTES_PER_GB
+                            val limitIp = limitIpText.toIntOrNull() ?: 0
+                            val config = buildClientConfig(
+                                protocol = protocol,
+                                existingClient = existingClient,
+                                uuid = uuid,
+                                ssPassword = ssPassword,
+                                ssMethod = ssMethod,
+                                vlessFlow = vlessFlow,
+                                email = email,
+                                totalGB = totalGbBytes,
+                                expiryTime = expiryTime,
+                                limitIp = limitIp,
+                                enable = enable,
+                                subId = subId,
+                                comment = comment,
+                            )
+                            onSubmit(config)
+                        },
+                        enabled = isSubmitEnabled,
+                    ) {
+                        Text(
+                            text = if (isEdit) {
+                                stringResource(R.string.client_form_submit_save)
+                            } else {
+                                stringResource(R.string.client_form_submit_add)
+                            },
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = if (isSubmitEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            },
+                        )
+                    }
                     if (isEdit) {
                         Box {
                             IconButton(onClick = { showOverflowMenu = true }) {
@@ -229,6 +274,7 @@ fun ClientFormScreen(
                         }
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(),
             )
         },
     ) { padding ->
@@ -237,182 +283,173 @@ fun ClientFormScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // --- Identity section ---
+            // ── IDENTITY ──────────────────────────────────────────────────────
             SectionHeader(stringResource(R.string.client_form_section_identity))
-
             when (protocol.lowercase()) {
                 "vmess", "vless" -> {
-                    UuidField(
-                        value = uuid,
-                        onValueChange = { uuid = it },
-                        readOnly = isEdit,
-                        isError = identityError,
-                    )
-                    if (protocol.lowercase() == "vless") {
-                        Spacer(Modifier.height(4.dp))
-                        FlowDropdown(selected = vlessFlow, onSelected = { vlessFlow = it })
+                    GroupCard {
+                        FieldRow(
+                            label = stringResource(R.string.client_form_email_label),
+                            value = email,
+                            onValueChange = { email = it },
+                            isError = emailError,
+                            topDivider = false,
+                        )
+                        FieldRow(
+                            label = stringResource(R.string.client_form_uuid_label),
+                            value = uuid,
+                            onValueChange = { uuid = it },
+                            monoValue = true,
+                            isError = identityError,
+                            readOnly = isEdit,
+                            enabled = !isEdit,
+                            trailing = if (!isEdit) {
+                                {
+                                    TextButton(onClick = { uuid = randomUuid() }) {
+                                        Text(
+                                            stringResource(R.string.client_form_generate),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                            } else null,
+                        )
+                        if (protocol.lowercase() == "vless") {
+                            FlowSelectorRow(
+                                selected = vlessFlow,
+                                onSelected = { vlessFlow = it },
+                            )
+                        }
                     }
                 }
                 "shadowsocks" -> {
-                    ShadowsocksPasswordField(
-                        value = ssPassword,
-                        onValueChange = { ssPassword = it },
-                        isError = identityError,
-                        showWarning = isEdit,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = ssMethod,
-                        onValueChange = { ssMethod = it },
-                        label = { Text(stringResource(R.string.client_form_method_label)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
+                    GroupCard {
+                        FieldRow(
+                            label = stringResource(R.string.client_form_email_label),
+                            value = email,
+                            onValueChange = { email = it },
+                            isError = emailError,
+                            topDivider = false,
+                        )
+                        FieldRow(
+                            label = stringResource(R.string.client_form_password_label),
+                            value = ssPassword,
+                            onValueChange = { ssPassword = it },
+                            isError = identityError,
+                            trailing = {
+                                TextButton(onClick = { ssPassword = randomShadowsocksPassword() }) {
+                                    Text(
+                                        stringResource(R.string.client_form_generate),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            },
+                        )
+                        FieldRow(
+                            label = stringResource(R.string.client_form_method_label),
+                            value = ssMethod,
+                            onValueChange = { ssMethod = it },
+                        )
+                    }
+                    if (isEdit) {
+                        Text(
+                            text = stringResource(R.string.client_form_password_rekey_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
                 }
             }
 
-            // --- Email ---
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text(stringResource(R.string.client_form_email_label)) },
-                isError = emailError,
-                supportingText = if (emailError) {
-                    { Text(stringResource(R.string.client_form_error_email_empty)) }
-                } else null,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            Spacer(Modifier.height(12.dp))
 
-            // --- Limits section ---
+            // ── LIMITS ────────────────────────────────────────────────────────
             SectionHeader(stringResource(R.string.client_form_section_limits))
+            GroupCard {
+                FieldRow(
+                    label = stringResource(R.string.client_form_total_gb_label_short),
+                    value = totalGbText,
+                    onValueChange = { totalGbText = it },
+                    isError = totalGbError,
+                    topDivider = false,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    trailing = if (totalGbError) {
+                        null
+                    } else null,
+                )
+                // Expiry row inside GroupCard
+                ExpiryFieldRow(
+                    expiryTime = expiryTime,
+                    onPickDate = { showDatePicker = true },
+                    onClear = { expiryTime = 0L },
+                )
+                FieldRow(
+                    label = stringResource(R.string.client_form_limit_ip_label_short),
+                    value = limitIpText,
+                    onValueChange = { limitIpText = it },
+                    isError = limitIpError,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            }
 
-            OutlinedTextField(
-                value = totalGbText,
-                onValueChange = { totalGbText = it },
-                label = { Text(stringResource(R.string.client_form_total_gb_label)) },
-                isError = totalGbError,
-                supportingText = if (totalGbError) {
-                    { Text(stringResource(R.string.client_form_error_total_gb_negative)) }
-                } else null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-
-            // Expiry date picker row + quick-preset chips
-            ExpiryRow(
+            // Quick-preset chips (below GroupCard, outside card)
+            ExpiryChipsRow(
                 expiryTime = expiryTime,
-                onPickDate = { showDatePicker = true },
-                onClear = { expiryTime = 0L },
                 onSetExpiryTime = { expiryTime = it },
             )
 
-            OutlinedTextField(
-                value = limitIpText,
-                onValueChange = { limitIpText = it },
-                label = { Text(stringResource(R.string.client_form_limit_ip_label)) },
-                isError = limitIpError,
-                supportingText = if (limitIpError) {
-                    { Text(stringResource(R.string.client_form_error_limit_ip_negative)) }
-                } else null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            Spacer(Modifier.height(12.dp))
 
-            // --- Flags section ---
-            SectionHeader(stringResource(R.string.client_form_section_flags))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.client_form_enable_label),
-                    style = MaterialTheme.typography.bodyLarge,
+            // ── STATE ─────────────────────────────────────────────────────────
+            SectionHeader(stringResource(R.string.client_form_section_state))
+            GroupCard(footer = stringResource(R.string.client_form_state_footer)) {
+                FieldRow(
+                    label = stringResource(R.string.client_form_enable_label),
+                    value = "",
+                    onValueChange = {},
+                    readOnly = true,
+                    topDivider = false,
+                    trailing = {
+                        IosToggle(
+                            checked = enable,
+                            onCheckedChange = { enable = it },
+                        )
+                    },
                 )
-                Switch(checked = enable, onCheckedChange = { enable = it })
             }
 
-            // --- Metadata section ---
-            SectionHeader(stringResource(R.string.client_form_section_meta))
+            Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
+            // ── META ──────────────────────────────────────────────────────────
+            SectionHeader(stringResource(R.string.client_form_section_meta))
+            GroupCard {
+                FieldRow(
+                    label = stringResource(R.string.client_form_sub_id_label),
                     value = subId,
                     onValueChange = { subId = it },
-                    label = { Text(stringResource(R.string.client_form_sub_id_label)) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                )
-                OutlinedButton(onClick = { subId = randomSubId() }) {
-                    Text(stringResource(R.string.client_form_generate))
-                }
-            }
-
-            OutlinedTextField(
-                value = comment,
-                onValueChange = { comment = it },
-                label = { Text(stringResource(R.string.client_form_comment_label)) },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 3,
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // --- Actions ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(stringResource(R.string.client_form_cancel))
-                }
-                Button(
-                    onClick = {
-                        val totalGbBytes = (totalGbText.toLongOrNull() ?: 0L) * BYTES_PER_GB
-                        val limitIp = limitIpText.toIntOrNull() ?: 0
-                        val config = buildClientConfig(
-                            protocol = protocol,
-                            existingClient = existingClient,
-                            uuid = uuid,
-                            ssPassword = ssPassword,
-                            ssMethod = ssMethod,
-                            vlessFlow = vlessFlow,
-                            email = email,
-                            totalGB = totalGbBytes,
-                            expiryTime = expiryTime,
-                            limitIp = limitIp,
-                            enable = enable,
-                            subId = subId,
-                            comment = comment,
-                        )
-                        onSubmit(config)
+                    monoValue = true,
+                    topDivider = false,
+                    trailing = {
+                        TextButton(onClick = { subId = randomSubId() }) {
+                            Text(
+                                stringResource(R.string.client_form_generate),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     },
-                    enabled = isSubmitEnabled,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        if (isEdit) {
-                            stringResource(R.string.client_form_submit_save)
-                        } else {
-                            stringResource(R.string.client_form_submit_add)
-                        },
-                    )
-                }
+                )
+                FieldRow(
+                    label = stringResource(R.string.client_form_comment_label),
+                    value = comment,
+                    onValueChange = { comment = it },
+                )
             }
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 
@@ -486,209 +523,122 @@ fun ClientFormScreen(
     }
 }
 
-@Composable
-private fun SectionHeader(text: String) {
-    HorizontalDivider()
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 4.dp),
-    )
-}
+// ── Flow selector row (for VLESS) ─────────────────────────────────────────────
 
 @Composable
-private fun UuidField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    readOnly: Boolean,
-    isError: Boolean,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(stringResource(R.string.client_form_uuid_label)) },
-            isError = isError,
-            supportingText = if (isError) {
-                { Text(stringResource(R.string.client_form_error_identity_empty)) }
-            } else null,
-            readOnly = readOnly,
-            enabled = !readOnly,
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-        )
-        if (!readOnly) {
-            OutlinedButton(onClick = { onValueChange(randomUuid()) }) {
-                Text(stringResource(R.string.client_form_generate))
-            }
-        }
-    }
-}
-
-@Composable
-private fun ShadowsocksPasswordField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    isError: Boolean,
-    showWarning: Boolean,
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                label = { Text(stringResource(R.string.client_form_password_label)) },
-                isError = isError,
-                supportingText = if (isError) {
-                    { Text(stringResource(R.string.client_form_error_identity_empty)) }
-                } else null,
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-            )
-            OutlinedButton(onClick = { onValueChange(randomShadowsocksPassword()) }) {
-                Text(stringResource(R.string.client_form_generate))
-            }
-        }
-        if (showWarning) {
-            Text(
-                text = stringResource(R.string.client_form_password_rekey_warning),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FlowDropdown(
+private fun FlowSelectorRow(
     selected: String,
     onSelected: (String) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected.ifBlank { "none" },
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.client_form_flow_label)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            VLESS_FLOW_OPTIONS.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.ifBlank { "none" }) },
-                    onClick = {
-                        onSelected(option)
-                        expanded = false
-                    },
-                )
+    FieldRow(
+        label = stringResource(R.string.client_form_flow_label),
+        value = selected.ifBlank { stringResource(R.string.client_form_flow_none) },
+        onValueChange = {},
+        readOnly = true,
+        trailing = {
+            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                VLESS_FLOW_OPTIONS.forEach { option ->
+                    if (option != selected) {
+                        TextButton(onClick = { onSelected(option) }) {
+                            Text(
+                                text = option.ifBlank { stringResource(R.string.client_form_flow_none) },
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
             }
-        }
-    }
+        },
+    )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+// ── Expiry field row (inside GroupCard) ───────────────────────────────────────
+
 @Composable
-private fun ExpiryRow(
+private fun ExpiryFieldRow(
     expiryTime: Long,
     onPickDate: () -> Unit,
     onClear: () -> Unit,
-    onSetExpiryTime: (Long) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.client_form_expiry_label),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(4.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = if (expiryTime > 0L) {
-                    formatExpiryDate(expiryTime)
-                } else {
-                    stringResource(R.string.client_form_expiry_no_expiry)
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedButton(onClick = onPickDate) {
-                Text(stringResource(R.string.client_form_expiry_pick))
-            }
+    val remaining = formatRemainingTime(expiryTime)
+    val expiryLabel = if (expiryTime > 0L) {
+        val dateStr = formatExpiryDate(expiryTime)
+        if (remaining != null) "$dateStr ($remaining)" else dateStr
+    } else {
+        stringResource(R.string.client_form_expiry_no_expiry)
+    }
+
+    FieldRow(
+        label = stringResource(R.string.client_form_expiry_label),
+        value = expiryLabel,
+        onValueChange = {},
+        readOnly = true,
+        trailing = {
             if (expiryTime > 0L) {
                 TextButton(onClick = onClear) {
-                    Text(stringResource(R.string.client_form_expiry_clear))
+                    Text(
+                        stringResource(R.string.client_form_expiry_clear),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            } else {
+                TextButton(onClick = onPickDate) {
+                    Text(
+                        stringResource(R.string.client_form_expiry_pick),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
-        }
-        val remaining = formatRemainingTime(expiryTime)
-        if (remaining != null) {
-            Text(
-                text = "($remaining)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        },
+    )
+}
+
+// ── Quick-preset expiry chips ─────────────────────────────────────────────────
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ExpiryChipsRow(
+    expiryTime: Long,
+    onSetExpiryTime: (Long) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        listOf(7, 10, 14, 20).forEach { days ->
+            AssistChip(
+                onClick = {
+                    onSetExpiryTime(addExpiry(expiryTime, days * MS_PER_DAY))
+                },
+                label = { Text("+${days}д") },
             )
         }
-        Spacer(Modifier.height(8.dp))
-        // Quick-preset chips
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // Day-based presets
-            listOf(7, 10, 14, 20).forEach { days ->
-                AssistChip(
-                    onClick = {
-                        onSetExpiryTime(addExpiry(expiryTime, days * MS_PER_DAY))
-                    },
-                    label = { Text("+${days}д") },
-                )
-            }
-            // Month-based presets
-            listOf(1 to "+1 мес", 3 to "+3 мес", 6 to "+6 мес", 12 to "+12 мес").forEach { (months, label) ->
-                AssistChip(
-                    onClick = {
-                        onSetExpiryTime(addExpiryMonths(expiryTime, months))
-                    },
-                    label = { Text(label) },
-                )
-            }
-            // "No limit" chip
-            FilterChip(
-                selected = expiryTime == 0L,
-                onClick = { onSetExpiryTime(0L) },
-                label = { Text(stringResource(R.string.client_form_expiry_no_limit_chip)) },
+        listOf(1 to "+1 мес", 3 to "+3 мес", 6 to "+6 мес", 12 to "+12 мес").forEach { (months, label) ->
+            AssistChip(
+                onClick = {
+                    onSetExpiryTime(addExpiryMonths(expiryTime, months))
+                },
+                label = { Text(label) },
             )
         }
+        FilterChip(
+            selected = expiryTime == 0L,
+            onClick = { onSetExpiryTime(0L) },
+            label = { Text(stringResource(R.string.client_form_expiry_no_limit_chip)) },
+        )
     }
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 private fun bytesToGbString(bytes: Long): String =
     if (bytes == 0L) "0" else (bytes / BYTES_PER_GB).toString()
 
 private fun formatExpiryDate(millis: Long): String =
-    SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(millis))
+    SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(millis))
 
 private fun buildClientConfig(
     protocol: String,
@@ -750,6 +700,8 @@ private fun buildClientConfig(
         )
     }
 }
+
+// ── Previews ──────────────────────────────────────────────────────────────────
 
 @Preview(showBackground = true)
 @Composable

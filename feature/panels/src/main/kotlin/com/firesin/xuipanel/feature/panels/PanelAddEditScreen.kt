@@ -53,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.designsystem.component.FieldRow
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.GroupRow
 import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
@@ -266,7 +267,7 @@ private fun PanelAddEditContent(
                     isError = errors?.baseUrl != null,
                     enabled = !isSaving,
                     topDivider = true,
-                    mono = true,
+                    monoValue = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Uri,
                         imeAction = ImeAction.Next,
@@ -306,7 +307,7 @@ private fun PanelAddEditContent(
                     isError = errors?.login != null,
                     enabled = !isSaving,
                     topDivider = false,
-                    mono = true,
+                    monoValue = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 )
                 PasswordFieldRow(
@@ -410,83 +411,9 @@ private fun PanelAddEditContent(
     }
 }
 
-// ── FieldRow ──────────────────────────────────────────────────────────────────
 
 private val FIELD_LABEL_WIDTH = 96.dp
 private const val FIELD_ROW_MIN_HEIGHT_DP = 44
-
-@Composable
-private fun FieldRow(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String = "",
-    isError: Boolean = false,
-    enabled: Boolean = true,
-    topDivider: Boolean = false,
-    mono: Boolean = false,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    trailing: @Composable (() -> Unit)? = null,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        if (topDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = FIELD_ROW_MIN_HEIGHT_DP.dp)
-                .padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(modifier = Modifier.width(FIELD_LABEL_WIDTH)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                    color = if (isError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-            val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            val textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 15.sp,
-                fontFamily = if (mono) MonoFontFamily else null,
-                color = textColor,
-            )
-            Box(modifier = Modifier.weight(1f)) {
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    enabled = enabled,
-                    singleLine = true,
-                    textStyle = textStyle,
-                    keyboardOptions = keyboardOptions,
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { innerTextField ->
-                        if (value.isEmpty()) {
-                            Text(
-                                text = placeholder,
-                                style = textStyle.copy(color = placeholderColor),
-                            )
-                        }
-                        innerTextField()
-                    },
-                )
-            }
-            trailing?.let {
-                Spacer(Modifier.width(4.dp))
-                it()
-            }
-        }
-    }
-}
 
 @Composable
 private fun PasswordFieldRow(

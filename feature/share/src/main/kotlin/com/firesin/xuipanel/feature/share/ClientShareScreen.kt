@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,10 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Button
@@ -31,10 +33,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -55,11 +58,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.InboundDto
@@ -72,7 +78,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val QR_SIZE_DP = 280.dp
+private val QR_SIZE_DP = 240.dp
+private val QrCardShape = RoundedCornerShape(22.dp)
+private val LinkCardShape = RoundedCornerShape(14.dp)
 
 @Composable
 fun ClientShareScreen(
@@ -101,27 +109,42 @@ private fun ClientShareContent(
     onRetry: () -> Unit,
     onCopied: () -> Unit,
 ) {
-    val title = when (uiState) {
-        is ShareUiState.Content -> uiState.client.email
-        else -> stringResource(R.string.share_title)
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        text = stringResource(R.string.share_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.Default.Close,
                             contentDescription = stringResource(R.string.share_cd_back),
                         )
+                    }
+                },
+                actions = {
+                    // Share icon in top bar — only visible for Content state
+                    if (uiState is ShareUiState.Content) {
+                        val context = LocalContext.current
+                        val uri = uiState.uri
+                        IconButton(onClick = {
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, uri)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, null))
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = stringResource(R.string.share_cd_share),
+                            )
+                        }
                     }
                 },
             )
@@ -169,76 +192,141 @@ private fun ContentBody(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Protocol · port · host header
-        Text(
-            text = stringResource(
-                R.string.share_header_format,
-                state.inbound.protocol.uppercase(),
-                state.inbound.port,
-                context.extractHost(state.uri),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        // QR code
-        val bitmap = qrBitmap
-        if (bitmap != null) {
-            Image(
-                painter = remember(bitmap) { BitmapPainter(bitmap) },
-                contentDescription = stringResource(R.string.share_cd_qr),
-                modifier = Modifier.size(QR_SIZE_DP),
-            )
-        } else {
-            Box(modifier = Modifier.size(QR_SIZE_DP), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
-
-        // URI card
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = state.uri,
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(12.dp),
-            )
-        }
-
-        // Action buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Header: caption + email
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Button(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("share_uri", state.uri))
-                    onCopied()
-                },
-                modifier = Modifier.weight(1f),
+            Text(
+                text = stringResource(R.string.share_caption_for),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = state.client.email,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = MonoFontFamily,
+                ),
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        // QR card
+        Surface(
+            shape = QrCardShape,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outline,
+                    shape = QrCardShape,
+                ),
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(R.string.share_copy))
-            }
-            Button(
-                onClick = {
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, state.uri)
+                val bitmap = qrBitmap
+                if (bitmap != null) {
+                    Image(
+                        painter = remember(bitmap) { BitmapPainter(bitmap) },
+                        contentDescription = stringResource(R.string.share_cd_qr),
+                        modifier = Modifier.size(QR_SIZE_DP),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.size(QR_SIZE_DP),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
                     }
-                    context.startActivity(Intent.createChooser(sendIntent, null))
-                },
-                modifier = Modifier.weight(1f),
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = null)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(R.string.share_send))
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = stringResource(R.string.share_qr_hint),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
+        // Link card
+        Surface(
+            shape = LinkCardShape,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outline,
+                    shape = LinkCardShape,
+                ),
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = stringResource(R.string.share_link_section),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.4.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = state.uri,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 18.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val clipboard =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("share_uri", state.uri))
+                            onCopied()
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text(stringResource(R.string.share_copy))
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, state.uri)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, null))
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text(stringResource(R.string.share_send))
+                    }
+                }
             }
         }
     }
@@ -295,9 +383,6 @@ private fun ShareError.toUserMessage(): String = when (this) {
     is ShareError.UnsupportedProtocol ->
         stringResource(R.string.share_error_unsupported_protocol, protocol)
 }
-
-private fun Context.extractHost(uri: String): String =
-    runCatching { android.net.Uri.parse(uri).host ?: uri }.getOrDefault(uri)
 
 /**
  * Generates a QR bitmap using ZXing core.
