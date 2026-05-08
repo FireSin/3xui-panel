@@ -1,5 +1,12 @@
 package com.firesin.xuipanel.feature.dashboard
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,39 +17,54 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.util.formatSpeed
+import com.firesin.xuipanel.core.common.util.prettyBytes
+import com.firesin.xuipanel.core.common.util.secondsToCompact
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.designsystem.component.GroupCard
+import com.firesin.xuipanel.core.designsystem.component.GroupRow
+import com.firesin.xuipanel.core.designsystem.component.RingStat
+import com.firesin.xuipanel.core.designsystem.component.SectionHeader
+import com.firesin.xuipanel.core.designsystem.component.SpeedColumn
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.MemDto
 import com.firesin.xuipanel.core.xui.dto.NetIoDto
@@ -50,16 +72,17 @@ import com.firesin.xuipanel.core.xui.dto.NetTrafficDto
 import com.firesin.xuipanel.core.xui.dto.PublicIpDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.XrayStatusDto
-import com.firesin.xuipanel.core.designsystem.format.formatBytes
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardUiState
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardViewModel
 import java.time.Instant
-import java.util.Locale
+
+private val HeroCardShape = RoundedCornerShape(18.dp)
 
 @Composable
 fun DashboardScreen(
     onAddPanel: () -> Unit = {},
     onNavigateToStats: () -> Unit,
+    onNavigateToInbounds: () -> Unit = {},
     onMenuClick: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
@@ -72,6 +95,7 @@ fun DashboardScreen(
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
         onNavigateToStats = onNavigateToStats,
+        onNavigateToInbounds = onNavigateToInbounds,
         onMenuClick = onMenuClick,
     )
 }
@@ -84,42 +108,68 @@ private fun DashboardContent(
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
     onNavigateToStats: () -> Unit,
+    onNavigateToInbounds: () -> Unit = {},
     onMenuClick: () -> Unit = {},
 ) {
+    val panel = when (uiState) {
+        is DashboardUiState.Content -> uiState.panel
+        is DashboardUiState.Error -> uiState.panel
+        is DashboardUiState.Loading -> uiState.panel
+        is DashboardUiState.NoActivePanel -> null
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    val panel = (uiState as? DashboardUiState.Content)?.panel
-                        ?: (uiState as? DashboardUiState.Error)?.panel
-                        ?: (uiState as? DashboardUiState.Loading)?.panel
-                    Column {
+            Column {
+                LargeTopAppBar(
+                    title = {
                         Text(
                             text = panel?.name ?: stringResource(R.string.dashboard_title),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (panel != null) {
-                            Text(
-                                text = panel.baseUrl,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = stringResource(R.string.dashboard_cd_menu),
                             )
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = stringResource(R.string.dashboard_cd_menu),
-                        )
-                    }
-                },
-            )
+                    },
+                    actions = {
+                        IconButton(onClick = onRefresh) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.dashboard_retry),
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+                if (panel != null) {
+                    val subtitle = panel.baseUrl
+                        .removePrefix("https://")
+                        .removePrefix("http://")
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = MonoFontFamily,
+                            fontSize = 12.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
         },
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         when (uiState) {
             is DashboardUiState.NoActivePanel -> NoActivePanelEmpty(
@@ -153,255 +203,318 @@ private fun DashboardContent(
             ) {
                 StatusList(
                     status = uiState.status,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp),
                     onNavigateToStats = onNavigateToStats,
+                    onNavigateToInbounds = onNavigateToInbounds,
                 )
             }
         }
     }
 }
+
+// ── Content list ───────────────────────────────────────────────────────────────
 
 @Composable
 private fun StatusList(
     status: ServerStatusDto,
     contentPadding: PaddingValues,
     onNavigateToStats: () -> Unit,
+    onNavigateToInbounds: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { XrayCard(status.xray) }
-        item { CpuCard(cpu = status.cpu, loads = status.loads) }
-        item { MemoryCard(mem = status.mem) }
-        item { UptimeCard(uptimeSeconds = status.uptime) }
-        item { NetworkSpeedCard(netIO = status.netIO) }
-        item { TotalTrafficCard(traffic = status.netTraffic) }
-        item { PublicIpCard(ip = status.publicIP) }
-        item { StatisticsLinkCard(onClick = onNavigateToStats) }
+        item { HeroStatusCard(xray = status.xray, uptimeSeconds = status.uptime) }
+
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                RingStat(
+                    label = "CPU",
+                    value = String.format("%.1f", status.cpu),
+                    unit = "%",
+                    progress = (status.cpu / 100.0).toFloat().coerceIn(0f, 1f),
+                    sub = if (status.loads.isNotEmpty()) {
+                        status.loads.joinToString(" · ") { "%.2f".format(it) }
+                    } else null,
+                    modifier = Modifier.weight(1f),
+                )
+                RingStat(
+                    label = "Memory",
+                    value = prettyBytes(status.mem.current),
+                    unit = "",
+                    progress = if (status.mem.total > 0) {
+                        (status.mem.current.toFloat() / status.mem.total).coerceIn(0f, 1f)
+                    } else 0f,
+                    sub = "of ${prettyBytes(status.mem.total)}",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        item { NetworkSection(status = status) }
+        item { ServerSection(status = status) }
+        item {
+            MoreSection(
+                onNavigateToStats = onNavigateToStats,
+                onNavigateToInbounds = onNavigateToInbounds,
+            )
+        }
     }
 }
 
+// ── Hero Card ──────────────────────────────────────────────────────────────────
+
 @Composable
-private fun XrayCard(xray: XrayStatusDto) {
+private fun HeroStatusCard(xray: XrayStatusDto, uptimeSeconds: Long) {
+    val primary = MaterialTheme.colorScheme.primary
     val isRunning = xray.state.equals("running", ignoreCase = true)
-    val containerColor = if (isRunning) {
-        MaterialTheme.colorScheme.tertiaryContainer
-    } else {
-        MaterialTheme.colorScheme.errorContainer
-    }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.dashboard_xray),
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = xray.state.replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Text(
-                text = stringResource(R.string.dashboard_xray_version, xray.version),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (xray.errorMsg.isNotBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = xray.errorMsg,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
-}
 
-@Composable
-private fun CpuCard(cpu: Double, loads: List<Double>) {
-    StatCard(
-        icon = { Icon(Icons.Default.Speed, contentDescription = null) },
-        title = stringResource(R.string.dashboard_cpu),
-        value = String.format(Locale.US, "%.1f%%", cpu),
-    ) {
-        LinearProgressIndicator(
-            progress = { (cpu / 100.0).toFloat().coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (loads.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = stringResource(
-                    R.string.dashboard_load,
-                    loads.getOrElse(0) { 0.0 },
-                    loads.getOrElse(1) { 0.0 },
-                    loads.getOrElse(2) { 0.0 },
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MemoryCard(mem: MemDto) {
-    val ratio = if (mem.total > 0) mem.current.toFloat() / mem.total else 0f
-    StatCard(
-        icon = { Icon(Icons.Default.Memory, contentDescription = null) },
-        title = stringResource(R.string.dashboard_memory),
-        value = stringResource(
-            R.string.dashboard_memory_value,
-            formatBytes(mem.current),
-            formatBytes(mem.total),
+    val gradientBrush = Brush.verticalGradient(
+        listOf(
+            primary.copy(alpha = 0.16f),
+            primary.copy(alpha = 0.04f),
         ),
-    ) {
-        LinearProgressIndicator(
-            progress = { ratio.coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun UptimeCard(uptimeSeconds: Long) {
-    StatCard(
-        icon = null,
-        title = stringResource(R.string.dashboard_uptime),
-        value = formatUptime(uptimeSeconds),
-        content = null,
     )
-}
 
-@Composable
-private fun NetworkSpeedCard(netIO: NetIoDto) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.dashboard_speed),
-                style = MaterialTheme.typography.labelMedium,
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .background(brush = gradientBrush, shape = HeroCardShape)
+            .border(
+                width = 0.5.dp,
+                color = primary.copy(alpha = 0.4f),
+                shape = HeroCardShape,
             )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                SpeedColumn(
-                    icon = Icons.Default.ArrowUpward,
-                    label = stringResource(R.string.dashboard_up),
-                    value = "${formatBytes(netIO.up)}/s",
-                    modifier = Modifier.weight(1f),
-                )
-                SpeedColumn(
-                    icon = Icons.Default.ArrowDownward,
-                    label = stringResource(R.string.dashboard_down),
-                    value = "${formatBytes(netIO.down)}/s",
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TotalTrafficCard(traffic: NetTrafficDto) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.dashboard_total_traffic),
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                SpeedColumn(
-                    icon = Icons.Default.ArrowUpward,
-                    label = stringResource(R.string.dashboard_sent),
-                    value = formatBytes(traffic.sent),
-                    modifier = Modifier.weight(1f),
-                )
-                SpeedColumn(
-                    icon = Icons.Default.ArrowDownward,
-                    label = stringResource(R.string.dashboard_received),
-                    value = formatBytes(traffic.recv),
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PublicIpCard(ip: PublicIpDto) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.dashboard_public_ip),
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Spacer(Modifier.height(4.dp))
-            if (ip.ipv4.isNotBlank()) {
-                Text(text = "IPv4: ${ip.ipv4}", style = MaterialTheme.typography.bodyMedium)
-            }
-            if (ip.ipv6.isNotBlank()) {
-                Text(text = "IPv6: ${ip.ipv6}", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatCard(
-    title: String,
-    value: String,
-    icon: (@Composable () -> Unit)?,
-    content: (@Composable () -> Unit)? = {},
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+            .padding(18.dp),
+    ) {
+        Column {
+            // Status row
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    icon()
+                PulseDot(active = isRunning)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = if (isRunning) {
+                        stringResource(R.string.dashboard_hero_running)
+                    } else {
+                        stringResource(R.string.dashboard_hero_stopped)
+                    },
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.3.sp,
+                    ),
+                    color = if (isRunning) primary else MaterialTheme.colorScheme.error,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Bottom info row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        modifier = Modifier.padding(start = 8.dp),
-                        text = title,
-                        style = MaterialTheme.typography.labelMedium,
+                        text = stringResource(R.string.dashboard_hero_uptime),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.4.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                } else {
-                    Text(text = title, style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = secondsToCompact(uptimeSeconds),
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontFamily = MonoFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 28.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                Column {
+                    Text(
+                        text = stringResource(R.string.dashboard_hero_version),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.4.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "v${xray.version}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = MonoFontFamily,
+                            fontSize = 14.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(text = value, style = MaterialTheme.typography.titleLarge)
-            content?.let {
-                Spacer(Modifier.height(8.dp))
-                it()
-            }
         }
     }
 }
 
 @Composable
-private fun SpeedColumn(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
-            Text(text = label, style = MaterialTheme.typography.labelSmall)
-        }
-        Text(text = value, style = MaterialTheme.typography.titleMedium)
+private fun PulseDot(active: Boolean) {
+    val primary = MaterialTheme.colorScheme.primary
+    val dotColor = if (active) primary else MaterialTheme.colorScheme.error
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulseScale",
+    )
+
+    Box(contentAlignment = Alignment.Center) {
+        // Glow ring
+        Box(
+            modifier = Modifier
+                .size(14.dp)
+                .scale(scale)
+                .background(color = dotColor.copy(alpha = 0.2f), shape = CircleShape),
+        )
+        // Core dot
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color = dotColor, shape = CircleShape),
+        )
     }
 }
+
+// ── Network section ────────────────────────────────────────────────────────────
+
+@Composable
+private fun NetworkSection(status: ServerStatusDto) {
+    SectionHeader(stringResource(R.string.dashboard_section_network))
+
+    GroupCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        // Live throughput
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp)) {
+            Text(
+                text = stringResource(R.string.dashboard_live_throughput),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                val (upValue, upUnit) = formatSpeed(status.netIO.up)
+                val (downValue, downUnit) = formatSpeed(status.netIO.down)
+                SpeedColumn(
+                    isUpload = true,
+                    label = stringResource(R.string.dashboard_row_upload),
+                    value = upValue,
+                    unit = upUnit,
+                    modifier = Modifier.weight(1f),
+                )
+                SpeedColumn(
+                    isUpload = false,
+                    label = stringResource(R.string.dashboard_row_download),
+                    value = downValue,
+                    unit = downUnit,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        GroupRow(
+            label = stringResource(R.string.dashboard_row_sent_total),
+            value = prettyBytes(status.netTraffic.sent),
+            monoValue = true,
+            showChevron = false,
+            topDivider = true,
+        )
+        GroupRow(
+            label = stringResource(R.string.dashboard_row_received_total),
+            value = prettyBytes(status.netTraffic.recv),
+            monoValue = true,
+            showChevron = false,
+            topDivider = true,
+        )
+    }
+}
+
+// ── Server section ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ServerSection(status: ServerStatusDto) {
+    SectionHeader(stringResource(R.string.dashboard_section_server))
+
+    GroupCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        if (status.publicIP.ipv4.isNotBlank()) {
+            GroupRow(
+                label = stringResource(R.string.dashboard_row_ipv4),
+                value = status.publicIP.ipv4,
+                monoValue = true,
+                showChevron = false,
+            )
+        }
+        if (status.publicIP.ipv6.isNotBlank()) {
+            GroupRow(
+                label = stringResource(R.string.dashboard_row_ipv6),
+                value = status.publicIP.ipv6.midEllipsis(),
+                monoValue = true,
+                showChevron = false,
+                topDivider = status.publicIP.ipv4.isNotBlank(),
+            )
+        }
+        GroupRow(
+            label = stringResource(R.string.dashboard_row_tcp_udp),
+            value = "${status.tcpCount} / ${status.udpCount}",
+            monoValue = true,
+            showChevron = false,
+            topDivider = status.publicIP.ipv4.isNotBlank() || status.publicIP.ipv6.isNotBlank(),
+        )
+    }
+}
+
+// ── More section ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun MoreSection(
+    onNavigateToStats: () -> Unit,
+    onNavigateToInbounds: () -> Unit,
+) {
+    SectionHeader(stringResource(R.string.dashboard_section_more))
+
+    GroupCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        GroupRow(
+            label = stringResource(R.string.dashboard_more_stats_label),
+            sub = stringResource(R.string.dashboard_more_stats_sub),
+            leadingIcon = Icons.AutoMirrored.Filled.ShowChart,
+            showChevron = true,
+            onClick = onNavigateToStats,
+        )
+        GroupRow(
+            label = stringResource(R.string.dashboard_more_inbounds_label),
+            leadingIcon = Icons.AutoMirrored.Filled.List,
+            showChevron = true,
+            topDivider = true,
+            onClick = onNavigateToInbounds,
+        )
+    }
+}
+
+// ── Empty / Error states ───────────────────────────────────────────────────────
 
 @Composable
 private fun NoActivePanelEmpty(
@@ -409,15 +522,37 @@ private fun NoActivePanelEmpty(
     onAddPanel: () -> Unit,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        Surface(
+            modifier = Modifier.size(96.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        Spacer(Modifier.height(24.dp))
         Text(
-            text = stringResource(R.string.dashboard_no_active_panel),
-            style = MaterialTheme.typography.titleMedium,
+            text = stringResource(R.string.dashboard_no_panel_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.dashboard_no_panel_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
         Button(onClick = onAddPanel) {
             Text(stringResource(R.string.dashboard_add_panel))
         }
@@ -435,12 +570,48 @@ private fun ErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        Surface(
+            modifier = Modifier.size(96.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        Text(
+            text = stringResource(R.string.dashboard_error_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(Modifier.height(8.dp))
         Text(
             text = error.toUserMessage(),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(16.dp))
+        val detail = error.toDetailMessage()
+        if (detail.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(24.dp))
         Button(onClick = onRetry) {
             Text(stringResource(R.string.dashboard_retry))
         }
@@ -458,17 +629,25 @@ private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.PinMismatch -> stringResource(R.string.dashboard_error_pin_mismatch)
 }
 
-private fun formatUptime(seconds: Long): String {
-    val days = seconds / 86_400
-    val hours = (seconds % 86_400) / 3600
-    val minutes = (seconds % 3600) / 60
-    return when {
-        days > 0 -> "${days}d ${hours}h ${minutes}m"
-        hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes}m"
-    }
+private fun DomainError.toDetailMessage(): String = when (this) {
+    is DomainError.Tls -> message
+    is DomainError.PanelResponse -> body
+    else -> ""
 }
 
+// ── Utils ──────────────────────────────────────────────────────────────────────
+
+private const val MID_ELLIPSIS_MAX = 14
+
+private fun String.midEllipsis(maxChars: Int = MID_ELLIPSIS_MAX): String {
+    if (length <= maxChars) return this
+    val half = maxChars / 2
+    return "${take(half)}…${takeLast(half)}"
+}
+
+// ── Preview ────────────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun DashboardContentPreview() {
@@ -478,8 +657,8 @@ private fun DashboardContentPreview() {
             uiState = DashboardUiState.Content(
                 panel = Panel(
                     id = "1",
-                    name = "Мой сервер",
-                    baseUrl = "https://panel.example.com:2053",
+                    name = "Stockholm Edge",
+                    baseUrl = "https://panel.northwind.io:2053",
                     login = "admin",
                     password = "pass",
                     tlsMode = TlsMode.SYSTEM,
@@ -493,19 +672,39 @@ private fun DashboardContentPreview() {
                     cpu = 23.4,
                     mem = MemDto(current = 1_500_000_000, total = 4_000_000_000),
                     xray = XrayStatusDto(state = "running", errorMsg = "", version = "1.8.24"),
-                    uptime = 123_456,
+                    uptime = 14 * 86_400L + 6 * 3_600L,
                     loads = listOf(0.45, 0.51, 0.48),
                     tcpCount = 12,
                     udpCount = 4,
-                    netIO = NetIoDto(up = 12_345, down = 67_890),
+                    netIO = NetIoDto(up = 12_621L, down = 69_530L),
                     netTraffic = NetTrafficDto(sent = 1_500_000_000, recv = 5_000_000_000),
-                    publicIP = PublicIpDto(ipv4 = "203.0.113.10", ipv6 = "::1"),
+                    publicIP = PublicIpDto(ipv4 = "203.0.113.10", ipv6 = "2a01:cafe:dead:beef::1f4b"),
                     appStats = null,
                 ),
             ),
             isRefreshing = false,
             onRefresh = {},
             onAddPanel = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun NoActivePanelPreview() {
+    XuiPanelTheme {
+        NoActivePanelEmpty(onAddPanel = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ErrorStatePreview() {
+    XuiPanelTheme {
+        ErrorState(
+            error = DomainError.Network(RuntimeException("Connection refused")),
+            onRetry = {},
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }

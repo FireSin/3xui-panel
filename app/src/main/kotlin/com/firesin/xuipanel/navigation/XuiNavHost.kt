@@ -100,6 +100,7 @@ fun XuiNavHost(
                 navController = navController,
                 panelsAddRoute = PanelAddRoute,
                 onNavigateToStats = { navController.navigate("stats") },
+                onNavigateToInbounds = { navController.navigate(InboundsRoute) },
                 onMenuClick = onMenuClick,
             )
             inboundsGraph(

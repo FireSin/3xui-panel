@@ -31,4 +31,27 @@
 
     <string name="dashboard_stats_link_title">Статистика →</string>
     <string name="dashboard_stats_link_subtitle">Трафик по inbound и онлайн-клиенты</string>
+
+    <!-- Phase 2 redesign strings -->
+    <string name="dashboard_hero_running">XRAY · RUNNING</string>
+    <string name="dashboard_hero_stopped">XRAY · STOPPED</string>
+    <string name="dashboard_hero_uptime">UPTIME</string>
+    <string name="dashboard_hero_version">VERSION</string>
+    <string name="dashboard_section_network">Network</string>
+    <string name="dashboard_section_server">Server</string>
+    <string name="dashboard_section_more">More</string>
+    <string name="dashboard_live_throughput">LIVE THROUGHPUT</string>
+    <string name="dashboard_row_upload">Upload</string>
+    <string name="dashboard_row_download">Download</string>
+    <string name="dashboard_row_sent_total">Sent total</string>
+    <string name="dashboard_row_received_total">Received total</string>
+    <string name="dashboard_row_ipv4">Public IPv4</string>
+    <string name="dashboard_row_ipv6">Public IPv6</string>
+    <string name="dashboard_row_tcp_udp">TCP / UDP</string>
+    <string name="dashboard_more_stats_label">Statistics</string>
+    <string name="dashboard_more_stats_sub">Traffic per inbound</string>
+    <string name="dashboard_more_inbounds_label">Inbounds</string>
+    <string name="dashboard_no_panel_title">No active panel</string>
+    <string name="dashboard_no_panel_description">Add a panel to monitor its status and manage clients.</string>
+    <string name="dashboard_error_title">Something went wrong</string>
 </resources>
