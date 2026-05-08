@@ -7,6 +7,7 @@ import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.data.repository.AppSecurityRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -81,6 +82,15 @@ class SettingsViewModel @Inject constructor(
     fun setLockOnPauseEnabled(enabled: Boolean) {
         viewModelScope.launch {
             appSecurityRepository.setLockOnPauseEnabled(enabled)
+        }
+    }
+
+    val themeMode: StateFlow<ThemeMode> = appSecurityRepository.themeMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            appSecurityRepository.setThemeMode(mode)
         }
     }
 }

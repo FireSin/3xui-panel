@@ -32,7 +32,8 @@ class MainActivity : FragmentActivity() {
             WindowManager.LayoutParams.FLAG_SECURE,
         )
         setContent {
-            XuiPanelTheme {
+            val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+            XuiPanelTheme(themeMode = themeMode) {
                 val navController = rememberNavController()
                 val pinMismatchDialog by viewModel.pinMismatchDialog.collectAsStateWithLifecycle()
                 pinMismatchDialog?.let { info ->

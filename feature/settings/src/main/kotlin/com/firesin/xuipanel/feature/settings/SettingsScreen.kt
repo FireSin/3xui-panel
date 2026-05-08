@@ -27,6 +27,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.firesin.xuipanel.core.common.ThemeMode
+import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +38,7 @@ fun SettingsScreen(
 ) {
     val lockToggleState by viewModel.lockToggleState.collectAsStateWithLifecycle()
     val lockOnPauseEnabled by viewModel.lockOnPauseEnabled.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -64,6 +67,41 @@ fun SettingsScreen(
                 enabled = lockOnPauseEnabled,
                 mainLockActive = (lockToggleState as? LockToggleState.Available)?.enabled == true,
                 onToggle = viewModel::setLockOnPauseEnabled,
+            )
+            Spacer(Modifier.height(8.dp))
+            ThemeCard(
+                selected = themeMode,
+                onSelect = viewModel::setThemeMode,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeCard(
+    selected: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.settings_theme_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(12.dp))
+            SegmentedPicker(
+                options = ThemeMode.entries,
+                selected = selected,
+                onSelect = onSelect,
+                label = { mode ->
+                    when (mode) {
+                        ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+                        ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
+                        ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -144,6 +182,12 @@ private fun LockOnPauseCard(
             )
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ThemeCardPreview() {
+    ThemeCard(selected = ThemeMode.SYSTEM, onSelect = {})
 }
 
 @Preview(showBackground = true)

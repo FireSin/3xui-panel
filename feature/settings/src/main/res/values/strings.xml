@@ -6,4 +6,8 @@
     <string name="settings_lock_unavailable_hint">Сначала настройте PIN или биометрию в системных настройках</string>
     <string name="settings_lock_on_pause_title">Блокировать при сворачивании</string>
     <string name="settings_lock_on_pause_description">Запрос разблокировки при возврате в приложение</string>
+    <string name="settings_theme_title">Тема</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
+    <string name="settings_theme_system">Системная</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.core.data.repository
 
+import com.firesin.xuipanel.core.common.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
 interface AppSecurityRepository {
@@ -8,4 +9,7 @@ interface AppSecurityRepository {
 
     val isLockOnPauseEnabled: Flow<Boolean>
     suspend fun setLockOnPauseEnabled(enabled: Boolean)
+
+    val themeMode: Flow<ThemeMode>
+    suspend fun setThemeMode(mode: ThemeMode)
 }

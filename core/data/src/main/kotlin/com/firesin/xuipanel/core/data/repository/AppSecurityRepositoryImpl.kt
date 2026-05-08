@@ -3,6 +3,7 @@ package com.firesin.xuipanel.core.data.repository
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.data.prefs.AppSecurityPrefs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -33,6 +34,19 @@ class AppSecurityRepositoryImpl @Inject constructor(
     override suspend fun setLockOnPauseEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[AppSecurityPrefs.APP_LOCK_ON_PAUSE_ENABLED] = enabled
+        }
+    }
+
+    override val themeMode: Flow<ThemeMode> =
+        dataStore.data.map { prefs ->
+            val raw = prefs[AppSecurityPrefs.THEME_MODE]
+            raw?.let { runCatching { ThemeMode.valueOf(it.uppercase()) }.getOrNull() }
+                ?: ThemeMode.SYSTEM
+        }
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { prefs ->
+            prefs[AppSecurityPrefs.THEME_MODE] = mode.name.lowercase()
         }
     }
 }

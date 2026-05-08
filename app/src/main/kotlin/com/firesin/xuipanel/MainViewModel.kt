@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.PinMismatchEvent
 import com.firesin.xuipanel.core.common.PinMismatchEventBus
+import com.firesin.xuipanel.core.common.ThemeMode
+import com.firesin.xuipanel.core.data.repository.AppSecurityRepository
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.xui.XuiSessionCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,6 +32,7 @@ class MainViewModel @Inject constructor(
     private val panelRepository: PanelRepository,
     private val clientFactory: OkHttpClientFactory,
     private val sessionCache: XuiSessionCache,
+    private val appSecurityRepository: AppSecurityRepository,
 ) : ViewModel() {
 
     private val dialogQueue = ArrayDeque<PinMismatchDialogInfo>()
@@ -35,6 +40,9 @@ class MainViewModel @Inject constructor(
 
     private val _pinMismatchDialog = MutableStateFlow<PinMismatchDialogInfo?>(null)
     val pinMismatchDialog: StateFlow<PinMismatchDialogInfo?> = _pinMismatchDialog
+
+    val themeMode: StateFlow<ThemeMode> = appSecurityRepository.themeMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
 
     init {
         viewModelScope.launch {

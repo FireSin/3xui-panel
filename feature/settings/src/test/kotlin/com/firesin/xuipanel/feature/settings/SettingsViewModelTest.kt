@@ -3,7 +3,9 @@ package com.firesin.xuipanel.feature.settings
 import android.content.Context
 import androidx.biometric.BiometricManager
 import app.cash.turbine.test
+import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.data.repository.AppSecurityRepository
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -40,6 +42,7 @@ class SettingsViewModelTest {
         every {
             context.getString(R.string.settings_lock_unavailable_hint)
         } returns unavailableHint
+        every { repository.themeMode } returns flowOf(ThemeMode.SYSTEM)
     }
 
     @AfterEach
@@ -113,6 +116,28 @@ class SettingsViewModelTest {
         vm.setLockEnabled(true)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        io.mockk.coVerify { repository.setLockEnabled(true) }
+        coVerify { repository.setLockEnabled(true) }
+    }
+
+    @Test
+    fun `themeMode initial value is SYSTEM`() = runTest {
+        biometricAvailable()
+        val vm = viewModel()
+
+        vm.themeMode.test {
+            assertEquals(ThemeMode.SYSTEM, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setThemeMode delegates to repository`() = runTest {
+        biometricAvailable()
+        val vm = viewModel()
+
+        vm.setThemeMode(ThemeMode.DARK)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repository.setThemeMode(ThemeMode.DARK) }
     }
 }
