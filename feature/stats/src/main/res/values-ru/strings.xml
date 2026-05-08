@@ -24,6 +24,12 @@
     <string name="stats_client_back">Назад</string>
     <string name="stats_client_traffic_title">Трафик клиента</string>
 
+    <string name="stats_section_by_inbound">По Inbound</string>
+    <string name="stats_section_top_clients">Топ клиентов</string>
+    <string name="stats_total_period">Всего за период</string>
+    <string name="stats_legend_up">Отдача</string>
+    <string name="stats_legend_down">Приём</string>
+
     <string name="stats_error_invalid_credentials">Неверный логин или пароль</string>
     <string name="stats_error_tls">Ошибка TLS: %s</string>
     <string name="stats_error_network">Нет соединения с панелью</string>

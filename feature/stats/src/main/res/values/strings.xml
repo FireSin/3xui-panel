@@ -24,6 +24,12 @@
     <string name="stats_client_back">Back</string>
     <string name="stats_client_traffic_title">Client traffic</string>
 
+    <string name="stats_section_by_inbound">By Inbound</string>
+    <string name="stats_section_top_clients">Top Clients</string>
+    <string name="stats_total_period">Total this period</string>
+    <string name="stats_legend_up">Up</string>
+    <string name="stats_legend_down">Down</string>
+
     <string name="stats_error_invalid_credentials">Invalid login or password</string>
     <string name="stats_error_tls">TLS error: %s</string>
     <string name="stats_error_network">No connection to panel</string>

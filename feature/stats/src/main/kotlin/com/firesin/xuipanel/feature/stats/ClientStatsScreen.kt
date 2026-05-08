@@ -12,20 +12,20 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.data.repository.DailyPoint
+import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.feature.stats.chart.InboundTrafficChart
 
@@ -60,7 +60,14 @@ internal fun ClientStatsContent(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(text = clientLabel) },
+                title = {
+                    Text(
+                        text = clientLabel,
+                        fontFamily = MonoFontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -79,35 +86,17 @@ internal fun ClientStatsContent(
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(Modifier.height(8.dp))
-            ClientRangeToggle(
+            SegmentedPicker(
+                options = ChartRange.entries,
                 selected = range,
                 onSelect = onRangeChange,
+                label = { stringResource(chartRangeLabelRes(it)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(12.dp))
             InboundTrafficChart(
                 points = chartPoints,
                 modifier = Modifier.height(220.dp),
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ClientRangeToggle(
-    selected: ChartRange,
-    onSelect: (ChartRange) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val options = ChartRange.entries
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == selected,
-                onClick = { onSelect(option) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                label = { Text(text = stringResource(chartRangeLabelRes(option))) },
             )
         }
     }
