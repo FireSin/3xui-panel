@@ -30,6 +30,7 @@ fun panelEditRoute(panelId: String) = "panels_edit/${Uri.encode(panelId)}"
 fun NavGraphBuilder.panelsGraph(
     navController: NavController,
     onNavigateToSettings: () -> Unit,
+    onMenuClick: () -> Unit = {},
 ) {
     composable(route = PanelsListRoute) {
         PanelsListScreen(
@@ -37,6 +38,7 @@ fun NavGraphBuilder.panelsGraph(
             onEditPanel = { id -> navController.navigate(panelEditRoute(id)) },
             onPanelSelected = { navController.navigate(DashboardRoute) },
             onNavigateToSettings = onNavigateToSettings,
+            onMenuClick = onMenuClick,
         )
     }
 

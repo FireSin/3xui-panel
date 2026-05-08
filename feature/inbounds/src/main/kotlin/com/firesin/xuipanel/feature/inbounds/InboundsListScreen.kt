@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.inbounds
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,23 +12,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,21 +44,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.util.prettyBytes
 import com.firesin.xuipanel.core.data.model.Panel
-import com.firesin.xuipanel.core.designsystem.format.formatBytes
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.feature.inbounds.ui.InboundsUiState
 import com.firesin.xuipanel.feature.inbounds.ui.InboundsViewModel
 import java.time.Instant
+
+private val CardShape = RoundedCornerShape(14.dp)
+private val PillShape = RoundedCornerShape(5.dp)
 
 @Composable
 fun InboundsListScreen(
@@ -109,30 +123,17 @@ private fun InboundsContent(
     onManageClients: (inboundId: Int) -> Unit = {},
     onMenuClick: () -> Unit = {},
 ) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val panel = (uiState as? InboundsUiState.Content)?.panel
+        ?: (uiState as? InboundsUiState.Error)?.panel
+        ?: (uiState as? InboundsUiState.Loading)?.panel
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = {
-                    val panel = (uiState as? InboundsUiState.Content)?.panel
-                        ?: (uiState as? InboundsUiState.Error)?.panel
-                        ?: (uiState as? InboundsUiState.Loading)?.panel
-                    Column {
-                        Text(
-                            text = panel?.name ?: stringResource(R.string.inbounds_title),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (panel != null) {
-                            Text(
-                                text = panel.baseUrl,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                },
+            LargeTopAppBar(
+                title = { Text(stringResource(R.string.inbounds_title)) },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
                         Icon(
@@ -141,6 +142,15 @@ private fun InboundsContent(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = { /* Add inbound — backlog */ }, enabled = false) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(R.string.inbounds_cd_add),
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -175,28 +185,43 @@ private fun InboundsContent(
                     .fillMaxSize()
                     .padding(padding),
             ) {
-                if (uiState.inbounds.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Subtitle: "PanelName · N inbounds"
+                    if (panel != null) {
                         Text(
-                            text = stringResource(R.string.inbounds_empty),
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = stringResource(
+                                R.string.inbounds_subtitle,
+                                panel.name,
+                                uiState.inbounds.size,
+                            ),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = MonoFontFamily,
+                                fontSize = 13.sp,
+                            ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 14.dp),
                         )
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(uiState.inbounds, key = { it.id }) { inbound ->
-                            InboundCard(
-                                inbound = inbound,
-                                onManageClients = { onManageClients(inbound.id) },
-                            )
+
+                    if (uiState.inbounds.isEmpty()) {
+                        EmptyInbounds(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 32.dp),
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            items(uiState.inbounds, key = { it.id }) { inbound ->
+                                InboundCard(
+                                    inbound = inbound,
+                                    onManageClients = { onManageClients(inbound.id) },
+                                )
+                            }
+                            item { Spacer(Modifier.height(16.dp)) }
                         }
                     }
                 }
@@ -211,53 +236,195 @@ private fun InboundCard(
     onManageClients: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Card(
+    val isReadOnly = !inbound.protocol.isEditableProtocol()
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onManageClients),
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outline,
+        ),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Top row: pill + port + spacer + overflow
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                StatusPill(enabled = inbound.enable, readOnly = isReadOnly)
                 Text(
-                    text = inbound.displayName(),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = "${inbound.port} · ${inbound.protocol}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(
-                        R.string.inbounds_traffic,
-                        formatBytes(inbound.up),
-                        formatBytes(inbound.down),
+                    text = ":${inbound.port}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = MonoFontFamily,
+                        fontSize = 11.sp,
                     ),
-                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.inbounds_cd_overflow),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
-            Switch(
-                checked = inbound.enable,
-                onCheckedChange = null,
-                modifier = Modifier.padding(start = 8.dp),
+            Spacer(Modifier.height(6.dp))
+
+            // Name
+            Text(
+                text = inbound.displayName(),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = MonoFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+
+            // Proto
+            Text(
+                text = inbound.protocol.uppercase(),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+
+            // Hairline divider
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            // Stats row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                StatColumn(
+                    caption = stringResource(R.string.inbounds_stat_clients),
+                    value = (inbound.clientStats?.size ?: 0).toString(),
+                )
+                StatColumn(
+                    caption = stringResource(R.string.inbounds_stat_traffic),
+                    value = inbound.trafficLabel(),
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
+@Composable
+private fun StatusPill(
+    enabled: Boolean,
+    readOnly: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val (bg, textColor, label) = when {
+        readOnly -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.inbounds_pill_readonly),
+        )
+        enabled -> Triple(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+            MaterialTheme.colorScheme.onPrimaryContainer,
+            stringResource(R.string.inbounds_pill_on),
+        )
+        else -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.inbounds_pill_off),
+        )
+    }
+    Box(
+        modifier = modifier
+            .background(color = bg, shape = PillShape)
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.3.sp,
+            ),
+            color = textColor,
+        )
+    }
+}
+
+@Composable
+private fun StatColumn(
+    caption: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = caption,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.4.sp,
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = MonoFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+            ),
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun EmptyInbounds(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.inbounds_empty),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.inbounds_empty_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 private fun InboundDto.displayName(): String =
-    remark.ifBlank { "#${port} ${protocol}" }
+    remark.ifBlank { "${protocol}-${port}" }
+
+private fun InboundDto.trafficLabel(): String {
+    val used = prettyBytes(up + down)
+    val limit = if (total > 0L) prettyBytes(total) else "∞"
+    return "$used / $limit"
+}
+
+private fun String.isEditableProtocol(): Boolean =
+    lowercase() in setOf("vmess", "vless", "shadowsocks")
 
 @Composable
 private fun NoActivePanelEmpty(
@@ -320,7 +487,7 @@ private fun InboundsContentPreview() {
     XuiPanelTheme {
         val panel = Panel(
             id = "1",
-            name = "Мой сервер",
+            name = "Stockholm Edge",
             baseUrl = "https://panel.example.com:2053",
             login = "admin",
             password = "pass",
@@ -337,9 +504,9 @@ private fun InboundsContentPreview() {
                 inbounds = listOf(
                     InboundDto(
                         id = 1,
-                        remark = "VMess-443",
+                        remark = "vless-reality-443",
                         port = 443,
-                        protocol = "vmess",
+                        protocol = "vless",
                         enable = true,
                         up = 1_500_000_000L,
                         down = 5_000_000_000L,
@@ -353,18 +520,18 @@ private fun InboundsContentPreview() {
                     ),
                     InboundDto(
                         id = 2,
-                        remark = "",
-                        port = 8080,
-                        protocol = "trojan",
+                        remark = "vmess-ws-2096",
+                        port = 2096,
+                        protocol = "vmess",
                         enable = false,
-                        up = 0L,
+                        up = 120_000_000L,
                         down = 0L,
                         total = 0L,
                         expiryTime = 0L,
                         listen = "",
                         settings = "{}",
                         streamSettings = "{}",
-                        tag = "inbound-8080",
+                        tag = "inbound-2096",
                         sniffing = "{}",
                     ),
                 ),
@@ -380,7 +547,7 @@ private fun InboundsContentPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun InboundsLoadingPreview() {
+private fun InboundsNoActivePanelPreview() {
     XuiPanelTheme {
         InboundsContent(
             uiState = InboundsUiState.NoActivePanel,

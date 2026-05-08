@@ -11,6 +11,18 @@
     <string name="panels_cd_trust_self_signed">Самоподписанный сертификат</string>
     <string name="panels_cd_panel_menu">Меню панели</string>
 
+    <!-- PanelsListScreen — empty state -->
+    <string name="panels_empty_description">Добавьте первую панель или восстановите из резервной копии</string>
+    <string name="panels_empty_import">Импортировать из резервной копии</string>
+    <!-- PanelsListScreen — subtitle -->
+    <string name="panels_subtitle_connected">%d подключена</string>
+    <string name="panels_subtitle_connected_plural">%d подключены</string>
+    <!-- PanelsListScreen — action buttons -->
+    <string name="panels_action_export">Экспорт…</string>
+    <string name="panels_action_import">Импорт…</string>
+    <!-- PanelsListScreen — burger cd -->
+    <string name="panels_cd_menu">Открыть меню</string>
+
     <!-- PanelAddEditScreen -->
     <string name="panel_add_title">Добавить панель</string>
     <string name="panel_edit_title">Редактировать панель</string>
@@ -26,10 +38,26 @@
     <string name="panel_error_login_empty">Введите логин</string>
     <string name="panel_error_password_empty">Введите пароль</string>
 
+    <!-- PanelAddEditScreen — field labels -->
+    <string name="panel_field_url_label">URL</string>
+    <string name="panel_field_login_label">Логин</string>
+    <string name="panel_field_password_label">Пароль</string>
+    <!-- PanelAddEditScreen — TLS section -->
+    <string name="panel_tls_section_title">TLS</string>
+    <string name="panel_tls_pinned_at_label">Закреплено</string>
+    <string name="panel_tls_repin_label">Перезакрепить</string>
+    <string name="panel_tls_repin_sub">Сбросить и записать новый отпечаток</string>
+    <string name="panel_tls_footer">Закрепление фиксирует сертификат при первом подключении. Используйте только если доверяете владельцу панели.</string>
+    <!-- PanelAddEditScreen — credentials section -->
+    <string name="panel_credentials_section_title">Учётные данные</string>
+    <!-- PanelAddEditScreen — delete -->
+    <string name="panel_delete_action">Удалить панель</string>
+
     <!-- TLS mode -->
     <string name="panel_tls_mode_label">Режим TLS</string>
     <string name="panel_tls_mode_system">Системный CA</string>
     <string name="panel_tls_mode_pinned">Самоподписанный (с пинингом)</string>
+    <string name="panel_tls_mode_pinned_short">Закреплённый</string>
     <string name="panel_tls_pinned_warning">Первое подключение зафиксирует сертификат. Используйте только если доверяете владельцу панели.</string>
     <string name="panel_tls_pinned_at">Запинено: %s</string>
     <string name="panel_tls_repin">Перезапинить</string>

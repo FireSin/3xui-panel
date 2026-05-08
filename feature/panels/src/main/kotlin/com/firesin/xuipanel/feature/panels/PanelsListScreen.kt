@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,34 +17,39 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.ShieldMoon
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,19 +58,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.designsystem.component.GroupCard
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.feature.panels.ui.ConfirmImportDialogState
 import com.firesin.xuipanel.feature.panels.ui.ExportDialogState
@@ -81,6 +94,7 @@ fun PanelsListScreen(
     onEditPanel: (String) -> Unit,
     onPanelSelected: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onMenuClick: () -> Unit = {},
     viewModel: PanelsListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -187,6 +201,7 @@ fun PanelsListScreen(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
         onAddPanel = onAddPanel,
+        onMenuClick = onMenuClick,
         onPanelTap = { panel ->
             viewModel.setActive(panel.id)
             onPanelSelected(panel.id)
@@ -244,6 +259,7 @@ private fun PanelsListContent(
     uiState: PanelsListUiState,
     snackbarHostState: SnackbarHostState,
     onAddPanel: () -> Unit,
+    onMenuClick: () -> Unit,
     onPanelTap: (Panel) -> Unit,
     onEditPanel: (String) -> Unit,
     onDeletePanel: (Panel) -> Unit,
@@ -252,11 +268,21 @@ private fun PanelsListContent(
     onNavigateToSettings: () -> Unit,
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text(stringResource(R.string.panels_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = stringResource(R.string.panels_cd_menu),
+                        )
+                    }
+                },
                 actions = {
                     IconButton(onClick = onAddPanel) {
                         Icon(
@@ -299,6 +325,7 @@ private fun PanelsListContent(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -317,6 +344,7 @@ private fun PanelsListContent(
                             .fillMaxSize()
                             .padding(padding),
                         onAddPanel = onAddPanel,
+                        onImportClick = onImportClick,
                     )
                 } else {
                     LazyColumn(
@@ -324,19 +352,67 @@ private fun PanelsListContent(
                             .fillMaxSize()
                             .padding(padding)
                             .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
-                        item { Spacer(Modifier.height(4.dp)) }
-                        items(uiState.panels, key = { it.id }) { panel ->
-                            PanelCard(
-                                panel = panel,
-                                isActive = panel.id == uiState.active?.id,
-                                onTap = { onPanelTap(panel) },
-                                onEdit = { onEditPanel(panel.id) },
-                                onDelete = { onDeletePanel(panel) },
+                        item {
+                            // Subtitle: count line
+                            val count = uiState.panels.size
+                            Text(
+                                text = if (count == 1) {
+                                    stringResource(R.string.panels_subtitle_connected, count)
+                                } else {
+                                    stringResource(R.string.panels_subtitle_connected_plural, count)
+                                },
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 12.dp, top = 4.dp),
                             )
                         }
-                        item { Spacer(Modifier.height(4.dp)) }
+                        item {
+                            GroupCard(
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                uiState.panels.forEachIndexed { index, panel ->
+                                    APanelRow(
+                                        panel = panel,
+                                        isActive = panel.id == uiState.active?.id,
+                                        topDivider = index > 0,
+                                        onTap = { onPanelTap(panel) },
+                                        onEdit = { onEditPanel(panel.id) },
+                                        onDelete = { onDeletePanel(panel) },
+                                    )
+                                }
+                            }
+                        }
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedButton(
+                                    onClick = onExportClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.panels_action_export),
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = onImportClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.panels_action_import),
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                    )
+                                }
+                            }
+                        }
+                        item { Spacer(Modifier.height(16.dp)) }
                     }
                 }
             }
@@ -344,58 +420,52 @@ private fun PanelsListContent(
     }
 }
 
-@Composable
-private fun PanelsEmptyState(
-    onAddPanel: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(R.string.panels_empty_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.height(16.dp))
-        TextButton(onClick = onAddPanel) {
-            Text(stringResource(R.string.panels_empty_action))
-        }
-    }
-}
+// ── Panel row inside GroupCard ────────────────────────────────────────────────
+
+private val AvatarShape = RoundedCornerShape(10.dp)
+private val BadgeShape = RoundedCornerShape(5.dp)
+private const val AVATAR_SIZE_DP = 38
+private const val STATUS_DOT_SIZE_DP = 12
+private const val STATUS_DOT_BORDER_DP = 2
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PanelCard(
+private fun APanelRow(
     panel: Panel,
     isActive: Boolean,
+    topDivider: Boolean,
     onTap: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isWarn = panel.tlsMode == TlsMode.PINNED
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onTap,
-                onLongClick = { menuExpanded = true },
-            ),
-        colors = if (isActive) {
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        } else {
-            CardDefaults.cardColors()
-        },
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (topDivider) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .combinedClickable(
+                    onClick = onTap,
+                    onLongClick = { menuExpanded = true },
+                )
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // Avatar with status dot
+            PanelAvatar(isActive = isActive, isWarn = isWarn)
+
+            // Name + badge + URL + caption
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -403,44 +473,41 @@ private fun PanelCard(
                 ) {
                     Text(
                         text = panel.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (panel.tlsMode == TlsMode.PINNED) {
-                        Icon(
-                            imageVector = Icons.Default.ShieldMoon,
-                            contentDescription = stringResource(R.string.panels_cd_trust_self_signed),
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    }
                     if (isActive) {
-                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                            Text(
-                                text = stringResource(R.string.panels_badge_active),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
+                        ActiveBadge()
                     }
                 }
-                Spacer(Modifier.height(2.dp))
                 Text(
                     text = panel.baseUrl,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        fontFamily = MonoFontFamily,
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
+            // Chevron + context menu
             Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.panels_cd_panel_menu),
-                    )
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .alpha(0.55f),
+                )
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
@@ -464,6 +531,139 @@ private fun PanelCard(
         }
     }
 }
+
+@Composable
+private fun PanelAvatar(
+    isActive: Boolean,
+    isWarn: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val avatarBg = when {
+        isActive -> MaterialTheme.colorScheme.primaryContainer
+        isWarn -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val dotColor = when {
+        isActive -> MaterialTheme.colorScheme.primary
+        isWarn -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.outline
+    }
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    Box(modifier = modifier.size(AVATAR_SIZE_DP.dp)) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(AVATAR_SIZE_DP.dp)
+                .clip(AvatarShape)
+                .background(avatarBg),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Dns,
+                contentDescription = null,
+                tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        // Status dot — bottom-right, with surface border
+        Box(
+            modifier = Modifier
+                .size((STATUS_DOT_SIZE_DP + STATUS_DOT_BORDER_DP * 2).dp)
+                .align(Alignment.BottomEnd)
+                .offset(x = 2.dp, y = 2.dp)
+                .clip(CircleShape)
+                .background(surfaceColor),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(STATUS_DOT_SIZE_DP.dp)
+                    .align(Alignment.Center)
+                    .clip(CircleShape)
+                    .background(dotColor),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveBadge() {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .clip(BadgeShape)
+            .background(MaterialTheme.colorScheme.primary)
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.panels_badge_active).uppercase(),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = MaterialTheme.colorScheme.onPrimary,
+        )
+    }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun PanelsEmptyState(
+    onAddPanel: () -> Unit,
+    onImportClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Dns,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(44.dp),
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            text = stringResource(R.string.panels_empty_title),
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.panels_empty_description),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = onAddPanel,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.panels_empty_action))
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = onImportClick,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.panels_empty_import))
+        }
+    }
+}
+
+// ── Dialogs (unchanged logic) ─────────────────────────────────────────────────
 
 @Composable
 private fun ExportPassphraseDialog(
@@ -611,6 +811,8 @@ private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.PinMismatch -> stringResource(R.string.error_pin_mismatch)
 }
 
+// ── Previews ──────────────────────────────────────────────────────────────────
+
 @Preview(showBackground = true)
 @Composable
 private fun PanelsListContentPreview() {
@@ -618,8 +820,8 @@ private fun PanelsListContentPreview() {
         val panels = listOf(
             Panel(
                 id = "1",
-                name = "Мой сервер",
-                baseUrl = "https://panel.example.com:2053",
+                name = "Stockholm Edge",
+                baseUrl = "https://panel.northwind.io:2053",
                 login = "admin",
                 password = "pass",
                 tlsMode = TlsMode.SYSTEM,
@@ -631,8 +833,21 @@ private fun PanelsListContentPreview() {
             ),
             Panel(
                 id = "2",
-                name = "Резервный",
-                baseUrl = "https://backup.example.com:2053",
+                name = "Frankfurt Bay",
+                baseUrl = "https://fra-01.windsail.eu:8443",
+                login = "admin",
+                password = "pass",
+                tlsMode = TlsMode.SYSTEM,
+                pinnedSpkiSha256 = null,
+                pinnedAt = null,
+                isActive = false,
+                createdAt = Instant.now(),
+                lastLoginAt = null,
+            ),
+            Panel(
+                id = "3",
+                name = "Old Lab — cert changed",
+                baseUrl = "https://100.64.12.4:54321",
                 login = "admin",
                 password = "pass",
                 tlsMode = TlsMode.PINNED,
@@ -647,6 +862,7 @@ private fun PanelsListContentPreview() {
             uiState = PanelsListUiState.Content(panels = panels, active = panels.first()),
             snackbarHostState = SnackbarHostState(),
             onAddPanel = {},
+            onMenuClick = {},
             onPanelTap = {},
             onEditPanel = {},
             onDeletePanel = {},
@@ -665,6 +881,7 @@ private fun PanelsEmptyPreview() {
             uiState = PanelsListUiState.Content(panels = emptyList(), active = null),
             snackbarHostState = SnackbarHostState(),
             onAddPanel = {},
+            onMenuClick = {},
             onPanelTap = {},
             onEditPanel = {},
             onDeletePanel = {},

@@ -27,6 +27,7 @@ data class PanelFormState(
     val login: String = "",
     val password: String = "",
     val tlsMode: TlsMode = TlsMode.SYSTEM,
+    val pinnedAt: Instant? = null,
 )
 
 data class PanelFormErrors(
@@ -96,10 +97,20 @@ class PanelAddEditViewModel @Inject constructor(
                         login = panel.login,
                         password = panel.password,
                         tlsMode = panel.tlsMode,
+                        pinnedAt = panel.pinnedAt,
                     ),
                     isEditMode = true,
                 )
             }
+        }
+    }
+
+    /** Delete the current panel (edit mode only) and navigate away via Saved state. */
+    fun deleteCurrentPanel() {
+        val id = panelId ?: return
+        viewModelScope.launch {
+            repository.delete(id)
+            _uiState.value = PanelAddEditUiState.Saved
         }
     }
 
@@ -165,6 +176,34 @@ class PanelAddEditViewModel @Inject constructor(
         val id = panelId ?: return // re-pin only valid in edit mode
 
         _uiState.value = editing.copy(pinMismatchDialog = null)
+        val form = editing.form
+        _uiState.value = PanelAddEditUiState.Saving(form)
+
+        viewModelScope.launch {
+            val draft = PanelDraft(
+                name = form.name.trim(),
+                baseUrl = form.baseUrl.trim(),
+                login = form.login.trim(),
+                password = form.password,
+                tlsMode = TlsMode.PINNED,
+            )
+            when (val result = repository.rePin(id, draft)) {
+                is Result.Success -> _uiState.value = PanelAddEditUiState.Saved
+                is Result.Failure -> {
+                    _uiState.value = PanelAddEditUiState.Editing(
+                        form = form,
+                        isEditMode = true,
+                        submitError = result.error,
+                    )
+                }
+            }
+        }
+    }
+
+    /** Manually initiate re-pin (from TLS section "Re-pin" row, edit mode only). */
+    fun requestRePin() {
+        val id = panelId ?: return
+        val editing = _uiState.value as? PanelAddEditUiState.Editing ?: return
         val form = editing.form
         _uiState.value = PanelAddEditUiState.Saving(form)
 

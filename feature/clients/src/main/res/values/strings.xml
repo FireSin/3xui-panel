@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ClientsListScreen -->
-    <string name="clients_title">Клиенты</string>
+    <string name="clients_title">Clients</string>
     <string name="clients_empty">Нет клиентов</string>
+    <string name="clients_search_hint">Search by email…</string>
+    <string name="clients_hero_sub">%1$s · %2$d clients</string>
     <string name="clients_no_active_panel">Нет активной панели</string>
     <string name="clients_add_panel">Добавить панель</string>
     <string name="clients_retry">Повторить</string>

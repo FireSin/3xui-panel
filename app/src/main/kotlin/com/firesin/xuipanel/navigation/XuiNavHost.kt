@@ -95,6 +95,7 @@ fun XuiNavHost(
             panelsGraph(
                 navController = navController,
                 onNavigateToSettings = { navController.navigate("settings") },
+                onMenuClick = onMenuClick,
             )
             dashboardGraph(
                 navController = navController,
