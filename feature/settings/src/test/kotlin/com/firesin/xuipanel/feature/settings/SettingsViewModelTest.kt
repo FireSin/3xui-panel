@@ -43,6 +43,7 @@ class SettingsViewModelTest {
             context.getString(R.string.settings_lock_unavailable_hint)
         } returns unavailableHint
         every { repository.themeMode } returns flowOf(ThemeMode.SYSTEM)
+        every { repository.installId } returns flowOf("test-install-id")
     }
 
     @AfterEach

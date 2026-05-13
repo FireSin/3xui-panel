@@ -93,4 +93,7 @@ class SettingsViewModel @Inject constructor(
             appSecurityRepository.setThemeMode(mode)
         }
     }
+
+    val installId: StateFlow<String> = appSecurityRepository.installId
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 }

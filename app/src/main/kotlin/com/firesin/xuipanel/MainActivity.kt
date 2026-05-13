@@ -65,8 +65,9 @@ class MainActivity : FragmentActivity() {
                         },
                     )
                 }
+                val installId by viewModel.installId.collectAsStateWithLifecycle()
                 LockGate(onFinishApp = ::finishAffinity) {
-                    XuiNavHost(navController = navController)
+                    XuiNavHost(navController = navController, installId = installId)
                 }
             }
         }

@@ -10,4 +10,8 @@
     <string name="settings_theme_light">Светлая</string>
     <string name="settings_theme_dark">Тёмная</string>
     <string name="settings_theme_system">Системная</string>
+    <string name="settings_about_title">О приложении</string>
+    <string name="settings_about_version">Версия</string>
+    <string name="settings_about_install_id">ID установки</string>
+    <string name="settings_about_install_id_copied">ID скопирован</string>
 </resources>

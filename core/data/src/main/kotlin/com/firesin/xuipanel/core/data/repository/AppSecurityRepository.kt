@@ -12,4 +12,7 @@ interface AppSecurityRepository {
 
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(mode: ThemeMode)
+
+    /** Stable anonymous install id, lazily generated on first observation. */
+    val installId: Flow<String>
 }

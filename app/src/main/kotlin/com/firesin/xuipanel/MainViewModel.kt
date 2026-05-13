@@ -44,6 +44,9 @@ class MainViewModel @Inject constructor(
     val themeMode: StateFlow<ThemeMode> = appSecurityRepository.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
 
+    val installId: StateFlow<String> = appSecurityRepository.installId
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
+
     init {
         viewModelScope.launch {
             pinMismatchEvents.events.collect { event ->

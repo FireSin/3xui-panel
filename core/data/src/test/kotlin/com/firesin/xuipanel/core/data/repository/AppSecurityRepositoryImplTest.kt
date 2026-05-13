@@ -158,4 +158,42 @@ class AppSecurityRepositoryImplTest {
         val result = transformSlot.captured(emptyPreferences()) as MutablePreferences
         assertEquals("dark", result[AppSecurityPrefs.THEME_MODE])
     }
+
+    @Test
+    fun `installId emits stored value when present`() = runTest {
+        val existing = "11111111-2222-3333-4444-555555555555"
+        val prefs: Preferences = mutablePreferencesOf(AppSecurityPrefs.INSTALL_ID to existing)
+        val flow = MutableStateFlow(prefs)
+        val dataStore: DataStore<Preferences> = mockk {
+            every { data } returns flow
+        }
+        val repo = AppSecurityRepositoryImpl(dataStore)
+
+        repo.installId.test {
+            assertEquals(existing, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `installId generates and persists UUID when key absent`() = runTest {
+        val prefs: Preferences = emptyPreferences()
+        val flow = MutableStateFlow(prefs)
+        val dataStore: DataStore<Preferences> = mockk {
+            every { data } returns flow
+        }
+        val transformSlot = slot<suspend (Preferences) -> Preferences>()
+        coEvery { dataStore.updateData(capture(transformSlot)) } coAnswers {
+            transformSlot.captured(emptyPreferences())
+        }
+        val repo = AppSecurityRepositoryImpl(dataStore)
+
+        repo.installId.test {
+            val emitted = awaitItem()
+            assertTrue(emitted.isNotEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+        val stored = transformSlot.captured(emptyPreferences()) as MutablePreferences
+        assertTrue(stored[AppSecurityPrefs.INSTALL_ID]?.isNotEmpty() == true)
+    }
 }

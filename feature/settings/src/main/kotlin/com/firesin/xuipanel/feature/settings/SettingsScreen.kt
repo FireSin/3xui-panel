@@ -1,5 +1,7 @@
 package com.firesin.xuipanel.feature.settings
 
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -7,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
@@ -20,15 +24,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +49,7 @@ fun SettingsScreen(
     val lockToggleState by viewModel.lockToggleState.collectAsStateWithLifecycle()
     val lockOnPauseEnabled by viewModel.lockOnPauseEnabled.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val installId by viewModel.installId.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -56,6 +67,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             LockCard(
@@ -73,6 +85,72 @@ fun SettingsScreen(
                 selected = themeMode,
                 onSelect = viewModel::setThemeMode,
             )
+            Spacer(Modifier.height(8.dp))
+            AboutCard(installId = installId)
+        }
+    }
+}
+
+@Composable
+private fun AboutCard(
+    installId: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: "—"
+    }
+    val copiedMessage = stringResource(R.string.settings_about_install_id_copied)
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.settings_about_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.settings_about_version),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = versionName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = MonoFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (installId.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            clipboard.setText(AnnotatedString(installId))
+                            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                        },
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_about_install_id),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = "…${installId.takeLast(12)}",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = MonoFontFamily,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

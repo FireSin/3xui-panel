@@ -6,7 +6,11 @@ import androidx.datastore.preferences.core.edit
 import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.data.prefs.AppSecurityPrefs
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,4 +53,20 @@ class AppSecurityRepositoryImpl @Inject constructor(
             prefs[AppSecurityPrefs.THEME_MODE] = mode.name.lowercase()
         }
     }
+
+    override val installId: Flow<String> = flow {
+        val existing = dataStore.data
+            .map { prefs -> prefs[AppSecurityPrefs.INSTALL_ID] }
+            .first()
+        val id = existing ?: run {
+            val generated = UUID.randomUUID().toString()
+            dataStore.edit { prefs ->
+                if (prefs[AppSecurityPrefs.INSTALL_ID] == null) {
+                    prefs[AppSecurityPrefs.INSTALL_ID] = generated
+                }
+            }
+            generated
+        }
+        emit(id)
+    }.distinctUntilChanged()
 }
