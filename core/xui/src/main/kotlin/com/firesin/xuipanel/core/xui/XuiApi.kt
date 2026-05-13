@@ -8,6 +8,7 @@ import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
 import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
 import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
+import com.firesin.xuipanel.core.xui.dto.ServerHistoryResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.SubLinksResponseDto
@@ -48,6 +49,17 @@ interface XuiApi {
 
     @GET("panel/api/server/status")
     suspend fun serverStatus(): Response<ServerStatusResponseDto>
+
+    /**
+     * Time-series for one metric, ~6h window, aggregated to [bucket]-second buckets.
+     * Metric: cpu | mem | swap | netIn | netOut | tcpCount | udpCount | load1 | online.
+     * Bucket: 2, 30, 60, 120, 180, 300 (seconds).
+     */
+    @GET("panel/api/server/history/{metric}/{bucket}")
+    suspend fun serverHistory(
+        @Path("metric") metric: String,
+        @Path("bucket") bucket: Int,
+    ): Response<ServerHistoryResponseDto>
 
     /** Restart the Xray service. 3x-ui: POST /panel/api/server/restartXrayService. */
     @POST("panel/api/server/restartXrayService")

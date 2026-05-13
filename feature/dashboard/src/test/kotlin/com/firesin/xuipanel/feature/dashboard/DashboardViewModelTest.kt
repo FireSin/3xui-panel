@@ -47,6 +47,8 @@ class DashboardViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        coEvery { xuiClient.fetchServerHistory(any(), any(), any(), any(), any(), any()) } returns
+            com.firesin.xuipanel.core.common.Result.Success(emptyList())
     }
 
     @AfterEach

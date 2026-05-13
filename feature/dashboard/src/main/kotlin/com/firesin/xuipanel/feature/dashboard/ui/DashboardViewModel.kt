@@ -9,6 +9,7 @@ import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
+import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,15 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** Server-history metrics supported by /panel/api/server/history. */
+enum class HistoryMetric(val apiKey: String) {
+    CPU("cpu"),
+    MEM("mem"),
+    NET_IN("netIn"),
+    NET_OUT("netOut"),
+    ONLINE("online"),
+}
 
 sealed class DashboardUiState {
     data object NoActivePanel : DashboardUiState()
@@ -50,18 +60,50 @@ class DashboardViewModel @Inject constructor(
     private val _isActionInFlight = MutableStateFlow(false)
     val isActionInFlight: StateFlow<Boolean> = _isActionInFlight
 
+    private val _selectedMetric = MutableStateFlow(HistoryMetric.CPU)
+    val selectedMetric: StateFlow<HistoryMetric> = _selectedMetric
+
+    private val _history = MutableStateFlow<List<ServerHistoryPointDto>>(emptyList())
+    val history: StateFlow<List<ServerHistoryPointDto>> = _history
+
+    private val _isHistoryLoading = MutableStateFlow(false)
+    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading
+
     init {
         repository.observeActive()
             .distinctUntilChanged { a, b -> a?.id == b?.id }
             .onEach { panel ->
                 if (panel == null) {
                     _uiState.value = DashboardUiState.NoActivePanel
+                    _history.value = emptyList()
                 } else {
                     _uiState.value = DashboardUiState.Loading(panel)
                     fetchStatus(panel)
+                    fetchHistory(panel, _selectedMetric.value)
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun selectMetric(metric: HistoryMetric) {
+        if (_selectedMetric.value == metric) return
+        _selectedMetric.value = metric
+        val panel = activePanel() ?: return
+        viewModelScope.launch { fetchHistory(panel, metric) }
+    }
+
+    private suspend fun fetchHistory(panel: Panel, metric: HistoryMetric) {
+        _isHistoryLoading.value = true
+        val result = xuiClient.fetchServerHistory(
+            panelId = panel.id,
+            baseUrl = panel.baseUrl,
+            auth = panel.toAuth(),
+            tls = panel.toPanelTls(),
+            metric = metric.apiKey,
+            bucket = HISTORY_BUCKET_SEC,
+        )
+        _history.value = (result as? Result.Success)?.data.orEmpty()
+        _isHistoryLoading.value = false
     }
 
     fun refresh() {
@@ -69,6 +111,7 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _isRefreshing.value = true
             fetchStatus(panel)
+            fetchHistory(panel, _selectedMetric.value)
             _isRefreshing.value = false
         }
     }
@@ -122,6 +165,11 @@ class DashboardViewModel @Inject constructor(
         is DashboardUiState.Error -> s.panel
         is DashboardUiState.Loading -> s.panel
         is DashboardUiState.NoActivePanel -> null
+    }
+
+    private companion object {
+        /** Bucket size 120s × ~180 points = ~6h window. Matches the cached server range. */
+        const val HISTORY_BUCKET_SEC = 120
     }
 
     private suspend fun fetchStatus(panel: Panel) {

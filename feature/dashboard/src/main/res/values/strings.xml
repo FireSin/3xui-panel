@@ -40,6 +40,15 @@
     <string name="dashboard_section_network">Network</string>
     <string name="dashboard_section_server">Server</string>
     <string name="dashboard_section_more">More</string>
+    <string name="dashboard_section_history">История (6ч)</string>
+    <string name="dashboard_history_metric_cpu">CPU</string>
+    <string name="dashboard_history_metric_mem">RAM</string>
+    <string name="dashboard_history_metric_net_in">Net In</string>
+    <string name="dashboard_history_metric_net_out">Net Out</string>
+    <string name="dashboard_history_metric_online">Online</string>
+    <string name="dashboard_history_no_data">Нет данных за период</string>
+    <!-- %1$s = min, %2$s = avg, %3$s = max -->
+    <string name="dashboard_history_summary">min %1$s · avg %2$s · max %3$s</string>
     <string name="dashboard_live_throughput">LIVE THROUGHPUT</string>
     <string name="dashboard_row_upload">Upload</string>
     <string name="dashboard_row_download">Download</string>

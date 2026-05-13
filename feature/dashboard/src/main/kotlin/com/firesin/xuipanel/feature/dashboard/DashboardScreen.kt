@@ -75,6 +75,7 @@ import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.GroupRow
 import com.firesin.xuipanel.core.designsystem.component.RingStat
 import com.firesin.xuipanel.core.designsystem.component.SectionHeader
+import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
 import com.firesin.xuipanel.core.designsystem.component.SpeedColumn
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
@@ -82,10 +83,12 @@ import com.firesin.xuipanel.core.xui.dto.MemDto
 import com.firesin.xuipanel.core.xui.dto.NetIoDto
 import com.firesin.xuipanel.core.xui.dto.NetTrafficDto
 import com.firesin.xuipanel.core.xui.dto.PublicIpDto
+import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.XrayStatusDto
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardUiState
 import com.firesin.xuipanel.feature.dashboard.ui.DashboardViewModel
+import com.firesin.xuipanel.feature.dashboard.ui.HistoryMetric
 import java.time.Instant
 
 private val HeroCardShape = RoundedCornerShape(18.dp)
@@ -103,6 +106,9 @@ fun DashboardScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val actionEvent by viewModel.actionEvent.collectAsStateWithLifecycle()
     val isActionInFlight by viewModel.isActionInFlight.collectAsStateWithLifecycle()
+    val selectedMetric by viewModel.selectedMetric.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+    val isHistoryLoading by viewModel.isHistoryLoading.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val restartSuccessMessage = stringResource(R.string.dashboard_action_restart_success)
@@ -142,6 +148,10 @@ fun DashboardScreen(
         onRestartXray = viewModel::restartXray,
         onStopXray = viewModel::stopXray,
         onNavigateToLogs = onNavigateToLogs,
+        selectedMetric = selectedMetric,
+        history = history,
+        isHistoryLoading = isHistoryLoading,
+        onMetricSelect = viewModel::selectMetric,
     )
 }
 
@@ -160,6 +170,10 @@ private fun DashboardContent(
     onRestartXray: () -> Unit = {},
     onStopXray: () -> Unit = {},
     onNavigateToLogs: () -> Unit = {},
+    selectedMetric: HistoryMetric = HistoryMetric.CPU,
+    history: List<ServerHistoryPointDto> = emptyList(),
+    isHistoryLoading: Boolean = false,
+    onMetricSelect: (HistoryMetric) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<ServerAction?>(null) }
@@ -297,6 +311,10 @@ private fun DashboardContent(
                     contentPadding = PaddingValues(bottom = 24.dp),
                     onNavigateToStats = onNavigateToStats,
                     onNavigateToInbounds = onNavigateToInbounds,
+                    selectedMetric = selectedMetric,
+                    history = history,
+                    isHistoryLoading = isHistoryLoading,
+                    onMetricSelect = onMetricSelect,
                 )
             }
         }
@@ -358,6 +376,10 @@ private fun StatusList(
     contentPadding: PaddingValues,
     onNavigateToStats: () -> Unit,
     onNavigateToInbounds: () -> Unit,
+    selectedMetric: HistoryMetric,
+    history: List<ServerHistoryPointDto>,
+    isHistoryLoading: Boolean,
+    onMetricSelect: (HistoryMetric) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -395,6 +417,14 @@ private fun StatusList(
             }
         }
 
+        item {
+            HistorySection(
+                selectedMetric = selectedMetric,
+                history = history,
+                isLoading = isHistoryLoading,
+                onMetricSelect = onMetricSelect,
+            )
+        }
         item { NetworkSection(status = status) }
         item { ServerSection(status = status) }
         item {
@@ -404,6 +434,82 @@ private fun StatusList(
             )
         }
     }
+}
+
+// ── History section ────────────────────────────────────────────────────────────
+
+@Composable
+private fun HistorySection(
+    selectedMetric: HistoryMetric,
+    history: List<ServerHistoryPointDto>,
+    isLoading: Boolean,
+    onMetricSelect: (HistoryMetric) -> Unit,
+) {
+    SectionHeader(stringResource(R.string.dashboard_section_history))
+    GroupCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            SegmentedPicker(
+                options = HistoryMetric.entries,
+                selected = selectedMetric,
+                onSelect = onMetricSelect,
+                label = { metricLabel(it) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            if (isLoading && history.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                HistoryLineChart(points = history)
+                Spacer(Modifier.height(6.dp))
+                HistorySummary(metric = selectedMetric, points = history)
+            }
+        }
+    }
+}
+
+@Composable
+private fun metricLabel(metric: HistoryMetric): String = when (metric) {
+    HistoryMetric.CPU -> stringResource(R.string.dashboard_history_metric_cpu)
+    HistoryMetric.MEM -> stringResource(R.string.dashboard_history_metric_mem)
+    HistoryMetric.NET_IN -> stringResource(R.string.dashboard_history_metric_net_in)
+    HistoryMetric.NET_OUT -> stringResource(R.string.dashboard_history_metric_net_out)
+    HistoryMetric.ONLINE -> stringResource(R.string.dashboard_history_metric_online)
+}
+
+@Composable
+private fun HistorySummary(metric: HistoryMetric, points: List<ServerHistoryPointDto>) {
+    if (points.size < 2) return
+    val values = points.map { it.v }
+    val min = values.min()
+    val max = values.max()
+    val avg = values.average()
+    Text(
+        text = stringResource(
+            R.string.dashboard_history_summary,
+            formatMetric(metric, min),
+            formatMetric(metric, avg),
+            formatMetric(metric, max),
+        ),
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontFamily = MonoFontFamily,
+            fontSize = 11.sp,
+        ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private fun formatMetric(metric: HistoryMetric, value: Double): String = when (metric) {
+    HistoryMetric.CPU -> "%.1f%%".format(value)
+    HistoryMetric.MEM -> prettyBytes(value.toLong())
+    HistoryMetric.NET_IN, HistoryMetric.NET_OUT -> "${prettyBytes(value.toLong())}/s"
+    HistoryMetric.ONLINE -> "%.0f".format(value)
 }
 
 // ── Hero Card ──────────────────────────────────────────────────────────────────

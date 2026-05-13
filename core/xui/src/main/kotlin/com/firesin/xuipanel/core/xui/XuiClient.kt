@@ -14,6 +14,7 @@ import com.firesin.xuipanel.core.xui.dto.ClientsJson
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
+import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
@@ -472,6 +473,36 @@ class XuiClient @Inject constructor(
         val ob = outbound.orEmpty()
         val em = email.orEmpty().let { if (it.isBlank()) "" else " $it" }
         return "$ts $tag $from -> $to [$ib -> $ob]$em".trim()
+    }
+
+    /**
+     * Time-series for one server metric.
+     *
+     * @param metric one of: cpu, mem, swap, netIn, netOut, tcpCount, udpCount, load1, online
+     * @param bucket aggregation bucket in seconds (allowed: 2, 30, 60, 120, 180, 300)
+     */
+    suspend fun fetchServerHistory(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        metric: String,
+        bucket: Int,
+    ): Result<List<ServerHistoryPointDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.serverHistory(metric, bucket)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
     }
 
     /**
