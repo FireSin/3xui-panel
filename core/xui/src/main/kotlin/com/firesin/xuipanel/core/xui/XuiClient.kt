@@ -186,12 +186,12 @@ class XuiClient @Inject constructor(
         username: String,
         password: String,
         tls: PanelTls,
-        @Suppress("UNUSED_PARAMETER") enabled: Boolean,
+        enabled: Boolean,
         id: Int,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
             withSession(panelId, baseUrl, username, password, tls) { api ->
-                api.onOffInbound(id)
+                api.setInboundEnable(id, enabled)
             }
         }.fold(
             onSuccess = { response ->

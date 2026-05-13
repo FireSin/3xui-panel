@@ -21,9 +21,9 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
+import com.firesin.xuipanel.core.designsystem.component.IosToggle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -100,6 +100,7 @@ fun InboundsListScreen(
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
         onManageClients = onManageClients,
+        onToggleEnabled = viewModel::toggle,
         onMenuClick = onMenuClick,
     )
 
@@ -124,6 +125,7 @@ private fun InboundsContent(
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
     onManageClients: (inboundId: Int) -> Unit = {},
+    onToggleEnabled: (inboundId: Int, enable: Boolean) -> Unit = { _, _ -> },
     onMenuClick: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -224,6 +226,9 @@ private fun InboundsContent(
                                 InboundCard(
                                     inbound = inbound,
                                     onManageClients = { onManageClients(inbound.id) },
+                                    onToggleEnabled = { newValue ->
+                                        onToggleEnabled(inbound.id, newValue)
+                                    },
                                 )
                             }
                             item { Spacer(Modifier.height(16.dp)) }
@@ -239,6 +244,7 @@ private fun InboundsContent(
 private fun InboundCard(
     inbound: InboundDto,
     onManageClients: () -> Unit = {},
+    onToggleEnabled: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isReadOnly = !inbound.protocol.isEditableProtocol()
@@ -257,7 +263,7 @@ private fun InboundCard(
         ),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Top row: pill + port + spacer + overflow
+            // Top row: pill + port + spacer + toggle (for editable protocols)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -273,12 +279,12 @@ private fun InboundCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.inbounds_cd_overflow),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
+                if (!isReadOnly) {
+                    IosToggle(
+                        checked = inbound.enable,
+                        onCheckedChange = onToggleEnabled,
+                    )
+                }
             }
 
             Spacer(Modifier.height(6.dp))

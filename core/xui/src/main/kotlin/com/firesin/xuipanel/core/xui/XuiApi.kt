@@ -33,12 +33,16 @@ interface XuiApi {
     suspend fun deleteInbound(@Path("id") id: Int): Response<LoginResponseDto>
 
     /**
-     * Toggles the inbound enable/disable state.
-     * 3x-ui v2 API: POST /panel/api/inbounds/onOff/{id}
+     * Sets the inbound enable/disable state.
+     * 3x-ui API: POST /panel/api/inbounds/setEnable/{id} with form-encoded `enable=true|false`.
      * Response reuses the generic success/msg envelope (LoginResponseDto shape).
      */
-    @POST("panel/api/inbounds/onOff/{id}")
-    suspend fun onOffInbound(@Path("id") id: Int): Response<LoginResponseDto>
+    @FormUrlEncoded
+    @POST("panel/api/inbounds/setEnable/{id}")
+    suspend fun setInboundEnable(
+        @Path("id") id: Int,
+        @Field("enable") enable: Boolean,
+    ): Response<LoginResponseDto>
 
     @GET("panel/api/server/status")
     suspend fun serverStatus(): Response<ServerStatusResponseDto>
