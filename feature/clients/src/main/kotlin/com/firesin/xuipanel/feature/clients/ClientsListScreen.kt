@@ -111,6 +111,7 @@ fun ClientsListScreen(
     }
 
     var pendingDeleteInbound by remember { mutableStateOf(false) }
+    var pendingDeleteDepleted by remember { mutableStateOf(false) }
 
     val resolvedError = errorMessage?.toUserMessage()
     LaunchedEffect(resolvedError) {
@@ -129,6 +130,7 @@ fun ClientsListScreen(
         onNavigateAdd = onNavigateAdd,
         onNavigateEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
         onDeleteInboundRequest = { pendingDeleteInbound = true },
+        onDeleteDepletedRequest = { pendingDeleteDepleted = true },
         onPopBackStack = onPopBackStack,
     )
 
@@ -146,6 +148,28 @@ fun ClientsListScreen(
                 onPopBackStack()
             },
             onDismiss = { pendingDeleteInbound = false },
+        )
+    }
+
+    if (pendingDeleteDepleted) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingDeleteDepleted = false },
+            title = { Text(stringResource(R.string.clients_delete_depleted_title)) },
+            text = { Text(stringResource(R.string.clients_delete_depleted_message)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val id = (uiState as? ClientsUiState.Content)?.selectedInboundId
+                    if (id != null) viewModel.deleteDepletedClients(id)
+                    pendingDeleteDepleted = false
+                }) {
+                    Text(stringResource(R.string.clients_delete_depleted_confirm))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pendingDeleteDepleted = false }) {
+                    Text(stringResource(R.string.clients_delete_depleted_cancel))
+                }
+            },
         )
     }
 }
@@ -190,8 +214,10 @@ private fun ClientsContent(
     onNavigateAdd: (inboundId: Int) -> Unit,
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit,
     onDeleteInboundRequest: () -> Unit,
+    onDeleteDepletedRequest: () -> Unit = {},
     onPopBackStack: () -> Unit = {},
 ) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
     val content = uiState as? ClientsUiState.Content
     val selectedInbound = content?.selectedInbound()
 
@@ -209,11 +235,37 @@ private fun ClientsContent(
                 },
                 actions = {
                     if (selectedInbound != null) {
-                        IconButton(onClick = onDeleteInboundRequest) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.clients_inbound_cd_delete),
-                            )
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(R.string.clients_inbound_cd_more),
+                                )
+                            }
+                            androidx.compose.material3.DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                            ) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.clients_menu_delete_depleted)) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onDeleteDepletedRequest()
+                                    },
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(R.string.clients_menu_delete_inbound),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onDeleteInboundRequest()
+                                    },
+                                )
+                            }
                         }
                     }
                 },
@@ -361,6 +413,7 @@ private fun ClientsContent(
                                             stats = uiState.clientStats[client.email],
                                             online = client.email in uiState.onlineEmails,
                                             showOnlineDot = uiState.onlinesAvailable,
+                                            lastSeenEpochSec = uiState.lastOnline[client.email],
                                             inboundId = uiState.selectedInboundId ?: 0,
                                             isSupported = isSupported,
                                             showTopDivider = index > 0,
@@ -433,6 +486,7 @@ private fun ClientRow(
     stats: ClientStatDto?,
     online: Boolean,
     showOnlineDot: Boolean,
+    lastSeenEpochSec: Long?,
     inboundId: Int,
     isSupported: Boolean,
     showTopDivider: Boolean,
@@ -496,6 +550,8 @@ private fun ClientRow(
                 )
                 if (showOnlineDot && online) {
                     OnlineBadge()
+                } else if (lastSeenEpochSec != null && lastSeenEpochSec > 0L) {
+                    LastSeenBadge(epochSec = lastSeenEpochSec)
                 }
                 ExpiryText(expiry = expiry)
             }
@@ -529,6 +585,33 @@ private fun ClientRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun LastSeenBadge(epochSec: Long) {
+    val nowSec = System.currentTimeMillis() / 1000L
+    val ageSec = (nowSec - epochSec).coerceAtLeast(0L)
+    Text(
+        text = stringResource(R.string.clients_last_seen, formatAgo(ageSec)),
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontFamily = MonoFontFamily,
+            fontSize = 10.sp,
+        ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun formatAgo(ageSec: Long): String {
+    val minutes = ageSec / 60
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        ageSec < 60 -> stringResource(R.string.clients_ago_seconds, ageSec)
+        minutes < 60 -> stringResource(R.string.clients_ago_minutes, minutes)
+        hours < 24 -> stringResource(R.string.clients_ago_hours, hours)
+        else -> stringResource(R.string.clients_ago_days, days)
     }
 }
 

@@ -39,6 +39,8 @@ sealed class ClientsUiState {
         val onlineEmails: Set<String> = emptySet(),
         /** False when the /onlines endpoint failed — UI hides online dots. */
         val onlinesAvailable: Boolean = false,
+        /** Map email → last-seen unix timestamp (seconds). Empty when the endpoint failed. */
+        val lastOnline: Map<String, Long> = emptyMap(),
     ) : ClientsUiState()
     data class Error(val panel: Panel, val error: DomainError) : ClientsUiState()
 }
@@ -146,6 +148,23 @@ class ClientsViewModel @Inject constructor(
         }
     }
 
+    fun deleteDepletedClients(inboundId: Int) {
+        val panel = activePanel() ?: return
+        viewModelScope.launch {
+            val result = xuiClient.deleteDepletedClients(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                inboundId = inboundId,
+            )
+            when (result) {
+                is Result.Success -> fetchInbounds(panel, selectedInboundId = inboundId)
+                is Result.Failure -> _errorMessage.value = result.error
+            }
+        }
+    }
+
     fun deleteInbound(inboundId: Int) {
         val panel = activePanel() ?: return
         viewModelScope.launch {
@@ -233,6 +252,39 @@ class ClientsViewModel @Inject constructor(
         _clientIpsState.value = ClientIpsState.Idle
     }
 
+    sealed class SubLinksState {
+        data object Idle : SubLinksState()
+        data object Loading : SubLinksState()
+        data class Loaded(val links: List<String>) : SubLinksState()
+        data class Error(val error: DomainError) : SubLinksState()
+    }
+
+    private val _subLinksState = MutableStateFlow<SubLinksState>(SubLinksState.Idle)
+    val subLinksState: StateFlow<SubLinksState> = _subLinksState
+
+    fun loadSubLinks(subId: String) {
+        val panel = activePanel() ?: return
+        if (subId.isBlank()) return
+        viewModelScope.launch {
+            _subLinksState.value = SubLinksState.Loading
+            val result = xuiClient.fetchSubLinks(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                subId = subId,
+            )
+            _subLinksState.value = when (result) {
+                is Result.Success -> SubLinksState.Loaded(result.data)
+                is Result.Failure -> SubLinksState.Error(result.error)
+            }
+        }
+    }
+
+    fun resetSubLinksState() {
+        _subLinksState.value = SubLinksState.Idle
+    }
+
     fun errorShown() {
         _errorMessage.value = null
     }
@@ -245,7 +297,7 @@ class ClientsViewModel @Inject constructor(
     }
 
     private suspend fun fetchInbounds(panel: Panel, selectedInboundId: Int?) {
-        val (inboundsResult, onlinesResult) = coroutineScope {
+        val (inboundsResult, onlinesResult, lastOnlineResult) = coroutineScope {
             val inboundsDeferred = async {
                 xuiClient.fetchInbounds(
                     panelId = panel.id,
@@ -262,7 +314,15 @@ class ClientsViewModel @Inject constructor(
                     tls = panel.toPanelTls(),
                 )
             }
-            inboundsDeferred.await() to onlinesDeferred.await()
+            val lastOnlineDeferred = async {
+                xuiClient.fetchLastOnline(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    auth = panel.toAuth(),
+                    tls = panel.toPanelTls(),
+                )
+            }
+            Triple(inboundsDeferred.await(), onlinesDeferred.await(), lastOnlineDeferred.await())
         }
         _uiState.value = when (inboundsResult) {
             is Result.Success -> {
@@ -276,6 +336,7 @@ class ClientsViewModel @Inject constructor(
                     is Result.Success -> onlinesResult.data to true
                     is Result.Failure -> emptySet<String>() to false
                 }
+                val lastOnline = (lastOnlineResult as? Result.Success)?.data.orEmpty()
                 ClientsUiState.Content(
                     panel = panel,
                     inbounds = inbounds,
@@ -284,6 +345,7 @@ class ClientsViewModel @Inject constructor(
                     clientStats = statsFor(inbounds, resolvedId),
                     onlineEmails = onlineEmails,
                     onlinesAvailable = onlinesAvailable,
+                    lastOnline = lastOnline,
                 )
             }
             is Result.Failure -> ClientsUiState.Error(panel, inboundsResult.error)

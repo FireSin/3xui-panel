@@ -46,6 +46,8 @@ class ClientsViewModelTest {
         xuiClient = mockk()
         coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Success(emptySet())
+        coEvery { xuiClient.fetchLastOnline(any(), any(), any(), any()) } returns
+            Result.Success(emptyMap())
     }
 
     @AfterEach

@@ -13,6 +13,19 @@
     <string name="clients_retry">Повторить</string>
     <!-- Inbound-level actions in TopAppBar -->
     <string name="clients_inbound_cd_delete">Удалить инбаунд</string>
+    <string name="clients_inbound_cd_more">Действия с инбаундом</string>
+    <string name="clients_menu_delete_depleted">Удалить просроченных клиентов</string>
+    <string name="clients_menu_delete_inbound">Удалить инбаунд</string>
+    <string name="clients_delete_depleted_title">Удалить просроченных клиентов?</string>
+    <string name="clients_delete_depleted_message">С панели будут удалены клиенты, у которых истёк срок или исчерпан лимит трафика в этом инбаунде. Действие необратимо.</string>
+    <string name="clients_delete_depleted_confirm">Удалить</string>
+    <string name="clients_delete_depleted_cancel">Отмена</string>
+    <!-- %s = formatted duration like "5м" -->
+    <string name="clients_last_seen">был %s назад</string>
+    <string name="clients_ago_seconds">%dс</string>
+    <string name="clients_ago_minutes">%dм</string>
+    <string name="clients_ago_hours">%dч</string>
+    <string name="clients_ago_days">%dд</string>
     <string name="clients_inbound_delete_title">Удалить инбаунд \"%s\"?</string>
     <string name="clients_inbound_delete_message">Инбаунд и все связанные клиенты будут удалены с панели 3x-ui. Это действие необратимо.</string>
     <string name="clients_inbound_delete_confirm">Удалить</string>
@@ -91,6 +104,15 @@
     <string name="client_form_total_gb_label_short">Трафик</string>
     <string name="client_form_limit_ip_label_short">Лимит IP</string>
     <string name="client_form_flow_none">none</string>
+
+    <!-- Subscription links dialog (edit mode only) -->
+    <string name="client_form_sub_links">Все ссылки</string>
+    <string name="client_form_sub_links_title">Ссылки по subId</string>
+    <string name="client_form_sub_links_loading">Загрузка ссылок…</string>
+    <string name="client_form_sub_links_empty">Нет клиентов с этим subId</string>
+    <string name="client_form_sub_links_error">Не удалось загрузить ссылки</string>
+    <string name="client_form_sub_links_copy">Копировать</string>
+    <string name="client_form_sub_links_close">Закрыть</string>
 
     <!-- Client IPs section (edit mode only) -->
     <string name="client_form_section_ips">IP-адреса</string>

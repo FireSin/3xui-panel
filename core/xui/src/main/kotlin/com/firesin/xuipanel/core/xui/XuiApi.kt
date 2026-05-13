@@ -3,12 +3,14 @@ package com.firesin.xuipanel.core.xui
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
+import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
 import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
 import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.SubLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogsResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
@@ -65,6 +67,18 @@ interface XuiApi {
 
     @POST("panel/api/inbounds/onlines")
     suspend fun onlines(): Response<OnlinesResponseDto>
+
+    /** Map of client email → last-seen unix timestamp (seconds). */
+    @POST("panel/api/inbounds/lastOnline")
+    suspend fun lastOnline(): Response<LastOnlineResponseDto>
+
+    /** Delete every depleted/expired client in inbound [id]. Pass -1 to sweep all inbounds. */
+    @POST("panel/api/inbounds/delDepletedClients/{id}")
+    suspend fun delDepletedClients(@Path("id") id: Int): Response<LoginResponseDto>
+
+    /** All protocol URLs (vless://, vmess://, …) for clients sharing the subscription id. */
+    @GET("panel/api/inbounds/getSubLinks/{subId}")
+    suspend fun getSubLinks(@Path("subId") subId: String): Response<SubLinksResponseDto>
 
     /** Add client(s) to an inbound. JSON body `{"id":<inboundId>,"settings":"<json>"}`. */
     @POST("panel/api/inbounds/addClient")

@@ -124,8 +124,10 @@ fun NavGraphBuilder.clientsGraph(
 
         if (inbound != null && existing != null) {
             val ipsState by viewModel.clientIpsState.collectAsStateWithLifecycle()
+            val subLinksState by viewModel.subLinksState.collectAsStateWithLifecycle()
             LaunchedEffect(existing.email) {
                 viewModel.resetClientIpsState()
+                viewModel.resetSubLinksState()
                 if (existing.email.isNotBlank()) {
                     viewModel.loadClientIps(existing.email)
                 }
@@ -147,6 +149,9 @@ fun NavGraphBuilder.clientsGraph(
                 clientIpsState = ipsState,
                 onLoadIps = { viewModel.loadClientIps(existing.email) },
                 onClearIps = { viewModel.clearClientIps(existing.email) },
+                subLinksState = subLinksState,
+                onLoadSubLinks = { subId -> viewModel.loadSubLinks(subId) },
+                onDismissSubLinks = { viewModel.resetSubLinksState() },
             )
         }
     }

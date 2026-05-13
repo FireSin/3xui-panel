@@ -63,6 +63,7 @@ import com.firesin.xuipanel.core.xui.util.randomShadowsocksPassword
 import com.firesin.xuipanel.core.xui.util.randomSubId
 import com.firesin.xuipanel.core.xui.util.randomUuid
 import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.ClientIpsState
+import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.SubLinksState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -96,6 +97,9 @@ fun ClientFormScreen(
     clientIpsState: ClientIpsState = ClientIpsState.Idle,
     onLoadIps: () -> Unit = {},
     onClearIps: () -> Unit = {},
+    subLinksState: SubLinksState = SubLinksState.Idle,
+    onLoadSubLinks: (subId: String) -> Unit = {},
+    onDismissSubLinks: () -> Unit = {},
 ) {
     val isEdit = existingClient != null
     val title = if (isEdit) {
@@ -443,11 +447,21 @@ fun ClientFormScreen(
                     topDivider = false,
                     stacked = true,
                     trailing = {
-                        TextButton(onClick = { subId = randomSubId() }) {
-                            Text(
-                                stringResource(R.string.client_form_generate),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                            if (isEdit && subId.isNotBlank()) {
+                                TextButton(onClick = { onLoadSubLinks(subId) }) {
+                                    Text(
+                                        text = stringResource(R.string.client_form_sub_links),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+                            TextButton(onClick = { subId = randomSubId() }) {
+                                Text(
+                                    stringResource(R.string.client_form_generate),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                         }
                     },
                 )
@@ -542,6 +556,74 @@ fun ClientFormScreen(
             },
         )
     }
+
+    if (subLinksState !is SubLinksState.Idle) {
+        SubLinksDialog(state = subLinksState, onDismiss = onDismissSubLinks)
+    }
+}
+
+// ── Subscription links dialog ─────────────────────────────────────────────────
+
+@Composable
+private fun SubLinksDialog(state: SubLinksState, onDismiss: () -> Unit) {
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.client_form_sub_links_title)) },
+        text = {
+            when (state) {
+                SubLinksState.Idle, SubLinksState.Loading -> {
+                    Text(stringResource(R.string.client_form_sub_links_loading))
+                }
+                is SubLinksState.Loaded -> {
+                    if (state.links.isEmpty()) {
+                        Text(stringResource(R.string.client_form_sub_links_empty))
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            state.links.forEach { url ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = url,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = MonoFontFamily,
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    TextButton(onClick = {
+                                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                    }) {
+                                        Text(
+                                            text = stringResource(R.string.client_form_sub_links_copy),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                is SubLinksState.Error -> {
+                    Text(stringResource(R.string.client_form_sub_links_error))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.client_form_sub_links_close))
+            }
+        },
+    )
 }
 
 // ── Client IPs section (edit mode only) ──────────────────────────────────────
