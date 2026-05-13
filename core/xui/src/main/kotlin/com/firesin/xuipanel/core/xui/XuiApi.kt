@@ -47,6 +47,14 @@ interface XuiApi {
     @GET("panel/api/server/status")
     suspend fun serverStatus(): Response<ServerStatusResponseDto>
 
+    /** Restart the Xray service. 3x-ui: POST /panel/api/server/restartXrayService. */
+    @POST("panel/api/server/restartXrayService")
+    suspend fun restartXrayService(): Response<LoginResponseDto>
+
+    /** Stop the Xray service. 3x-ui: POST /panel/api/server/stopXrayService. */
+    @POST("panel/api/server/stopXrayService")
+    suspend fun stopXrayService(): Response<LoginResponseDto>
+
     @POST("panel/api/inbounds/onlines")
     suspend fun onlines(): Response<OnlinesResponseDto>
 

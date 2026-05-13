@@ -54,4 +54,17 @@
     <string name="dashboard_no_panel_title">No active panel</string>
     <string name="dashboard_no_panel_description">Add a panel to monitor its status and manage clients.</string>
     <string name="dashboard_error_title">Something went wrong</string>
+
+    <!-- Server actions -->
+    <string name="dashboard_action_restart_xray">Перезапустить Xray</string>
+    <string name="dashboard_action_stop_xray">Остановить Xray</string>
+    <string name="dashboard_action_more_cd">Действия</string>
+    <string name="dashboard_restart_confirm_title">Перезапустить Xray?</string>
+    <string name="dashboard_restart_confirm_message">Все активные соединения будут разорваны и переподключатся.</string>
+    <string name="dashboard_stop_confirm_title">Остановить Xray?</string>
+    <string name="dashboard_stop_confirm_message">Все клиенты потеряют соединение, пока служба не будет запущена снова.</string>
+    <string name="dashboard_action_confirm">Подтвердить</string>
+    <string name="dashboard_action_cancel">Отмена</string>
+    <string name="dashboard_action_restart_success">Xray перезапущен</string>
+    <string name="dashboard_action_stop_success">Xray остановлен</string>
 </resources>

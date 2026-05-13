@@ -37,6 +37,18 @@ class DashboardViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
+    sealed class ActionEvent {
+        data object RestartSuccess : ActionEvent()
+        data object StopSuccess : ActionEvent()
+        data class Failure(val error: DomainError) : ActionEvent()
+    }
+
+    private val _actionEvent = MutableStateFlow<ActionEvent?>(null)
+    val actionEvent: StateFlow<ActionEvent?> = _actionEvent
+
+    private val _isActionInFlight = MutableStateFlow(false)
+    val isActionInFlight: StateFlow<Boolean> = _isActionInFlight
+
     init {
         repository.observeActive()
             .distinctUntilChanged { a, b -> a?.id == b?.id }
@@ -58,6 +70,52 @@ class DashboardViewModel @Inject constructor(
             fetchStatus(panel)
             _isRefreshing.value = false
         }
+    }
+
+    fun restartXray() {
+        val panel = activePanel() ?: return
+        if (_isActionInFlight.value) return
+        viewModelScope.launch {
+            _isActionInFlight.value = true
+            val result = xuiClient.restartXray(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                username = panel.login,
+                password = panel.password,
+                tls = panel.toPanelTls(),
+            )
+            _actionEvent.value = when (result) {
+                is Result.Success -> ActionEvent.RestartSuccess
+                is Result.Failure -> ActionEvent.Failure(result.error)
+            }
+            if (result is Result.Success) fetchStatus(panel)
+            _isActionInFlight.value = false
+        }
+    }
+
+    fun stopXray() {
+        val panel = activePanel() ?: return
+        if (_isActionInFlight.value) return
+        viewModelScope.launch {
+            _isActionInFlight.value = true
+            val result = xuiClient.stopXray(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                username = panel.login,
+                password = panel.password,
+                tls = panel.toPanelTls(),
+            )
+            _actionEvent.value = when (result) {
+                is Result.Success -> ActionEvent.StopSuccess
+                is Result.Failure -> ActionEvent.Failure(result.error)
+            }
+            if (result is Result.Success) fetchStatus(panel)
+            _isActionInFlight.value = false
+        }
+    }
+
+    fun actionEventShown() {
+        _actionEvent.value = null
     }
 
     private fun activePanel(): Panel? = when (val s = _uiState.value) {

@@ -26,20 +26,31 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -89,15 +100,46 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val actionEvent by viewModel.actionEvent.collectAsStateWithLifecycle()
+    val isActionInFlight by viewModel.isActionInFlight.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val restartSuccessMessage = stringResource(R.string.dashboard_action_restart_success)
+    val stopSuccessMessage = stringResource(R.string.dashboard_action_stop_success)
+    val errorMessage = actionEvent?.let {
+        if (it is DashboardViewModel.ActionEvent.Failure) it.error.toUserMessage() else null
+    }
+
+    LaunchedEffect(actionEvent) {
+        when (val ev = actionEvent) {
+            DashboardViewModel.ActionEvent.RestartSuccess -> {
+                snackbarHostState.showSnackbar(restartSuccessMessage)
+                viewModel.actionEventShown()
+            }
+            DashboardViewModel.ActionEvent.StopSuccess -> {
+                snackbarHostState.showSnackbar(stopSuccessMessage)
+                viewModel.actionEventShown()
+            }
+            is DashboardViewModel.ActionEvent.Failure -> {
+                snackbarHostState.showSnackbar(errorMessage ?: ev.error.toString())
+                viewModel.actionEventShown()
+            }
+            null -> Unit
+        }
+    }
 
     DashboardContent(
         uiState = uiState,
         isRefreshing = isRefreshing,
+        snackbarHostState = snackbarHostState,
+        isActionInFlight = isActionInFlight,
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
         onNavigateToStats = onNavigateToStats,
         onNavigateToInbounds = onNavigateToInbounds,
         onMenuClick = onMenuClick,
+        onRestartXray = viewModel::restartXray,
+        onStopXray = viewModel::stopXray,
     )
 }
 
@@ -106,12 +148,19 @@ fun DashboardScreen(
 private fun DashboardContent(
     uiState: DashboardUiState,
     isRefreshing: Boolean,
+    snackbarHostState: SnackbarHostState,
+    isActionInFlight: Boolean,
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToInbounds: () -> Unit = {},
     onMenuClick: () -> Unit = {},
+    onRestartXray: () -> Unit = {},
+    onStopXray: () -> Unit = {},
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<ServerAction?>(null) }
+    val hasActivePanel = uiState !is DashboardUiState.NoActivePanel
     val panel = when (uiState) {
         is DashboardUiState.Content -> uiState.panel
         is DashboardUiState.Error -> uiState.panel
@@ -145,6 +194,36 @@ private fun DashboardContent(
                                 contentDescription = stringResource(R.string.dashboard_retry),
                             )
                         }
+                        if (hasActivePanel) {
+                            IconButton(
+                                onClick = { menuExpanded = true },
+                                enabled = !isActionInFlight,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(R.string.dashboard_action_more_cd),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.dashboard_action_restart_xray)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        pendingAction = ServerAction.Restart
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.dashboard_action_stop_xray)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        pendingAction = ServerAction.Stop
+                                    },
+                                )
+                            }
+                        }
                     },
                     colors = TopAppBarDefaults.largeTopAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
@@ -171,6 +250,7 @@ private fun DashboardContent(
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         when (uiState) {
             is DashboardUiState.NoActivePanel -> EmptyState(
@@ -211,6 +291,53 @@ private fun DashboardContent(
             }
         }
     }
+
+    pendingAction?.let { action ->
+        ServerActionConfirmDialog(
+            action = action,
+            onConfirm = {
+                when (action) {
+                    ServerAction.Restart -> onRestartXray()
+                    ServerAction.Stop -> onStopXray()
+                }
+                pendingAction = null
+            },
+            onDismiss = { pendingAction = null },
+        )
+    }
+}
+
+private enum class ServerAction { Restart, Stop }
+
+@Composable
+private fun ServerActionConfirmDialog(
+    action: ServerAction,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val titleRes = when (action) {
+        ServerAction.Restart -> R.string.dashboard_restart_confirm_title
+        ServerAction.Stop -> R.string.dashboard_stop_confirm_title
+    }
+    val messageRes = when (action) {
+        ServerAction.Restart -> R.string.dashboard_restart_confirm_message
+        ServerAction.Stop -> R.string.dashboard_stop_confirm_message
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(titleRes)) },
+        text = { Text(stringResource(messageRes)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.dashboard_action_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dashboard_action_cancel))
+            }
+        },
+    )
 }
 
 // ── Content list ───────────────────────────────────────────────────────────────
@@ -605,6 +732,8 @@ private fun DashboardContentPreview() {
                 ),
             ),
             isRefreshing = false,
+            snackbarHostState = remember { SnackbarHostState() },
+            isActionInFlight = false,
             onRefresh = {},
             onAddPanel = {},
         )

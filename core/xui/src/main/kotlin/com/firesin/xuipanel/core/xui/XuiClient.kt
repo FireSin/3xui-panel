@@ -233,6 +233,58 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Restarts the Xray service on the panel.
+     */
+    suspend fun restartXray(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.restartXrayService()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Stops the Xray service on the panel.
+     */
+    suspend fun stopXray(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, username, password, tls) { api ->
+                api.stopXrayService()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
      * Fetches server status, mapping exceptions to typed [DomainError].
      */
     suspend fun fetchServerStatus(
