@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.core.xui
 
+import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
@@ -7,6 +8,8 @@ import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
 import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
 import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
+import com.firesin.xuipanel.core.xui.dto.NewUuidResponseDto
+import com.firesin.xuipanel.core.xui.dto.NewX25519ResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
@@ -36,6 +39,25 @@ interface XuiApi {
 
     @POST("panel/api/inbounds/del/{id}")
     suspend fun deleteInbound(@Path("id") id: Int): Response<LoginResponseDto>
+
+    /** Create a new inbound. Body holds three JSON-stringified blobs (settings/streamSettings/sniffing). */
+    @POST("panel/api/inbounds/add")
+    suspend fun addInbound(@Body body: AddInboundRequestDto): Response<LoginResponseDto>
+
+    /** Replace an existing inbound. Same body shape as [addInbound]. */
+    @POST("panel/api/inbounds/update/{id}")
+    suspend fun updateInbound(
+        @Path("id") id: Int,
+        @Body body: AddInboundRequestDto,
+    ): Response<LoginResponseDto>
+
+    /** Fresh UUID v4 for client IDs. */
+    @GET("panel/api/server/getNewUUID")
+    suspend fun getNewUuid(): Response<NewUuidResponseDto>
+
+    /** Fresh X25519 keypair for Reality settings. */
+    @GET("panel/api/server/getNewX25519Cert")
+    suspend fun getNewX25519Cert(): Response<NewX25519ResponseDto>
 
     /**
      * Toggle inbound enable. JSON body `{"enable": true|false}` per api.txt.

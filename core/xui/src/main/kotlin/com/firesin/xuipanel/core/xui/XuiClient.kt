@@ -8,6 +8,7 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
+import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.ClientsJson
@@ -18,6 +19,7 @@ import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.X25519KeyPairDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogEntryDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.coroutines.CoroutineScope
@@ -381,6 +383,106 @@ class XuiClient @Inject constructor(
             onSuccess = { response ->
                 if (response.success) {
                     Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Creates a new inbound. Caller serialises the three JSON blobs in [body]
+     * (settings/streamSettings/sniffing) — see `InboundEncoder` in :feature:inbounds.
+     */
+    suspend fun addInbound(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        body: AddInboundRequestDto,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.addInbound(body)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Replaces an existing inbound. Same body shape as [addInbound]. */
+    suspend fun updateInbound(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: Int,
+        body: AddInboundRequestDto,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.updateInbound(id, body)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Asks the panel to mint a fresh UUID v4 (used as the client id during inbound creation). */
+    suspend fun fetchNewUuid(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<String, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getNewUuid()
+            }
+        }.fold(
+            onSuccess = { response ->
+                val uuid = response.obj
+                if (response.success && !uuid.isNullOrBlank()) {
+                    Result.Success(uuid)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Asks the panel for a fresh X25519 keypair (Reality private + public). */
+    suspend fun fetchNewX25519(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<X25519KeyPairDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getNewX25519Cert()
+            }
+        }.fold(
+            onSuccess = { response ->
+                val pair = response.obj
+                if (response.success && pair != null) {
+                    Result.Success(pair)
                 } else {
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
