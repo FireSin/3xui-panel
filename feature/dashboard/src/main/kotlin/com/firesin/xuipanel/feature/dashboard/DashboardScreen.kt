@@ -96,6 +96,7 @@ fun DashboardScreen(
     onNavigateToStats: () -> Unit,
     onNavigateToInbounds: () -> Unit = {},
     onMenuClick: () -> Unit = {},
+    onNavigateToLogs: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -140,6 +141,7 @@ fun DashboardScreen(
         onMenuClick = onMenuClick,
         onRestartXray = viewModel::restartXray,
         onStopXray = viewModel::stopXray,
+        onNavigateToLogs = onNavigateToLogs,
     )
 }
 
@@ -157,6 +159,7 @@ private fun DashboardContent(
     onMenuClick: () -> Unit = {},
     onRestartXray: () -> Unit = {},
     onStopXray: () -> Unit = {},
+    onNavigateToLogs: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<ServerAction?>(null) }
@@ -220,6 +223,13 @@ private fun DashboardContent(
                                     onClick = {
                                         menuExpanded = false
                                         pendingAction = ServerAction.Stop
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.dashboard_action_logs)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onNavigateToLogs()
                                     },
                                 )
                             }

@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
+import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
@@ -54,6 +55,14 @@ interface XuiApi {
     /** Stop the Xray service. 3x-ui: POST /panel/api/server/stopXrayService. */
     @POST("panel/api/server/stopXrayService")
     suspend fun stopXrayService(): Response<LoginResponseDto>
+
+    /** Returns the last [count] lines of the panel log. */
+    @POST("panel/api/server/logs/{count}")
+    suspend fun panelLogs(@Path("count") count: Int): Response<LogsResponseDto>
+
+    /** Returns the last [count] lines of the Xray log. */
+    @POST("panel/api/server/xraylogs/{count}")
+    suspend fun xrayLogs(@Path("count") count: Int): Response<LogsResponseDto>
 
     @POST("panel/api/inbounds/onlines")
     suspend fun onlines(): Response<OnlinesResponseDto>

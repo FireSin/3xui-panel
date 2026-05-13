@@ -67,4 +67,22 @@
     <string name="dashboard_action_cancel">Отмена</string>
     <string name="dashboard_action_restart_success">Xray перезапущен</string>
     <string name="dashboard_action_stop_success">Xray остановлен</string>
+    <string name="dashboard_action_logs">Логи</string>
+
+    <!-- LogsScreen -->
+    <string name="logs_title">Логи</string>
+    <string name="logs_source_panel">Панель</string>
+    <string name="logs_source_xray">Xray</string>
+    <string name="logs_refresh_cd">Обновить</string>
+    <string name="logs_retry">Повторить</string>
+    <string name="logs_empty">Лог пуст</string>
+    <string name="logs_no_active_panel">Нет активной панели</string>
+    <string name="logs_error_title">Не удалось получить лог</string>
+    <string name="logs_error_invalid_credentials">Неверный логин или пароль</string>
+    <string name="logs_error_tls">Ошибка TLS: %s</string>
+    <string name="logs_error_network">Нет соединения с панелью</string>
+    <string name="logs_error_unreachable">Панель недоступна</string>
+    <string name="logs_error_response">Ответ панели: %s</string>
+    <string name="logs_error_unexpected">Неожиданная ошибка</string>
+    <string name="logs_error_pin_mismatch">Сертификат панели изменился</string>
 </resources>

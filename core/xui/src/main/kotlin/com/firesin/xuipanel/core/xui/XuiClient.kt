@@ -305,6 +305,58 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Returns the last [count] lines of the panel log.
+     */
+    suspend fun fetchPanelLogs(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        count: Int,
+    ): Result<List<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.panelLogs(count)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Returns the last [count] lines of the Xray log.
+     */
+    suspend fun fetchXrayLogs(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        count: Int,
+    ): Result<List<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.xrayLogs(count)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
      * Fetches server status, mapping exceptions to typed [DomainError].
      */
     suspend fun fetchServerStatus(
