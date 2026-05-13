@@ -16,6 +16,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,8 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -90,6 +93,13 @@ fun EmptyState(
             Spacer(Modifier.height(24.dp))
             FilledTonalButton(onClick = onAction) {
                 Text(actionLabel)
+            }
+        }
+
+        if (secondaryActionLabel != null && onSecondaryAction != null) {
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = onSecondaryAction) {
+                Text(secondaryActionLabel)
             }
         }
     }

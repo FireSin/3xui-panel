@@ -345,6 +345,8 @@ private fun PanelsListContent(
                         description = stringResource(R.string.panels_empty_description),
                         actionLabel = stringResource(R.string.panels_empty_action),
                         onAction = onAddPanel,
+                        secondaryActionLabel = stringResource(R.string.panels_empty_import),
+                        onSecondaryAction = onImportClick,
                         modifier = Modifier.padding(padding),
                     )
                 } else {
