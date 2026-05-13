@@ -266,6 +266,33 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Resets upload + download counters for every client in [inboundId]. Destructive — accounting
+     * history is lost. Used by the "Сбросить трафик клиентов" entry in ClientsList overflow.
+     */
+    suspend fun resetAllClientTraffics(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        inboundId: Int,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.resetAllClientTraffics(inboundId)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
      * Returns every protocol URL for clients matching [subId]. Empty list when nothing matches.
      */
     suspend fun fetchSubLinks(

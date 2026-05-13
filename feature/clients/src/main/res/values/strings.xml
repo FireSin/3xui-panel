@@ -20,6 +20,11 @@
     <string name="clients_delete_depleted_message">С панели будут удалены клиенты, у которых истёк срок или исчерпан лимит трафика в этом инбаунде. Действие необратимо.</string>
     <string name="clients_delete_depleted_confirm">Удалить</string>
     <string name="clients_delete_depleted_cancel">Отмена</string>
+    <string name="clients_menu_reset_all_traffics">Сбросить трафик клиентов</string>
+    <string name="clients_reset_all_traffics_title">Сбросить трафик всех клиентов?</string>
+    <string name="clients_reset_all_traffics_message">Счётчики upload/download у всех клиентов в этом инбаунде будут обнулены. История учёта будет потеряна — действие необратимо.</string>
+    <string name="clients_reset_all_traffics_confirm">Сбросить</string>
+    <string name="clients_reset_all_traffics_cancel">Отмена</string>
     <!-- %s = formatted duration like "5м" -->
     <string name="clients_last_seen">был %s назад</string>
     <string name="clients_ago_seconds">%dс</string>

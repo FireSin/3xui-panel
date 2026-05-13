@@ -88,6 +88,10 @@ interface XuiApi {
     @POST("panel/api/inbounds/delDepletedClients/{id}")
     suspend fun delDepletedClients(@Path("id") id: Int): Response<LoginResponseDto>
 
+    /** Reset upload + download counters for every client in inbound [id]. Destructive. */
+    @POST("panel/api/inbounds/resetAllClientTraffics/{id}")
+    suspend fun resetAllClientTraffics(@Path("id") id: Int): Response<LoginResponseDto>
+
     /** All protocol URLs (vless://, vmess://, …) for clients sharing the subscription id. */
     @GET("panel/api/inbounds/getSubLinks/{subId}")
     suspend fun getSubLinks(@Path("subId") subId: String): Response<SubLinksResponseDto>

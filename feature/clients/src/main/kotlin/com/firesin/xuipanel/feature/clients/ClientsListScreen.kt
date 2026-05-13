@@ -112,6 +112,7 @@ fun ClientsListScreen(
 
     var pendingDeleteInbound by remember { mutableStateOf(false) }
     var pendingDeleteDepleted by remember { mutableStateOf(false) }
+    var pendingResetAllTraffics by remember { mutableStateOf(false) }
 
     val resolvedError = errorMessage?.toUserMessage()
     LaunchedEffect(resolvedError) {
@@ -131,6 +132,7 @@ fun ClientsListScreen(
         onNavigateEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
         onDeleteInboundRequest = { pendingDeleteInbound = true },
         onDeleteDepletedRequest = { pendingDeleteDepleted = true },
+        onResetAllTrafficsRequest = { pendingResetAllTraffics = true },
         onPopBackStack = onPopBackStack,
     )
 
@@ -168,6 +170,28 @@ fun ClientsListScreen(
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { pendingDeleteDepleted = false }) {
                     Text(stringResource(R.string.clients_delete_depleted_cancel))
+                }
+            },
+        )
+    }
+
+    if (pendingResetAllTraffics) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingResetAllTraffics = false },
+            title = { Text(stringResource(R.string.clients_reset_all_traffics_title)) },
+            text = { Text(stringResource(R.string.clients_reset_all_traffics_message)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val id = (uiState as? ClientsUiState.Content)?.selectedInboundId
+                    if (id != null) viewModel.resetAllClientTraffics(id)
+                    pendingResetAllTraffics = false
+                }) {
+                    Text(stringResource(R.string.clients_reset_all_traffics_confirm))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pendingResetAllTraffics = false }) {
+                    Text(stringResource(R.string.clients_reset_all_traffics_cancel))
                 }
             },
         )
@@ -215,6 +239,7 @@ private fun ClientsContent(
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit,
     onDeleteInboundRequest: () -> Unit,
     onDeleteDepletedRequest: () -> Unit = {},
+    onResetAllTrafficsRequest: () -> Unit = {},
     onPopBackStack: () -> Unit = {},
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -246,6 +271,13 @@ private fun ClientsContent(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false },
                             ) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.clients_menu_reset_all_traffics)) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onResetAllTrafficsRequest()
+                                    },
+                                )
                                 androidx.compose.material3.DropdownMenuItem(
                                     text = { Text(stringResource(R.string.clients_menu_delete_depleted)) },
                                     onClick = {
