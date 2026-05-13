@@ -21,15 +21,15 @@ import com.firesin.xuipanel.core.xui.draft.WgPeer
 import com.firesin.xuipanel.core.xui.util.randomUuid
 
 enum class ProtocolType(val label: String) {
-    VLESS("VLESS"),
     VMESS("VMess"),
+    VLESS("VLESS"),
     TROJAN("Trojan"),
     SHADOWSOCKS("Shadowsocks"),
     HYSTERIA2("Hysteria2"),
-    SOCKS("SOCKS"),
-    HTTP("HTTP"),
     WIREGUARD("WireGuard"),
-    DOKODEMO("Dokodemo-door"),
+    SOCKS("Mixed"),
+    HTTP("HTTP"),
+    DOKODEMO("Tunnel"),
 }
 
 enum class NetworkType(val label: String) {
@@ -86,7 +86,8 @@ data class ShadowsocksClientState(
 )
 
 data class Hy2ClientState(
-    val password: String = "",
+    /** Sent over the wire as `auth` (hysteria2 client identifier). */
+    val auth: String = randomShortId() + randomShortId(),
     val email: String = "",
     val totalGb: String = "0",
     val expiryTime: Long = 0L,
@@ -323,7 +324,7 @@ private fun buildProtocolSettings(s: AddInboundFormState): ProtocolSettings = wh
         ignoreClientBandwidth = s.hy2IgnoreClientBandwidth,
         clients = s.hy2Clients.map { c ->
             Hy2Client(
-                password = c.password,
+                auth = c.auth,
                 email = c.email,
                 totalGB = (c.totalGb.toLongOrNull() ?: 0L) * BYTES_PER_GB,
                 expiryTime = c.expiryTime,

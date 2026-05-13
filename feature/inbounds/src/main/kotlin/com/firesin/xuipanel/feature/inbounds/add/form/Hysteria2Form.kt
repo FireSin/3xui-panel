@@ -98,13 +98,13 @@ fun Hysteria2Form(
                 stacked = true,
             )
             FieldRow(
-                label = stringResource(R.string.add_inbound_field_password),
-                value = client.password,
-                onValueChange = { onUpdateClient(index) { copy(password = it) } },
+                label = stringResource(R.string.add_inbound_field_auth),
+                value = client.auth,
+                onValueChange = { onUpdateClient(index) { copy(auth = it) } },
                 monoValue = true,
                 stacked = true,
                 trailing = {
-                    TextButton(onClick = { onUpdateClient(index) { copy(password = randomShortId() + randomShortId() + randomShortId() + randomShortId()) } }) {
+                    TextButton(onClick = { onUpdateClient(index) { copy(auth = randomShortId() + randomShortId()) } }) {
                         Text(stringResource(R.string.add_inbound_regenerate), style = MaterialTheme.typography.bodySmall)
                     }
                 },

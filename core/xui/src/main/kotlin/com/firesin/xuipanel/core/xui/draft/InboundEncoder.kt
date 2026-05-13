@@ -172,7 +172,7 @@ object InboundEncoder {
     }
 
     private fun encodeHy2Client(c: Hy2Client): JsonObject = buildJsonObject {
-        put("password", c.password)
+        put("auth", c.auth)
         putCommonClientFields(
             email = c.email, totalGB = c.totalGB, expiryTime = c.expiryTime,
             limitIp = c.limitIp, subId = c.subId, tgId = c.tgId, comment = c.comment,

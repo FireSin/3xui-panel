@@ -81,7 +81,8 @@ sealed interface ProtocolSettings {
         val udp: Boolean = false,
         val ip: String = "127.0.0.1",
     ) : ProtocolSettings {
-        override val protocolName: String = "socks"
+        /** Panel calls this "Mixed"; wire field is `mixed`. */
+        override val protocolName: String = "mixed"
     }
 
     data class Http(
@@ -107,7 +108,8 @@ sealed interface ProtocolSettings {
         val network: String = "tcp,udp",
         val followRedirect: Boolean = false,
     ) : ProtocolSettings {
-        override val protocolName: String = "dokodemo-door"
+        /** Panel calls this "Tunnel"; wire field is `tunnel`. */
+        override val protocolName: String = "tunnel"
     }
 }
 
@@ -169,7 +171,8 @@ data class ShadowsocksClient(
 )
 
 data class Hy2Client(
-    val password: String,
+    /** Wire field is `auth`, not `password` — 3x-ui hysteria2 uses RandomUtil.randomSeq(10) here. */
+    val auth: String,
     val email: String,
     val totalGB: Long = 0L,
     val expiryTime: Long = 0L,
