@@ -4,6 +4,9 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.firesin.xuipanel.feature.inbounds.InboundsScreen
+import com.firesin.xuipanel.feature.inbounds.add.navigation.AddInboundRoute
+import com.firesin.xuipanel.feature.inbounds.add.navigation.addInboundGraph
+import com.firesin.xuipanel.feature.inbounds.add.navigation.navigateToAddInbound
 
 const val InboundsRoute = "inbounds"
 
@@ -22,6 +25,12 @@ fun NavGraphBuilder.inboundsGraph(
             onAddPanel = { navController.navigate(panelsAddRoute) },
             onManageClients = onManageClients,
             onMenuClick = onMenuClick,
+            onNavigateAddInbound = { navController.navigateToAddInbound() },
         )
     }
+
+    addInboundGraph(
+        navController = navController,
+        onSaved = {},
+    )
 }

@@ -44,9 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -77,6 +75,7 @@ fun InboundsListScreen(
     onAddPanel: () -> Unit = {},
     onManageClients: (inboundId: Int) -> Unit = {},
     onMenuClick: () -> Unit = {},
+    onNavigateAddInbound: () -> Unit = {},
     viewModel: InboundsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -95,8 +94,6 @@ fun InboundsListScreen(
         }
     }
 
-    val comingSoonMsg = stringResource(R.string.inbounds_add_coming_soon)
-    val scope = rememberCoroutineScope()
     InboundsContent(
         uiState = uiState,
         isRefreshing = isRefreshing,
@@ -106,9 +103,7 @@ fun InboundsListScreen(
         onManageClients = onManageClients,
         onToggleEnabled = viewModel::toggle,
         onMenuClick = onMenuClick,
-        onAddInboundClick = {
-            scope.launch { snackbarHostState.showSnackbar(comingSoonMsg) }
-        },
+        onAddInboundClick = onNavigateAddInbound,
     )
 
     pendingDeleteId?.let { id ->
