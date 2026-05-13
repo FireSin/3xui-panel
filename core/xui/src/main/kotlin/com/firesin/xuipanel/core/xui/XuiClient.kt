@@ -210,6 +210,9 @@ class XuiClient @Inject constructor(
     /**
      * Map of client email → last-seen unix timestamp (seconds). Empty map if the endpoint
      * returns nothing. Used by the clients list to show a "был в сети" hint on offline rows.
+     *
+     * Server stores the timestamp as `time.Now().UnixMilli()` — convert ms → sec here so
+     * downstream code (and UI) can work in seconds uniformly. Zero stays zero (never seen).
      */
     suspend fun fetchLastOnline(
         panelId: String,
@@ -224,7 +227,10 @@ class XuiClient @Inject constructor(
         }.fold(
             onSuccess = { response ->
                 if (response.success) {
-                    Result.Success(response.obj.orEmpty())
+                    val seconds = response.obj.orEmpty().mapValues { (_, ms) ->
+                        if (ms > 0L) ms / 1000L else 0L
+                    }
+                    Result.Success(seconds)
                 } else {
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
