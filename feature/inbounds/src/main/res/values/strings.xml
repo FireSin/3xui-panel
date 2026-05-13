@@ -11,6 +11,7 @@
     <string name="inbounds_stat_clients">CLIENTS</string>
     <string name="inbounds_stat_traffic">TRAFFIC</string>
     <string name="inbounds_cd_add">Добавить инбаунд</string>
+    <string name="inbounds_add_coming_soon">Добавление инбаунда — скоро. Пока создавайте на самой панели 3x-ui.</string>
     <string name="inbounds_subtitle">%1$s · %2$d inbounds</string>
     <string name="inbounds_pill_on">ON</string>
     <string name="inbounds_pill_off">OFF</string>

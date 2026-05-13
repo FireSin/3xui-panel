@@ -1,13 +1,17 @@
 package com.firesin.xuipanel.core.xui
 
+import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
+import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
-import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
+import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
 import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
+import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
+import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.XrayLogsResponseDto
 import retrofit2.Response
-import retrofit2.http.Field
-import retrofit2.http.FormUrlEncoded
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -15,14 +19,11 @@ import retrofit2.http.Path
 interface XuiApi {
 
     /**
-     * Form-encoded login. Successful response sets the `3x-ui` session cookie.
+     * JSON login. Successful response sets the `3x-ui` session cookie.
+     * `twoFactorCode` is required only when 2FA is enabled — omit otherwise.
      */
-    @FormUrlEncoded
     @POST("login")
-    suspend fun login(
-        @Field("username") username: String,
-        @Field("password") password: String,
-    ): Response<LoginResponseDto>
+    suspend fun login(@Body body: LoginRequestDto): Response<LoginResponseDto>
 
     @GET("panel/api/inbounds/list")
     suspend fun listInbounds(): Response<InboundListResponseDto>
@@ -34,15 +35,13 @@ interface XuiApi {
     suspend fun deleteInbound(@Path("id") id: Int): Response<LoginResponseDto>
 
     /**
-     * Sets the inbound enable/disable state.
-     * 3x-ui API: POST /panel/api/inbounds/setEnable/{id} with form-encoded `enable=true|false`.
+     * Toggle inbound enable. JSON body `{"enable": true|false}` per api.txt.
      * Response reuses the generic success/msg envelope (LoginResponseDto shape).
      */
-    @FormUrlEncoded
     @POST("panel/api/inbounds/setEnable/{id}")
     suspend fun setInboundEnable(
         @Path("id") id: Int,
-        @Field("enable") enable: Boolean,
+        @Body body: SetEnableRequestDto,
     ): Response<LoginResponseDto>
 
     @GET("panel/api/server/status")
@@ -60,26 +59,22 @@ interface XuiApi {
     @POST("panel/api/server/logs/{count}")
     suspend fun panelLogs(@Path("count") count: Int): Response<LogsResponseDto>
 
-    /** Returns the last [count] lines of the Xray log. */
+    /** Returns the last [count] Xray access-log entries as structured records. */
     @POST("panel/api/server/xraylogs/{count}")
-    suspend fun xrayLogs(@Path("count") count: Int): Response<LogsResponseDto>
+    suspend fun xrayLogs(@Path("count") count: Int): Response<XrayLogsResponseDto>
 
     @POST("panel/api/inbounds/onlines")
     suspend fun onlines(): Response<OnlinesResponseDto>
 
-    @FormUrlEncoded
+    /** Add client(s) to an inbound. JSON body `{"id":<inboundId>,"settings":"<json>"}`. */
     @POST("panel/api/inbounds/addClient")
-    suspend fun addClient(
-        @Field("id") inboundId: Int,
-        @Field("settings") settings: String,
-    ): Response<LoginResponseDto>
+    suspend fun addClient(@Body body: ClientSettingsBodyDto): Response<LoginResponseDto>
 
-    @FormUrlEncoded
+    /** Update a single client. JSON body — see [ClientSettingsBodyDto]. */
     @POST("panel/api/inbounds/updateClient/{clientKey}")
     suspend fun updateClient(
         @Path("clientKey") clientKey: String,
-        @Field("id") inboundId: Int,
-        @Field("settings") settings: String,
+        @Body body: ClientSettingsBodyDto,
     ): Response<LoginResponseDto>
 
     @POST("panel/api/inbounds/{inboundId}/delClient/{clientKey}")
@@ -93,4 +88,12 @@ interface XuiApi {
         @Path("inboundId") inboundId: Int,
         @Path("email") email: String,
     ): Response<LoginResponseDto>
+
+    /** Returns recently observed IPs for the client. obj is either a list of strings or the literal "No IP Record". */
+    @POST("panel/api/inbounds/clientIps/{email}")
+    suspend fun clientIps(@Path("email") email: String): Response<ClientIpsResponseDto>
+
+    /** Clears the recorded IP list for the client. */
+    @POST("panel/api/inbounds/clearClientIps/{email}")
+    suspend fun clearClientIps(@Path("email") email: String): Response<LoginResponseDto>
 }

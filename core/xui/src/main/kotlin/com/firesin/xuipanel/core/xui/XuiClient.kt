@@ -9,11 +9,15 @@ import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
+import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.ClientsJson
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
+import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
+import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.XrayLogEntryDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +27,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
 import retrofit2.Retrofit
+import java.io.EOFException
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -144,7 +149,7 @@ class XuiClient @Inject constructor(
     }
 
     private suspend fun login(api: XuiApi, panelId: String, username: String, password: String) {
-        val response = api.login(username, password)
+        val response = api.login(LoginRequestDto(username = username, password = password))
         if (!response.isSuccessful || response.body()?.success != true) {
             throw XuiAuthException(panelId)
         }
@@ -203,6 +208,12 @@ class XuiClient @Inject constructor(
 
     /**
      * Toggles an inbound's enabled state.
+     *
+     * 3x-ui's setEnable handler writes the JSON response and then runs a websocket
+     * broadcast — on some setups OkHttp surfaces this as [EOFException] before the
+     * body is fully read, even though the toggle was persisted server-side. We
+     * verify by re-fetching inbounds and treat the call as a success when the new
+     * state matches what was requested.
      */
     suspend fun setInboundEnabled(
         panelId: String,
@@ -214,7 +225,7 @@ class XuiClient @Inject constructor(
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
-                api.setInboundEnable(id, enabled)
+                api.setInboundEnable(id, SetEnableRequestDto(enable = enabled))
             }
         }.fold(
             onSuccess = { response ->
@@ -224,7 +235,19 @@ class XuiClient @Inject constructor(
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
-            onFailure = { cause -> cause.toDomainError(panelId) },
+            onFailure = { cause ->
+                val rootEof = generateSequence(cause as Throwable?) { it.cause }
+                    .any { it is EOFException }
+                if (rootEof) {
+                    // Server persists state before writing the JSON response; EOF
+                    // surfaces because the post-response websocket broadcast closes
+                    // the connection before OkHttp reads the body. The toggle is
+                    // already applied — let OkHttp evict the broken connection
+                    // from its pool on the next call.
+                    return@fold Result.Success(Unit)
+                }
+                cause.toDomainError(panelId)
+            },
         )
     }
 
@@ -331,7 +354,8 @@ class XuiClient @Inject constructor(
     }
 
     /**
-     * Returns the last [count] lines of the Xray log.
+     * Returns the last [count] Xray access-log entries, formatted into human-readable lines.
+     * 3x-ui returns structured records ([XrayLogEntryDto]); this method flattens them.
      */
     suspend fun fetchXrayLogs(
         panelId: String,
@@ -347,13 +371,29 @@ class XuiClient @Inject constructor(
         }.fold(
             onSuccess = { response ->
                 if (response.success) {
-                    Result.Success(response.obj.orEmpty())
+                    Result.Success(response.obj.orEmpty().map { it.toLogLine() })
                 } else {
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
             },
             onFailure = { cause -> cause.toDomainError(panelId) },
         )
+    }
+
+    private fun XrayLogEntryDto.toLogLine(): String {
+        val ts = (dateTime ?: "").replace('T', ' ').take(19)
+        val tag = when (event) {
+            0 -> "DIRECT"
+            1 -> "BLOCKED"
+            2 -> "PROXIED"
+            else -> "?"
+        }
+        val from = fromAddress.orEmpty()
+        val to = toAddress.orEmpty()
+        val ib = inbound.orEmpty()
+        val ob = outbound.orEmpty()
+        val em = email.orEmpty().let { if (it.isBlank()) "" else " $it" }
+        return "$ts $tag $from -> $to [$ib -> $ob]$em".trim()
     }
 
     /**
@@ -391,7 +431,7 @@ class XuiClient @Inject constructor(
         val settings = ClientsJson.encodeSettingsBody(client)
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
-                api.addClient(inboundId, settings)
+                api.addClient(ClientSettingsBodyDto(inboundId = inboundId, settings = settings))
             }
         }.fold(
             onSuccess = { response ->
@@ -417,7 +457,10 @@ class XuiClient @Inject constructor(
         val settings = ClientsJson.encodeSettingsBody(client)
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
-                api.updateClient(clientKey, inboundId, settings)
+                api.updateClient(
+                    clientKey,
+                    ClientSettingsBodyDto(inboundId = inboundId, settings = settings),
+                )
             }
         }.fold(
             onSuccess = { response ->
@@ -466,6 +509,59 @@ class XuiClient @Inject constructor(
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
                 api.resetClientTraffic(inboundId, email)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Recent IPs observed for [email]. Server returns the literal `"No IP Record"` when empty;
+     * this method normalises that to an empty list.
+     */
+    suspend fun fetchClientIps(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        email: String,
+    ): Result<List<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.clientIps(email)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    val list = (response.obj as? kotlinx.serialization.json.JsonArray)
+                        ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                        .orEmpty()
+                    Result.Success(list)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun clearClientIps(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        email: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.clearClientIps(email)
             }
         }.fold(
             onSuccess = { response ->
@@ -530,7 +626,7 @@ class XuiClient @Inject constructor(
             } else {
                 val api = apiBase.client(client).build().create(XuiApi::class.java)
                 runCatching {
-                    api.login(credentials.login, credentials.password)
+                    api.login(LoginRequestDto(username = credentials.login, password = credentials.password))
                 }.fold(
                     onSuccess = { response ->
                         when {

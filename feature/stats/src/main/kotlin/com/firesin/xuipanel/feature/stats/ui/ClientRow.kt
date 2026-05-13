@@ -80,17 +80,24 @@ fun ClientRow(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            // Traffic columns
+            // Traffic columns: split (↑up ↓down) on top, used-of-total below, expiry under
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${prettyBytes(client.up)} / ${prettyBytes(client.down)}",
+                    text = "↑ ${prettyBytes(client.up)}   ↓ ${prettyBytes(client.down)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 val limitText = if (client.total > 0) {
-                    "${prettyBytes(client.up + client.down)} / ${prettyBytes(client.total)}"
+                    stringResource(
+                        R.string.stats_client_used_of_total,
+                        prettyBytes(client.up + client.down),
+                        prettyBytes(client.total),
+                    )
                 } else {
-                    prettyBytes(client.up + client.down)
+                    stringResource(
+                        R.string.stats_client_used_only,
+                        prettyBytes(client.up + client.down),
+                    )
                 }
                 Text(
                     text = limitText,

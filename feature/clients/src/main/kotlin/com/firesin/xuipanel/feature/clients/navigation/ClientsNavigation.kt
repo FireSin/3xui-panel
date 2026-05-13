@@ -8,6 +8,9 @@ import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.urlKey
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.feature.clients.ClientFormScreen
 import com.firesin.xuipanel.feature.clients.ClientsScreen
 import com.firesin.xuipanel.feature.clients.ui.ClientsUiState
@@ -120,6 +123,13 @@ fun NavGraphBuilder.clientsGraph(
         val existing = content?.clients?.firstOrNull { it.emailOrId() == clientKey }
 
         if (inbound != null && existing != null) {
+            val ipsState by viewModel.clientIpsState.collectAsStateWithLifecycle()
+            LaunchedEffect(existing.email) {
+                viewModel.resetClientIpsState()
+                if (existing.email.isNotBlank()) {
+                    viewModel.loadClientIps(existing.email)
+                }
+            }
             ClientFormScreen(
                 protocol = inbound.protocol,
                 existingClient = existing,
@@ -134,6 +144,9 @@ fun NavGraphBuilder.clientsGraph(
                     viewModel.deleteClient(inboundId, existing)
                     navController.popBackStack()
                 },
+                clientIpsState = ipsState,
+                onLoadIps = { viewModel.loadClientIps(existing.email) },
+                onClearIps = { viewModel.clearClientIps(existing.email) },
             )
         }
     }

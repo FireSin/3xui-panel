@@ -44,7 +44,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -93,6 +95,8 @@ fun InboundsListScreen(
         }
     }
 
+    val comingSoonMsg = stringResource(R.string.inbounds_add_coming_soon)
+    val scope = rememberCoroutineScope()
     InboundsContent(
         uiState = uiState,
         isRefreshing = isRefreshing,
@@ -102,6 +106,9 @@ fun InboundsListScreen(
         onManageClients = onManageClients,
         onToggleEnabled = viewModel::toggle,
         onMenuClick = onMenuClick,
+        onAddInboundClick = {
+            scope.launch { snackbarHostState.showSnackbar(comingSoonMsg) }
+        },
     )
 
     pendingDeleteId?.let { id ->
@@ -127,6 +134,7 @@ private fun InboundsContent(
     onManageClients: (inboundId: Int) -> Unit = {},
     onToggleEnabled: (inboundId: Int, enable: Boolean) -> Unit = { _, _ -> },
     onMenuClick: () -> Unit = {},
+    onAddInboundClick: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -148,10 +156,11 @@ private fun InboundsContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Add inbound — backlog */ }, enabled = false) {
+                    IconButton(onClick = onAddInboundClick) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = stringResource(R.string.inbounds_cd_add),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         )
                     }
                 },
@@ -421,10 +430,21 @@ private fun String.isEditableProtocol(): Boolean =
 private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.InvalidCredentials -> stringResource(R.string.inbounds_error_invalid_credentials)
     is DomainError.Tls -> stringResource(R.string.inbounds_error_tls, message)
-    is DomainError.Network -> stringResource(R.string.inbounds_error_network)
+    is DomainError.Network -> {
+        // Include underlying cause for diagnosis (e.g. SocketTimeoutException, EOFException).
+        val base = stringResource(R.string.inbounds_error_network)
+        val detail = cause.message?.takeIf { it.isNotBlank() }
+            ?: cause::class.java.simpleName
+        "$base ($detail)"
+    }
     is DomainError.PanelUnreachable -> stringResource(R.string.inbounds_error_unreachable)
     is DomainError.PanelResponse -> stringResource(R.string.inbounds_error_response, body)
-    is DomainError.Unexpected -> stringResource(R.string.inbounds_error_unexpected)
+    is DomainError.Unexpected -> {
+        val base = stringResource(R.string.inbounds_error_unexpected)
+        val detail = cause.message?.takeIf { it.isNotBlank() }
+            ?: cause::class.java.simpleName
+        "$base ($detail)"
+    }
     is DomainError.PinMismatch -> stringResource(R.string.inbounds_error_pin_mismatch)
 }
 

@@ -181,6 +181,58 @@ class ClientsViewModel @Inject constructor(
         }
     }
 
+    sealed class ClientIpsState {
+        data object Idle : ClientIpsState()
+        data object Loading : ClientIpsState()
+        data class Loaded(val ips: List<String>) : ClientIpsState()
+        data class Error(val error: DomainError) : ClientIpsState()
+    }
+
+    private val _clientIpsState = MutableStateFlow<ClientIpsState>(ClientIpsState.Idle)
+    val clientIpsState: StateFlow<ClientIpsState> = _clientIpsState
+
+    fun loadClientIps(email: String) {
+        val panel = activePanel() ?: return
+        if (email.isBlank()) return
+        viewModelScope.launch {
+            _clientIpsState.value = ClientIpsState.Loading
+            val result = xuiClient.fetchClientIps(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                email = email,
+            )
+            _clientIpsState.value = when (result) {
+                is Result.Success -> ClientIpsState.Loaded(result.data)
+                is Result.Failure -> ClientIpsState.Error(result.error)
+            }
+        }
+    }
+
+    fun clearClientIps(email: String) {
+        val panel = activePanel() ?: return
+        if (email.isBlank()) return
+        viewModelScope.launch {
+            _clientIpsState.value = ClientIpsState.Loading
+            val result = xuiClient.clearClientIps(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                email = email,
+            )
+            when (result) {
+                is Result.Success -> loadClientIps(email)
+                is Result.Failure -> _clientIpsState.value = ClientIpsState.Error(result.error)
+            }
+        }
+    }
+
+    fun resetClientIpsState() {
+        _clientIpsState.value = ClientIpsState.Idle
+    }
+
     fun errorShown() {
         _errorMessage.value = null
     }

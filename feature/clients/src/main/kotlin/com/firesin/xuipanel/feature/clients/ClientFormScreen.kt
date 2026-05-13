@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.clients
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,11 +56,13 @@ import com.firesin.xuipanel.core.designsystem.component.FieldRow
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.IosToggle
 import com.firesin.xuipanel.core.designsystem.component.SectionHeader
+import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.util.randomShadowsocksPassword
 import com.firesin.xuipanel.core.xui.util.randomSubId
 import com.firesin.xuipanel.core.xui.util.randomUuid
+import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.ClientIpsState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -90,6 +93,9 @@ fun ClientFormScreen(
     onShare: (() -> Unit)? = null,
     onResetTraffic: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
+    clientIpsState: ClientIpsState = ClientIpsState.Idle,
+    onLoadIps: () -> Unit = {},
+    onClearIps: () -> Unit = {},
 ) {
     val isEdit = existingClient != null
     val title = if (isEdit) {
@@ -454,6 +460,16 @@ fun ClientFormScreen(
                 )
             }
 
+            if (isEdit) {
+                Spacer(Modifier.height(12.dp))
+                SectionHeader(stringResource(R.string.client_form_section_ips))
+                ClientIpsSection(
+                    state = clientIpsState,
+                    onLoad = onLoadIps,
+                    onClear = onClearIps,
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -525,6 +541,114 @@ fun ClientFormScreen(
                 }
             },
         )
+    }
+}
+
+// ── Client IPs section (edit mode only) ──────────────────────────────────────
+
+@Composable
+private fun ClientIpsSection(
+    state: ClientIpsState,
+    onLoad: () -> Unit,
+    onClear: () -> Unit,
+) {
+    GroupCard(footer = stringResource(R.string.client_form_ips_footer)) {
+        when (state) {
+            ClientIpsState.Idle, ClientIpsState.Loading -> {
+                IpInfoRow(text = stringResource(R.string.client_form_ips_loading))
+            }
+            is ClientIpsState.Loaded -> {
+                if (state.ips.isEmpty()) {
+                    IpInfoRow(text = stringResource(R.string.client_form_ips_empty))
+                } else {
+                    state.ips.forEachIndexed { index, ip ->
+                        IpRow(ip = ip, topDivider = index != 0)
+                    }
+                    IpClearRow(onClear = onClear)
+                }
+            }
+            is ClientIpsState.Error -> {
+                IpInfoRow(
+                    text = stringResource(R.string.client_form_ips_error),
+                    trailing = {
+                        TextButton(onClick = onLoad) {
+                            Text(
+                                text = stringResource(R.string.client_form_ips_retry),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IpRow(ip: String, topDivider: Boolean) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (topDivider) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant),
+            )
+        }
+        Text(
+            text = ip,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = MonoFontFamily,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun IpInfoRow(text: String, trailing: (@Composable () -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        if (trailing != null) trailing()
+    }
+}
+
+@Composable
+private fun IpClearRow(onClear: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = onClear) {
+                Text(
+                    text = stringResource(R.string.client_form_ips_clear),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
     }
 }
 

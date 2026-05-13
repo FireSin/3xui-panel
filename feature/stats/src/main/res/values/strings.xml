@@ -29,6 +29,10 @@
 
     <string name="stats_section_by_inbound">By Inbound</string>
     <string name="stats_section_top_clients">Top Clients</string>
+    <!-- %1$s = used, %2$s = total -->
+    <string name="stats_client_used_of_total">Использовано %1$s из %2$s</string>
+    <!-- %1$s = used (no total set) -->
+    <string name="stats_client_used_only">Использовано %1$s</string>
     <string name="stats_total_period">Total this period</string>
     <string name="stats_legend_up">Up</string>
     <string name="stats_legend_down">Down</string>

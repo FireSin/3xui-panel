@@ -1,9 +1,15 @@
 package com.firesin.xuipanel.feature.stats.chart
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -11,6 +17,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -123,15 +131,58 @@ fun InboundTrafficChart(
         ),
     )
 
-    CartesianChartHost(
-        chart = chart,
-        modelProducer = modelProducer,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(CHART_HEIGHT_DP.dp)
-            .padding(horizontal = 4.dp),
-        zoomState = rememberVicoZoomState(zoomEnabled = false),
-    )
+    Column(modifier = modifier.fillMaxWidth()) {
+        ChartLegend(
+            upColor = primaryColor,
+            downColor = tertiaryColor,
+            modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+        )
+        CartesianChartHost(
+            chart = chart,
+            modelProducer = modelProducer,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(CHART_HEIGHT_DP.dp)
+                .padding(horizontal = 4.dp),
+            zoomState = rememberVicoZoomState(zoomEnabled = false),
+        )
+    }
+}
+
+@Composable
+private fun ChartLegend(
+    upColor: Color,
+    downColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LegendChip(color = upColor, label = stringResource(R.string.stats_legend_up))
+        LegendChip(color = downColor, label = stringResource(R.string.stats_legend_down))
+    }
+}
+
+@Composable
+private fun LegendChip(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 private const val CHART_HEIGHT_DP = 180
