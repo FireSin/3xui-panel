@@ -391,18 +391,6 @@ private fun AddInboundContent(
                     onRemoveClient = onRemoveSsClient,
                     onUpdateClient = onUpdateSsClient,
                 )
-                ProtocolType.HYSTERIA2 -> Hysteria2Form(
-                    obfsEnabled = formState.hy2ObfsEnabled,
-                    obfsPassword = formState.hy2ObfsPassword,
-                    ignoreClientBandwidth = formState.hy2IgnoreClientBandwidth,
-                    clients = formState.hy2Clients,
-                    onObfsEnabledChange = onHy2ObfsEnabledChange,
-                    onObfsPasswordChange = onHy2ObfsPasswordChange,
-                    onIgnoreClientBandwidthChange = onHy2IgnoreClientBandwidthChange,
-                    onAddClient = onAddHy2Client,
-                    onRemoveClient = onRemoveHy2Client,
-                    onUpdateClient = onUpdateHy2Client,
-                )
                 ProtocolType.SOCKS -> SocksForm(
                     auth = formState.socksAuth,
                     accounts = formState.socksAccounts,

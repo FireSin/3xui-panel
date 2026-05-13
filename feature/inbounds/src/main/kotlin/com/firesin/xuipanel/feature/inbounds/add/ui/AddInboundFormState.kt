@@ -25,11 +25,13 @@ enum class ProtocolType(val label: String) {
     VLESS("VLESS"),
     TROJAN("Trojan"),
     SHADOWSOCKS("Shadowsocks"),
-    HYSTERIA2("Hysteria2"),
     WIREGUARD("WireGuard"),
     SOCKS("Mixed"),
     HTTP("HTTP"),
     DOKODEMO("Tunnel"),
+    // HYSTERIA2 deferred — needs network=hysteria transport, mandatory TLS settings,
+    // hysteriaSettings stream block, and {version:2, clients:[{auth,...}]} settings shape.
+    // Re-add when the dedicated transport form is built.
 }
 
 enum class NetworkType(val label: String) {
@@ -311,20 +313,6 @@ private fun buildProtocolSettings(s: AddInboundFormState): ProtocolSettings = wh
         clients = s.ssClients.map { c ->
             ShadowsocksClient(
                 password = c.password,
-                email = c.email,
-                totalGB = (c.totalGb.toLongOrNull() ?: 0L) * BYTES_PER_GB,
-                expiryTime = c.expiryTime,
-                enable = c.enable,
-                subId = c.subId,
-            )
-        },
-    )
-    ProtocolType.HYSTERIA2 -> ProtocolSettings.Hysteria2(
-        obfs = if (s.hy2ObfsEnabled) Hy2Obfs("salamander", s.hy2ObfsPassword) else null,
-        ignoreClientBandwidth = s.hy2IgnoreClientBandwidth,
-        clients = s.hy2Clients.map { c ->
-            Hy2Client(
-                auth = c.auth,
                 email = c.email,
                 totalGB = (c.totalGb.toLongOrNull() ?: 0L) * BYTES_PER_GB,
                 expiryTime = c.expiryTime,
