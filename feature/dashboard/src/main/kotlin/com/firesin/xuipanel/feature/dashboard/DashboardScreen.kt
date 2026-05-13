@@ -27,7 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,7 +35,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -59,6 +58,8 @@ import com.firesin.xuipanel.core.common.util.formatSpeed
 import com.firesin.xuipanel.core.common.util.prettyBytes
 import com.firesin.xuipanel.core.common.util.secondsToCompact
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.designsystem.component.EmptyState
+import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.GroupRow
 import com.firesin.xuipanel.core.designsystem.component.RingStat
@@ -172,11 +173,13 @@ private fun DashboardContent(
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         when (uiState) {
-            is DashboardUiState.NoActivePanel -> NoActivePanelEmpty(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                onAddPanel = onAddPanel,
+            is DashboardUiState.NoActivePanel -> EmptyState(
+                icon = Icons.Outlined.CloudOff,
+                title = stringResource(R.string.dashboard_no_panel_title),
+                description = stringResource(R.string.dashboard_no_panel_description),
+                actionLabel = stringResource(R.string.dashboard_add_panel),
+                onAction = onAddPanel,
+                modifier = Modifier.padding(padding),
             )
 
             is DashboardUiState.Loading -> Box(
@@ -186,12 +189,10 @@ private fun DashboardContent(
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
 
-            is DashboardUiState.Error -> ErrorState(
+            is DashboardUiState.Error -> DashboardErrorState(
                 error = uiState.error,
                 onRetry = onRefresh,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier = Modifier.padding(padding),
             )
 
             is DashboardUiState.Content -> PullToRefreshBox(
@@ -514,108 +515,29 @@ private fun MoreSection(
     }
 }
 
-// ── Empty / Error states ───────────────────────────────────────────────────────
+// ── Error state (with optional detail block) ───────────────────────────────────
 
 @Composable
-private fun NoActivePanelEmpty(
-    modifier: Modifier = Modifier,
-    onAddPanel: () -> Unit,
-) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(96.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = stringResource(R.string.dashboard_no_panel_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.dashboard_no_panel_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onAddPanel) {
-            Text(stringResource(R.string.dashboard_add_panel))
-        }
-    }
-}
-
-@Composable
-private fun ErrorState(
+private fun DashboardErrorState(
     error: DomainError,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(96.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = stringResource(R.string.dashboard_error_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = error.toUserMessage(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        val detail = error.toDetailMessage()
+    val detail = error.toDetailMessage()
+    val description = buildString {
+        append(error.toUserMessage())
         if (detail.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(8.dp),
-            ) {
-                Text(
-                    text = detail,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.dashboard_retry))
+            append("\n\n")
+            append(detail)
         }
     }
+    ErrorState(
+        title = stringResource(R.string.dashboard_error_title),
+        description = description,
+        actionLabel = stringResource(R.string.dashboard_retry),
+        onAction = onRetry,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -693,15 +615,21 @@ private fun DashboardContentPreview() {
 @Composable
 private fun NoActivePanelPreview() {
     XuiPanelTheme {
-        NoActivePanelEmpty(onAddPanel = {})
+        EmptyState(
+            icon = Icons.Outlined.CloudOff,
+            title = "No active panel",
+            description = "Add a panel to monitor its status and manage clients.",
+            actionLabel = "Add panel",
+            onAction = {},
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun ErrorStatePreview() {
+private fun DashboardErrorStatePreview() {
     XuiPanelTheme {
-        ErrorState(
+        DashboardErrorState(
             error = DomainError.Network(RuntimeException("Connection refused")),
             onRetry = {},
             modifier = Modifier.fillMaxSize(),

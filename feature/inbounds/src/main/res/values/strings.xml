@@ -3,7 +3,11 @@
     <!-- InboundsListScreen -->
     <string name="inbounds_title">Инбаунды</string>
     <string name="inbounds_empty">Нет инбаундов</string>
-    <string name="inbounds_empty_description">Добавьте первый инбаунд через панель 3x-ui</string>
+    <string name="inbounds_empty_title">Нет подключений</string>
+    <string name="inbounds_empty_description">На этой панели пока нет настроенных inbound-подключений.</string>
+    <string name="inbounds_no_active_panel_title">Нет активной панели</string>
+    <string name="inbounds_no_active_panel_description">Добавьте панель, чтобы просматривать inbound-подключения.</string>
+    <string name="inbounds_error_title">Ошибка загрузки</string>
     <string name="inbounds_stat_clients">CLIENTS</string>
     <string name="inbounds_stat_traffic">TRAFFIC</string>
     <string name="inbounds_cd_add">Добавить инбаунд</string>

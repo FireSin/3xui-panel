@@ -6,6 +6,9 @@
     <string name="clients_search_hint">Search by email…</string>
     <string name="clients_hero_sub">%1$s · %2$d clients</string>
     <string name="clients_no_active_panel">Нет активной панели</string>
+    <string name="clients_no_active_panel_title">Нет активной панели</string>
+    <string name="clients_no_active_panel_description">Добавьте панель, чтобы просматривать и управлять клиентами.</string>
+    <string name="clients_error_title">Ошибка загрузки</string>
     <string name="clients_add_panel">Добавить панель</string>
     <string name="clients_retry">Повторить</string>
     <!-- Inbound-level actions in TopAppBar -->

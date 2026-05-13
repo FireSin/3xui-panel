@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
@@ -339,12 +339,13 @@ private fun PanelsListContent(
 
             is PanelsListUiState.Content -> {
                 if (uiState.panels.isEmpty()) {
-                    PanelsEmptyState(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        onAddPanel = onAddPanel,
-                        onImportClick = onImportClick,
+                    EmptyState(
+                        icon = Icons.Default.Dns,
+                        title = stringResource(R.string.panels_empty_title),
+                        description = stringResource(R.string.panels_empty_description),
+                        actionLabel = stringResource(R.string.panels_empty_action),
+                        onAction = onAddPanel,
+                        modifier = Modifier.padding(padding),
                     )
                 } else {
                     LazyColumn(
@@ -600,66 +601,6 @@ private fun ActiveBadge() {
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = MaterialTheme.colorScheme.onPrimary,
         )
-    }
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun PanelsEmptyState(
-    onAddPanel: () -> Unit,
-    onImportClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(96.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Dns,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(44.dp),
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-        Text(
-            text = stringResource(R.string.panels_empty_title),
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-            ),
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.panels_empty_description),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onAddPanel,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.panels_empty_action))
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = onImportClick,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.panels_empty_import))
-        }
     }
 }
 

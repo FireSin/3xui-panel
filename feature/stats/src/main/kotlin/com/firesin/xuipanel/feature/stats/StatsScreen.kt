@@ -22,10 +22,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
+import com.firesin.xuipanel.core.designsystem.component.EmptyState
+import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -120,17 +122,12 @@ private fun StatsContent(
         },
     ) { padding ->
         when (uiState) {
-            is StatsUiState.NoActivePanel -> Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.stats_no_active_panel),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
+            is StatsUiState.NoActivePanel -> EmptyState(
+                icon = Icons.AutoMirrored.Filled.ShowChart,
+                title = stringResource(R.string.stats_no_active_panel_title),
+                description = stringResource(R.string.stats_no_active_panel_description),
+                modifier = Modifier.padding(padding),
+            )
 
             is StatsUiState.Loading -> Box(
                 modifier = Modifier
@@ -141,12 +138,12 @@ private fun StatsContent(
                 CircularProgressIndicator()
             }
 
-            is StatsUiState.Error -> StatsErrorState(
-                error = uiState.error,
-                onRetry = onRetry,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+            is StatsUiState.Error -> ErrorState(
+                title = stringResource(R.string.stats_error_title),
+                description = uiState.error.toUserMessage(),
+                actionLabel = stringResource(R.string.stats_retry),
+                onAction = onRetry,
+                modifier = Modifier.padding(padding),
             )
 
             is StatsUiState.Content -> PullToRefreshBox(
@@ -512,31 +509,6 @@ private fun ChartRange.labelRes(): Int = when (this) {
     ChartRange.D7 -> R.string.stats_chart_range_7d
     ChartRange.D30 -> R.string.stats_chart_range_30d
     ChartRange.D90 -> R.string.stats_chart_range_90d
-}
-
-// ── Error state ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun StatsErrorState(
-    error: DomainError,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = error.toUserMessage(),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.stats_retry))
-        }
-    }
 }
 
 @Composable

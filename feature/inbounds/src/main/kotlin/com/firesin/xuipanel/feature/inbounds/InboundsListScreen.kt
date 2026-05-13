@@ -17,10 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
+import com.firesin.xuipanel.core.designsystem.component.EmptyState
+import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -156,11 +159,13 @@ private fun InboundsContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         when (uiState) {
-            is InboundsUiState.NoActivePanel -> NoActivePanelEmpty(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                onAddPanel = onAddPanel,
+            is InboundsUiState.NoActivePanel -> EmptyState(
+                icon = Icons.Default.Dns,
+                title = stringResource(R.string.inbounds_no_active_panel_title),
+                description = stringResource(R.string.inbounds_no_active_panel_description),
+                actionLabel = stringResource(R.string.inbounds_add_panel),
+                onAction = onAddPanel,
+                modifier = Modifier.padding(padding),
             )
 
             is InboundsUiState.Loading -> Box(
@@ -171,11 +176,11 @@ private fun InboundsContent(
             ) { CircularProgressIndicator() }
 
             is InboundsUiState.Error -> ErrorState(
-                error = uiState.error,
-                onRetry = onRefresh,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                title = stringResource(R.string.inbounds_error_title),
+                description = uiState.error.toUserMessage(),
+                actionLabel = stringResource(R.string.inbounds_retry),
+                onAction = onRefresh,
+                modifier = Modifier.padding(padding),
             )
 
             is InboundsUiState.Content -> PullToRefreshBox(
@@ -204,10 +209,10 @@ private fun InboundsContent(
                     }
 
                     if (uiState.inbounds.isEmpty()) {
-                        EmptyInbounds(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 32.dp),
+                        EmptyState(
+                            icon = Icons.AutoMirrored.Filled.List,
+                            title = stringResource(R.string.inbounds_empty_title),
+                            description = stringResource(R.string.inbounds_empty_description),
                         )
                     } else {
                         LazyColumn(
@@ -393,26 +398,6 @@ private fun StatColumn(
     }
 }
 
-@Composable
-private fun EmptyInbounds(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(R.string.inbounds_empty),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.inbounds_empty_description),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
 
 private fun InboundDto.displayName(): String =
     remark.ifBlank { "${protocol}-${port}" }
@@ -425,50 +410,6 @@ private fun InboundDto.trafficLabel(): String {
 
 private fun String.isEditableProtocol(): Boolean =
     lowercase() in setOf("vmess", "vless", "shadowsocks")
-
-@Composable
-private fun NoActivePanelEmpty(
-    modifier: Modifier = Modifier,
-    onAddPanel: () -> Unit,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(R.string.inbounds_no_active_panel),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onAddPanel) {
-            Text(stringResource(R.string.inbounds_add_panel))
-        }
-    }
-}
-
-@Composable
-private fun ErrorState(
-    error: DomainError,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = error.toUserMessage(),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.inbounds_retry))
-        }
-    }
-}
 
 @Composable
 private fun DomainError.toUserMessage(): String = when (this) {

@@ -22,8 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PeopleOutline
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
+import com.firesin.xuipanel.core.designsystem.component.EmptyState
+import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -236,11 +238,13 @@ private fun ClientsContent(
         },
     ) { padding ->
         when (uiState) {
-            is ClientsUiState.NoActivePanel -> NoActivePanelEmpty(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                onAddPanel = onAddPanel,
+            is ClientsUiState.NoActivePanel -> EmptyState(
+                icon = Icons.Default.PeopleOutline,
+                title = stringResource(R.string.clients_no_active_panel_title),
+                description = stringResource(R.string.clients_no_active_panel_description),
+                actionLabel = stringResource(R.string.clients_add_panel),
+                onAction = onAddPanel,
+                modifier = Modifier.padding(padding),
             )
 
             is ClientsUiState.Loading -> Box(
@@ -251,11 +255,11 @@ private fun ClientsContent(
             ) { CircularProgressIndicator() }
 
             is ClientsUiState.Error -> ErrorState(
-                error = uiState.error,
-                onRetry = onRefresh,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                title = stringResource(R.string.clients_error_title),
+                description = uiState.error.toUserMessage(),
+                actionLabel = stringResource(R.string.clients_retry),
+                onAction = onRefresh,
+                modifier = Modifier.padding(padding),
             )
 
             is ClientsUiState.Content -> PullToRefreshBox(
@@ -541,50 +545,6 @@ private fun ExpiryText(expiry: ExpiryLabel) {
 @Composable
 private fun trafficCaption(client: ClientConfig): String =
     if (client.totalGB <= 0L) "∞" else prettyBytes(client.totalGB)
-
-@Composable
-private fun NoActivePanelEmpty(
-    modifier: Modifier = Modifier,
-    onAddPanel: () -> Unit,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(R.string.clients_no_active_panel),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onAddPanel) {
-            Text(stringResource(R.string.clients_add_panel))
-        }
-    }
-}
-
-@Composable
-private fun ErrorState(
-    error: DomainError,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = error.toUserMessage(),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.clients_retry))
-        }
-    }
-}
 
 @Composable
 private fun DomainError.toUserMessage(): String = when (this) {

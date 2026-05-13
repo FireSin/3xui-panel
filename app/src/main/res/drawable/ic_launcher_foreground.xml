@@ -1,13 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon foreground: heraldic shield + crack.
+    Viewport 108×108. Safe zone: 21,21 → 87,87 (66dp square).
+    Shield is centered in the safe zone, ~52dp wide × 58dp tall.
+    Crack is a 3-segment zigzag in dark mint #0C3D26.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Shield body (heraldic shape):
+         Top edge: 32,28 → 76,28 (flat top)
+         Sides curve down to a pointed bottom at 54,82
+         Path: M32,28 H76 V58 Q76,72 54,82 Q32,72 32,58 Z
+    -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,36 L54,72 M36,54 L72,54"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="6"
-        android:strokeLineCap="round" />
+        android:pathData="M32,28 L76,28 L76,58 Q76,74 54,83 Q32,74 32,58 Z" />
+
+    <!-- Crack / zigzag through shield — dark mint, 3dp stroke -->
+    <path
+        android:strokeColor="#0C3D26"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M48,28 L56,44 L46,54 L58,72" />
+
 </vector>

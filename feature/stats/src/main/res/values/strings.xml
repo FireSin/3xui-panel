@@ -2,6 +2,9 @@
 <resources>
     <string name="stats_title">Statistics</string>
     <string name="stats_no_active_panel">No active panel</string>
+    <string name="stats_no_active_panel_title">Нет активной панели</string>
+    <string name="stats_no_active_panel_description">Выберите активную панель, чтобы просматривать статистику трафика.</string>
+    <string name="stats_error_title">Ошибка загрузки</string>
     <string name="stats_retry">Retry</string>
     <string name="stats_online_unavailable">Online status unavailable</string>
     <string name="stats_expiry_never">No expiry</string>
