@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.DailyPoint
 import com.firesin.xuipanel.core.data.repository.PanelRepository
@@ -131,8 +132,7 @@ class StatsViewModel @Inject constructor(
                 xuiClient.fetchInbounds(
                     panelId = panel.id,
                     baseUrl = panel.baseUrl,
-                    username = panel.login,
-                    password = panel.password,
+                    auth = panel.toAuth(),
                     tls = panel.toPanelTls(),
                 )
             }
@@ -140,8 +140,7 @@ class StatsViewModel @Inject constructor(
                 xuiClient.fetchOnlines(
                     panelId = panel.id,
                     baseUrl = panel.baseUrl,
-                    username = panel.login,
-                    password = panel.password,
+                    auth = panel.toAuth(),
                     tls = panel.toPanelTls(),
                 )
             }

@@ -67,9 +67,9 @@ class StatsViewModelTest {
         val onlineEmails = setOf("a@b.com")
 
         every { panelRepository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(inbounds)
-        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Success(onlineEmails)
 
         val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
@@ -97,9 +97,9 @@ class StatsViewModelTest {
     fun `inbounds fail - emits Error`() = runTest {
         val panel = fakePanel()
         every { panelRepository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
-        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Success(emptySet())
 
         val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
@@ -121,9 +121,9 @@ class StatsViewModelTest {
         val panel = fakePanel()
         val inbounds = listOf(fakeInbound(id = 1))
         every { panelRepository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(inbounds)
-        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
         val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
@@ -159,9 +159,9 @@ class StatsViewModelTest {
         val panel = fakePanel()
         val inbounds = listOf(fakeInbound(id = 7))
         every { panelRepository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(inbounds)
-        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Success(emptySet())
 
         val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)
@@ -189,9 +189,9 @@ class StatsViewModelTest {
         val panel = fakePanel()
         val inbounds = listOf(fakeInbound(id = 5))
         every { panelRepository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(inbounds)
-        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Success(emptySet())
 
         val vm = StatsViewModel(panelRepository, xuiClient, historyRepository)

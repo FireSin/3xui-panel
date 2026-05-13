@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.core.data.model
 
+import com.firesin.xuipanel.core.common.PanelAuth
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.db.entity.PanelEntity
 import java.time.Instant
@@ -16,6 +17,7 @@ internal fun PanelEntity.toPanel(): Panel = Panel(
     isActive = isActive != 0,
     createdAt = Instant.ofEpochMilli(createdAt),
     lastLoginAt = lastLoginAt?.let { Instant.ofEpochMilli(it) },
+    apiToken = apiToken,
 )
 
 internal fun Panel.toEntity(): PanelEntity = PanelEntity(
@@ -31,7 +33,11 @@ internal fun Panel.toEntity(): PanelEntity = PanelEntity(
     tlsMode = tlsMode.name,
     pinnedSpkiSha256 = pinnedSpkiSha256,
     pinnedAt = pinnedAt?.toEpochMilli(),
+    apiToken = apiToken,
 )
+
+fun Panel.toAuth(): PanelAuth =
+    if (!apiToken.isNullOrBlank()) PanelAuth.Bearer(apiToken) else PanelAuth.Login(login, password)
 
 private fun tlsModeFromString(value: String): TlsMode =
     TlsMode.entries.firstOrNull { it.name == value } ?: TlsMode.SYSTEM

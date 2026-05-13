@@ -28,6 +28,8 @@ data class PanelFormState(
     val password: String = "",
     val tlsMode: TlsMode = TlsMode.SYSTEM,
     val pinnedAt: Instant? = null,
+    val authMode: AuthMode = AuthMode.LOGIN,
+    val apiToken: String = "",
 )
 
 data class PanelFormErrors(
@@ -35,6 +37,7 @@ data class PanelFormErrors(
     val baseUrl: String? = null,
     val login: String? = null,
     val password: String? = null,
+    val apiToken: String? = null,
 )
 
 /**
@@ -90,6 +93,7 @@ class PanelAddEditViewModel @Inject constructor(
             viewModelScope.launch {
                 val panel = repository.get(id) ?: return@launch
                 existingPanel = panel
+                val authMode = if (!panel.apiToken.isNullOrBlank()) AuthMode.TOKEN else AuthMode.LOGIN
                 _uiState.value = PanelAddEditUiState.Editing(
                     form = PanelFormState(
                         name = panel.name,
@@ -98,6 +102,8 @@ class PanelAddEditViewModel @Inject constructor(
                         password = panel.password,
                         tlsMode = panel.tlsMode,
                         pinnedAt = panel.pinnedAt,
+                        authMode = authMode,
+                        apiToken = panel.apiToken.orEmpty(),
                     ),
                     isEditMode = true,
                 )
@@ -119,6 +125,8 @@ class PanelAddEditViewModel @Inject constructor(
     fun updateLogin(value: String) = updateForm { copy(login = value) }
     fun updatePassword(value: String) = updateForm { copy(password = value) }
     fun updateTlsMode(value: TlsMode) = updateForm { copy(tlsMode = value) }
+    fun updateAuthMode(value: AuthMode) = updateForm { copy(authMode = value) }
+    fun updateApiToken(value: String) = updateForm { copy(apiToken = value) }
 
     fun submit() {
         val editing = _uiState.value as? PanelAddEditUiState.Editing ?: return
@@ -138,6 +146,7 @@ class PanelAddEditViewModel @Inject constructor(
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = form.tlsMode,
+                apiToken = if (form.authMode == AuthMode.TOKEN) form.apiToken.trim() else null,
             )
             val result = if (panelId == null) {
                 repository.add(draft)
@@ -186,6 +195,7 @@ class PanelAddEditViewModel @Inject constructor(
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = TlsMode.PINNED,
+                apiToken = if (form.authMode == AuthMode.TOKEN) form.apiToken.trim() else null,
             )
             when (val result = repository.rePin(id, draft)) {
                 is Result.Success -> _uiState.value = PanelAddEditUiState.Saved
@@ -214,6 +224,7 @@ class PanelAddEditViewModel @Inject constructor(
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = TlsMode.PINNED,
+                apiToken = if (form.authMode == AuthMode.TOKEN) form.apiToken.trim() else null,
             )
             when (val result = repository.rePin(id, draft)) {
                 is Result.Success -> _uiState.value = PanelAddEditUiState.Saved
@@ -272,12 +283,19 @@ class PanelAddEditViewModel @Inject constructor(
         val baseUrlValid = form.baseUrl.trim().let { url ->
             url.startsWith("https://") && isValidUrl(url)
         }
-        return PanelFormErrors(
-            name = if (form.name.isBlank()) "" else null,
-            baseUrl = if (!baseUrlValid) "" else null,
-            login = if (form.login.isBlank()) "" else null,
-            password = if (form.password.isBlank()) "" else null,
-        )
+        return when (form.authMode) {
+            AuthMode.TOKEN -> PanelFormErrors(
+                name = if (form.name.isBlank()) "" else null,
+                baseUrl = if (!baseUrlValid) "" else null,
+                apiToken = if (form.apiToken.isBlank()) "" else null,
+            )
+            AuthMode.LOGIN -> PanelFormErrors(
+                name = if (form.name.isBlank()) "" else null,
+                baseUrl = if (!baseUrlValid) "" else null,
+                login = if (form.login.isBlank()) "" else null,
+                password = if (form.password.isBlank()) "" else null,
+            )
+        }
     }
 
     private fun isValidUrl(url: String): Boolean = runCatching {
@@ -287,7 +305,7 @@ class PanelAddEditViewModel @Inject constructor(
     }.getOrDefault(false)
 
     private fun PanelFormErrors.isValid() =
-        name == null && baseUrl == null && login == null && password == null
+        name == null && baseUrl == null && login == null && password == null && apiToken == null
 
     companion object {
         const val ARG_PANEL_ID = "panelId"

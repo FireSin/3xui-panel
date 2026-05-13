@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -43,7 +44,7 @@ class ClientsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
-        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any()) } returns
             Result.Success(emptySet())
     }
 
@@ -67,7 +68,7 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -91,7 +92,7 @@ class ClientsViewModelTest {
     fun `fetch failure emits Error state`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -107,9 +108,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -123,14 +124,13 @@ class ClientsViewModelTest {
             xuiClient.addClient(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inbound.id,
                 client = newClient,
             )
         }
-        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) }
+        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any()) }
     }
 
     @Test
@@ -138,9 +138,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -164,9 +164,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.updateClient(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.updateClient(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -181,15 +181,14 @@ class ClientsViewModelTest {
             xuiClient.updateClient(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inbound.id,
                 clientKey = key,
                 client = updatedClient,
             )
         }
-        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) }
+        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any()) }
     }
 
     @Test
@@ -197,9 +196,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.updateClient(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.updateClient(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -219,9 +218,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.deleteClient(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.deleteClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -236,14 +235,13 @@ class ClientsViewModelTest {
             xuiClient.deleteClient(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inbound.id,
                 clientKey = client.id,
             )
         }
-        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) }
+        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any()) }
     }
 
     @Test
@@ -251,9 +249,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.deleteClient(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.deleteClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("err")))
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -273,9 +271,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.resetClientTraffic(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.resetClientTraffic(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -289,14 +287,13 @@ class ClientsViewModelTest {
             xuiClient.resetClientTraffic(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inbound.id,
                 email = client.email,
             )
         }
-        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) }
+        coVerify(atLeast = 2) { xuiClient.fetchInbounds(any(), any(), any(), any()) }
     }
 
     @Test
@@ -304,9 +301,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.resetClientTraffic(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.resetClientTraffic(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -327,7 +324,7 @@ class ClientsViewModelTest {
         val inbound1 = fakeInbound(id = 1, protocol = "vmess", settings = vmessSettings())
         val inbound2 = fakeInbound(id = 2, protocol = "vless", settings = vlessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound1, inbound2))
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -352,7 +349,7 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(id = 1, protocol = "trojan", settings = "{\"clients\":[]}")
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         val vm = ClientsViewModel(repository, xuiClient)
@@ -367,9 +364,9 @@ class ClientsViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(protocol = "vmess", settings = vmessSettings())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
-        coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
         val vm = ClientsViewModel(repository, xuiClient)

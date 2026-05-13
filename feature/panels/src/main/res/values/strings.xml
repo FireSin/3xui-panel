@@ -50,6 +50,12 @@
     <string name="panel_tls_footer">Закрепление фиксирует сертификат при первом подключении. Используйте только если доверяете владельцу панели.</string>
     <!-- PanelAddEditScreen — credentials section -->
     <string name="panel_credentials_section_title">Учётные данные</string>
+    <!-- PanelAddEditScreen — auth mode picker -->
+    <string name="panel_auth_mode_login">Логин/Пароль</string>
+    <string name="panel_auth_mode_token">API токен</string>
+    <!-- PanelAddEditScreen — api token field -->
+    <string name="panel_field_api_token_label">API токен</string>
+    <string name="panel_error_api_token_empty">Введите API токен</string>
     <!-- PanelAddEditScreen — delete -->
     <string name="panel_delete_action">Удалить панель</string>
 

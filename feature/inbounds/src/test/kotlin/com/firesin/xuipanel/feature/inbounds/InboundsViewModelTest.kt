@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -64,7 +65,7 @@ class InboundsViewModelTest {
     fun `active panel triggers fetchInbounds and emits Content`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -81,7 +82,7 @@ class InboundsViewModelTest {
         }
 
         coVerify(exactly = 1) {
-            xuiClient.fetchInbounds(panel.id, panel.baseUrl, panel.login, panel.password, panel.toPanelTls())
+            xuiClient.fetchInbounds(panel.id, panel.baseUrl, panel.toAuth(), panel.toPanelTls())
         }
     }
 
@@ -89,7 +90,7 @@ class InboundsViewModelTest {
     fun `fetch failure emits Error state`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -104,10 +105,10 @@ class InboundsViewModelTest {
     fun `successful toggle calls setInboundEnabled then refetches`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
         coEvery {
-            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any(), any())
+            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         } returns Result.Success(Unit)
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -120,8 +121,7 @@ class InboundsViewModelTest {
             xuiClient.setInboundEnabled(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 enabled = false,
                 id = 1,
@@ -129,7 +129,7 @@ class InboundsViewModelTest {
         }
         // fetchInbounds called once on init + once after toggle
         coVerify(atLeast = 2) {
-            xuiClient.fetchInbounds(panel.id, any(), any(), any(), any())
+            xuiClient.fetchInbounds(panel.id, any(), any(), any())
         }
     }
 
@@ -137,10 +137,10 @@ class InboundsViewModelTest {
     fun `toggle failure surfaces in errorMessage`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
         coEvery {
-            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any(), any())
+            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -164,10 +164,10 @@ class InboundsViewModelTest {
     fun `successful delete calls deleteInbound then refetches`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
         coEvery {
-            xuiClient.deleteInbound(any(), any(), any(), any(), any(), any())
+            xuiClient.deleteInbound(any(), any(), any(), any(), any())
         } returns Result.Success(Unit)
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -180,14 +180,13 @@ class InboundsViewModelTest {
             xuiClient.deleteInbound(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 id = 1,
             )
         }
         coVerify(atLeast = 2) {
-            xuiClient.fetchInbounds(panel.id, any(), any(), any(), any())
+            xuiClient.fetchInbounds(panel.id, any(), any(), any())
         }
     }
 
@@ -195,7 +194,7 @@ class InboundsViewModelTest {
     fun `refresh re-fetches inbounds`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -205,7 +204,7 @@ class InboundsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(atLeast = 2) {
-            xuiClient.fetchInbounds(panel.id, any(), any(), any(), any())
+            xuiClient.fetchInbounds(panel.id, any(), any(), any())
         }
     }
 
@@ -220,7 +219,7 @@ class InboundsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) {
-            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any(), any())
+            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         }
     }
 
@@ -235,7 +234,7 @@ class InboundsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) {
-            xuiClient.deleteInbound(any(), any(), any(), any(), any(), any())
+            xuiClient.deleteInbound(any(), any(), any(), any(), any())
         }
     }
 
@@ -243,10 +242,10 @@ class InboundsViewModelTest {
     fun `delete failure surfaces in errorMessage`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
         coEvery {
-            xuiClient.deleteInbound(any(), any(), any(), any(), any(), any())
+            xuiClient.deleteInbound(any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -269,7 +268,7 @@ class InboundsViewModelTest {
     fun `refresh sets isRefreshing flag`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
         val vm = InboundsViewModel(repository, xuiClient)
@@ -295,7 +294,7 @@ class InboundsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) {
-            xuiClient.fetchInbounds(any(), any(), any(), any(), any())
+            xuiClient.fetchInbounds(any(), any(), any(), any())
         }
     }
 
@@ -303,7 +302,7 @@ class InboundsViewModelTest {
     fun `switching active panel fetches for new panel`() = runTest {
         val panel1 = fakePanel().copy(id = "p1")
         val panel2 = fakePanel().copy(id = "p2")
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
         val activePanel = MutableStateFlow<Panel?>(panel1)
@@ -314,7 +313,7 @@ class InboundsViewModelTest {
 
         // Verify first panel was fetched
         coVerify(exactly = 1) {
-            xuiClient.fetchInbounds(panel1.id, panel1.baseUrl, panel1.login, panel1.password, panel1.toPanelTls())
+            xuiClient.fetchInbounds(panel1.id, panel1.baseUrl, panel1.toAuth(), panel1.toPanelTls())
         }
 
         // Switch to second panel
@@ -323,7 +322,7 @@ class InboundsViewModelTest {
 
         // Verify second panel was also fetched
         coVerify {
-            xuiClient.fetchInbounds(panel2.id, panel2.baseUrl, panel2.login, panel2.password, panel2.toPanelTls())
+            xuiClient.fetchInbounds(panel2.id, panel2.baseUrl, panel2.toAuth(), panel2.toPanelTls())
         }
     }
 
@@ -331,10 +330,10 @@ class InboundsViewModelTest {
     fun `errorShown clears errorMessage`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
         coEvery {
-            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any(), any())
+            xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.InvalidCredentials)
 
         val vm = InboundsViewModel(repository, xuiClient)

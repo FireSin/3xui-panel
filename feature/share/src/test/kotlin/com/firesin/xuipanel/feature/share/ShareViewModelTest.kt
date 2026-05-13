@@ -166,7 +166,7 @@ class ShareViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
@@ -188,7 +188,7 @@ class ShareViewModelTest {
             streamSettings = """{"network":"tcp","security":"none"}""",
         )
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
@@ -204,7 +204,7 @@ class ShareViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(id = 2)
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         // Request inboundId=99 which does not exist
@@ -221,7 +221,7 @@ class ShareViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         // Request a key that doesn't exist in the inbound
@@ -238,7 +238,7 @@ class ShareViewModelTest {
         val panel = fakePanel()
         val inbound = fakeInbound(streamSettings = kcpStream())
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
         val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
@@ -253,7 +253,7 @@ class ShareViewModelTest {
     fun `domain error from fetchInbounds produces Error with domainError`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
         val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
@@ -280,7 +280,7 @@ class ShareViewModelTest {
         val inbound = fakeInbound()
         every { repository.observeActive() } returns flowOf(panel)
         // First call fails
-        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout"))) andThen
             Result.Success(listOf(inbound))
 

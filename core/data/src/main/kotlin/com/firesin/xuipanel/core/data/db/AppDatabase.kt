@@ -15,7 +15,7 @@ import com.firesin.xuipanel.core.data.db.entity.TrafficStateEntity
 
 @Database(
     entities = [PanelEntity::class, AuditLogEntity::class, TrafficStateEntity::class, TrafficDailyEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +31,12 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE panels ADD COLUMN pinned_spki_sha256 TEXT")
                 db.execSQL("ALTER TABLE panels ADD COLUMN pinned_at INTEGER")
                 db.execSQL("UPDATE panels SET tls_mode = 'PINNED' WHERE trust_self_signed = 1")
+            }
+        }
+
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE panels ADD COLUMN api_token TEXT")
             }
         }
 

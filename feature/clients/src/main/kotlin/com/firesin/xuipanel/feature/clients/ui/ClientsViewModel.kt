@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -96,8 +97,7 @@ class ClientsViewModel @Inject constructor(
             val result = xuiClient.addClient(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inboundId,
                 client = client,
@@ -115,8 +115,7 @@ class ClientsViewModel @Inject constructor(
             val result = xuiClient.updateClient(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inboundId,
                 clientKey = clientKey,
@@ -135,8 +134,7 @@ class ClientsViewModel @Inject constructor(
             val result = xuiClient.deleteClient(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inboundId,
                 clientKey = client.urlKey,
@@ -154,8 +152,7 @@ class ClientsViewModel @Inject constructor(
             val result = xuiClient.deleteInbound(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 id = inboundId,
             )
@@ -172,8 +169,7 @@ class ClientsViewModel @Inject constructor(
             val result = xuiClient.resetClientTraffic(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
                 inboundId = inboundId,
                 email = client.email,
@@ -202,8 +198,7 @@ class ClientsViewModel @Inject constructor(
                 xuiClient.fetchInbounds(
                     panelId = panel.id,
                     baseUrl = panel.baseUrl,
-                    username = panel.login,
-                    password = panel.password,
+                    auth = panel.toAuth(),
                     tls = panel.toPanelTls(),
                 )
             }
@@ -211,8 +206,7 @@ class ClientsViewModel @Inject constructor(
                 xuiClient.fetchOnlines(
                     panelId = panel.id,
                     baseUrl = panel.baseUrl,
-                    username = panel.login,
-                    password = panel.password,
+                    auth = panel.toAuth(),
                     tls = panel.toPanelTls(),
                 )
             }

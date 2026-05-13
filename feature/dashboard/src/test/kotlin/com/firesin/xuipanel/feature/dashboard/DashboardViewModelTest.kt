@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -67,7 +68,7 @@ class DashboardViewModelTest {
     fun `active panel triggers fetchServerStatus and emits Content`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchServerStatus(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchServerStatus(any(), any(), any(), any()) } returns
             Result.Success(fakeStatus())
 
         val vm = DashboardViewModel(repository, xuiClient)
@@ -84,7 +85,7 @@ class DashboardViewModelTest {
         }
 
         coVerify(exactly = 1) {
-            xuiClient.fetchServerStatus(panel.id, panel.baseUrl, panel.login, panel.password, panel.toPanelTls())
+            xuiClient.fetchServerStatus(panel.id, panel.baseUrl, panel.toAuth(), panel.toPanelTls())
         }
     }
 
@@ -92,7 +93,7 @@ class DashboardViewModelTest {
     fun `fetch failure emits Error state`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchServerStatus(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchServerStatus(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
         val vm = DashboardViewModel(repository, xuiClient)
@@ -107,7 +108,7 @@ class DashboardViewModelTest {
     fun `refresh re-fetches status`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
-        coEvery { xuiClient.fetchServerStatus(any(), any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchServerStatus(any(), any(), any(), any()) } returns
             Result.Success(fakeStatus())
 
         val vm = DashboardViewModel(repository, xuiClient)
@@ -117,7 +118,7 @@ class DashboardViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(atLeast = 2) {
-            xuiClient.fetchServerStatus(panel.id, any(), any(), any(), any())
+            xuiClient.fetchServerStatus(panel.id, any(), any(), any())
         }
     }
 

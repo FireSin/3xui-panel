@@ -59,6 +59,7 @@ import com.firesin.xuipanel.core.designsystem.component.GroupRow
 import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
+import com.firesin.xuipanel.feature.panels.ui.AuthMode
 import com.firesin.xuipanel.feature.panels.ui.PanelAddEditUiState
 import com.firesin.xuipanel.feature.panels.ui.PanelAddEditViewModel
 import com.firesin.xuipanel.feature.panels.ui.PanelFormErrors
@@ -90,6 +91,8 @@ fun PanelAddEditScreen(
         onLoginChange = viewModel::updateLogin,
         onPasswordChange = viewModel::updatePassword,
         onTlsModeChange = viewModel::updateTlsMode,
+        onAuthModeChange = viewModel::updateAuthMode,
+        onApiTokenChange = viewModel::updateApiToken,
         onSubmit = viewModel::submit,
         onConfirmRePin = viewModel::confirmRePin,
         onDismissPinMismatch = viewModel::dismissPinMismatchDialog,
@@ -108,6 +111,8 @@ private fun PanelAddEditContent(
     onLoginChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTlsModeChange: (TlsMode) -> Unit,
+    onAuthModeChange: (AuthMode) -> Unit,
+    onApiTokenChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onConfirmRePin: () -> Unit,
     onDismissPinMismatch: () -> Unit,
@@ -133,11 +138,18 @@ private fun PanelAddEditContent(
     }
 
     val isFormValid = errors?.let { e ->
-        e.name == null && e.baseUrl == null && e.login == null && e.password == null &&
+        e.name == null && e.baseUrl == null && e.apiToken == null &&
+            e.login == null && e.password == null &&
             form.name.isNotBlank() && form.baseUrl.isNotBlank() &&
-            form.login.isNotBlank() && form.password.isNotBlank()
+            when (form.authMode) {
+                AuthMode.TOKEN -> form.apiToken.isNotBlank()
+                AuthMode.LOGIN -> form.login.isNotBlank() && form.password.isNotBlank()
+            }
     } ?: (form.name.isNotBlank() && form.baseUrl.isNotBlank() &&
-        form.login.isNotBlank() && form.password.isNotBlank())
+        when (form.authMode) {
+            AuthMode.TOKEN -> form.apiToken.isNotBlank()
+            AuthMode.LOGIN -> form.login.isNotBlank() && form.password.isNotBlank()
+        })
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showRePinConfirm by remember { mutableStateOf(false) }
@@ -299,42 +311,93 @@ private fun PanelAddEditContent(
 
             // ── Credentials group ────────────────────────────────────────────
             GroupCard(title = stringResource(R.string.panel_credentials_section_title)) {
-                FieldRow(
-                    label = stringResource(R.string.panel_field_login_label),
-                    value = form.login,
-                    onValueChange = onLoginChange,
-                    placeholder = "admin",
-                    isError = errors?.login != null,
-                    enabled = !isSaving,
-                    topDivider = false,
-                    monoValue = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                )
-                PasswordFieldRow(
-                    value = form.password,
-                    onValueChange = onPasswordChange,
-                    isError = errors?.password != null,
-                    enabled = !isSaving,
-                )
-            }
-
-            if (errors?.login != null || errors?.password != null) {
-                Spacer(Modifier.height(4.dp))
-                if (errors.login != null) {
-                    Text(
-                        text = stringResource(R.string.panel_error_login_empty),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 4.dp),
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                ) {
+                    SegmentedPicker(
+                        options = AuthMode.entries,
+                        selected = form.authMode,
+                        onSelect = onAuthModeChange,
+                        label = { mode -> mode.toLabel() },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (errors.password != null) {
-                    Text(
-                        text = stringResource(R.string.panel_error_password_empty),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    )
+                when (form.authMode) {
+                    AuthMode.LOGIN -> {
+                        FieldRow(
+                            label = stringResource(R.string.panel_field_login_label),
+                            value = form.login,
+                            onValueChange = onLoginChange,
+                            placeholder = "admin",
+                            isError = errors?.login != null,
+                            enabled = !isSaving,
+                            topDivider = true,
+                            monoValue = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        )
+                        PasswordFieldRow(
+                            value = form.password,
+                            onValueChange = onPasswordChange,
+                            isError = errors?.password != null,
+                            enabled = !isSaving,
+                        )
+                    }
+                    AuthMode.TOKEN -> {
+                        FieldRow(
+                            label = stringResource(R.string.panel_field_api_token_label),
+                            value = form.apiToken,
+                            onValueChange = onApiTokenChange,
+                            placeholder = "",
+                            isError = errors?.apiToken != null,
+                            enabled = !isSaving,
+                            topDivider = true,
+                            monoValue = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            val credentialErrors = when (form.authMode) {
+                AuthMode.LOGIN -> errors?.login != null || errors?.password != null
+                AuthMode.TOKEN -> errors?.apiToken != null
+            }
+            if (credentialErrors) {
+                Spacer(Modifier.height(4.dp))
+                when (form.authMode) {
+                    AuthMode.LOGIN -> {
+                        if (errors?.login != null) {
+                            Text(
+                                text = stringResource(R.string.panel_error_login_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                            )
+                        }
+                        if (errors?.password != null) {
+                            Text(
+                                text = stringResource(R.string.panel_error_password_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                            )
+                        }
+                    }
+                    AuthMode.TOKEN -> {
+                        if (errors?.apiToken != null) {
+                            Text(
+                                text = stringResource(R.string.panel_error_api_token_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -497,7 +560,13 @@ private fun PasswordFieldRow(
     }
 }
 
-// ── TLS helpers ───────────────────────────────────────────────────────────────
+// ── Auth + TLS helpers ────────────────────────────────────────────────────────
+
+@Composable
+private fun AuthMode.toLabel(): String = when (this) {
+    AuthMode.LOGIN -> stringResource(R.string.panel_auth_mode_login)
+    AuthMode.TOKEN -> stringResource(R.string.panel_auth_mode_token)
+}
 
 @Composable
 private fun TlsMode.toLabel(): String = when (this) {
@@ -599,6 +668,8 @@ private fun PanelAddEditContentPreview() {
             onLoginChange = {},
             onPasswordChange = {},
             onTlsModeChange = {},
+            onAuthModeChange = {},
+            onApiTokenChange = {},
             onSubmit = {},
             onConfirmRePin = {},
             onDismissPinMismatch = {},
@@ -625,6 +696,8 @@ private fun PanelAddContentPreview() {
             onLoginChange = {},
             onPasswordChange = {},
             onTlsModeChange = {},
+            onAuthModeChange = {},
+            onApiTokenChange = {},
             onSubmit = {},
             onConfirmRePin = {},
             onDismissPinMismatch = {},

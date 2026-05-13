@@ -290,5 +290,6 @@ class PanelRepositoryImplTest {
         tlsMode = tlsMode,
         pinnedSpkiSha256 = pinnedSpkiSha256,
         pinnedAt = null,
+        apiToken = null,
     )
 }

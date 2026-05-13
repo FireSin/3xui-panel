@@ -47,4 +47,8 @@ data class PanelEntity(
     /** Epoch millis when the pin was last set. */
     @ColumnInfo(name = "pinned_at")
     val pinnedAt: Long?,
+
+    /** Bearer API token for the panel. When non-null, used instead of login/password. */
+    @ColumnInfo(name = "api_token")
+    val apiToken: String?,
 )

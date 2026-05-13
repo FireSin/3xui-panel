@@ -9,6 +9,8 @@ data class ProbeCredentials(
     val tlsMode: TlsMode,
     /** Required when [tlsMode] is [TlsMode.PINNED] and a pin is already stored. */
     val pinnedSpkiSha256: String? = null,
+    /** When non-blank, probe uses Bearer auth instead of form login. */
+    val apiToken: String? = null,
 )
 
 /** Outcome of a successful [XuiClient.probeLogin]. */

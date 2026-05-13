@@ -3,6 +3,7 @@ package com.firesin.xuipanel.core.sampler
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.data.repository.TrafficHistoryRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -51,8 +52,7 @@ class TrafficSamplerCore @Inject constructor(
             val fetchResult = xuiClient.fetchInbounds(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = tls,
             )
 

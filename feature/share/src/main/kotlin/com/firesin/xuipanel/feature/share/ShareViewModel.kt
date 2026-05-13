@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -69,8 +70,7 @@ class ShareViewModel @Inject constructor(
             val fetchResult = xuiClient.fetchInbounds(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
             )
 

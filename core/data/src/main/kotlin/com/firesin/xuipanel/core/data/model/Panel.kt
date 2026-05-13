@@ -15,4 +15,5 @@ data class Panel(
     val isActive: Boolean,
     val createdAt: Instant,
     val lastLoginAt: Instant?,
+    val apiToken: String? = null,
 )

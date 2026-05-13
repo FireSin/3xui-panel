@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.PanelAuth
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.PinMismatchEvent
 import com.firesin.xuipanel.core.common.Result
@@ -32,6 +33,9 @@ import javax.net.ssl.SSLException
  *
  * Handles automatic login and a single re-auth on 401.
  * Callers must provide credentials on every call (looked up from the repo).
+ *
+ * When [PanelAuth.Bearer] is used, the token is sent as `Authorization: Bearer <token>` header.
+ * No login() call is made; 401 is a terminal error.
  */
 @Singleton
 class XuiClient @Inject constructor(
@@ -47,8 +51,21 @@ class XuiClient @Inject constructor(
         isLenient = true
     }
 
-    private fun apiFor(baseUrl: String, panelId: String, tls: PanelTls): XuiApi {
-        val client = clientFactory.getClient(panelId, tls)
+    private fun apiFor(baseUrl: String, panelId: String, tls: PanelTls, bearer: String? = null): XuiApi {
+        val baseClient = clientFactory.getClient(panelId, tls)
+        val client = if (bearer != null) {
+            baseClient.newBuilder()
+                .addInterceptor { chain ->
+                    chain.proceed(
+                        chain.request().newBuilder()
+                            .addHeader("Authorization", "Bearer $bearer")
+                            .build(),
+                    )
+                }
+                .build()
+        } else {
+            baseClient
+        }
         val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
         return Retrofit.Builder()
             .baseUrl(normalized)
@@ -61,11 +78,10 @@ class XuiClient @Inject constructor(
     suspend fun listInbounds(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): InboundListResponseDto {
-        return withSession(panelId, baseUrl, username, password, tls) { api ->
+        return withSession(panelId, baseUrl, auth, tls) { api ->
             api.listInbounds()
         }
     }
@@ -73,48 +89,58 @@ class XuiClient @Inject constructor(
     suspend fun serverStatus(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): ServerStatusResponseDto {
-        return withSession(panelId, baseUrl, username, password, tls) { api ->
+        return withSession(panelId, baseUrl, auth, tls) { api ->
             api.serverStatus()
         }
     }
 
     /**
-     * Executes [call], performing auto-login if needed.
-     * On 401 — invalidates the session and retries once. Throws [XuiAuthException] on second failure.
+     * Executes [call], performing auto-login if needed (Login mode only).
+     * Bearer mode: sends the token header, on 401 throws [XuiAuthException] immediately.
+     * Login mode: on 401 — invalidates the session and retries once.
      */
     private suspend fun <T> withSession(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         call: suspend (XuiApi) -> Response<T>,
     ): T {
-        val api = apiFor(baseUrl, panelId, tls)
-
-        if (sessionCache.get(panelId) == null) {
-            login(api, panelId, username, password)
-        }
-
-        val response = call(api)
-
-        if (response.code() == HTTP_UNAUTHORIZED) {
-            sessionCache.invalidate(panelId)
-            clientFactory.getCookieJar(panelId, tls).clear()
-            login(api, panelId, username, password)
-
-            val retryResponse = call(api)
-            if (retryResponse.code() == HTTP_UNAUTHORIZED) {
-                throw XuiAuthException(panelId)
+        return when (auth) {
+            is PanelAuth.Bearer -> {
+                val api = apiFor(baseUrl, panelId, tls, bearer = auth.token)
+                val response = call(api)
+                if (response.code() == HTTP_UNAUTHORIZED || response.code() == HTTP_FORBIDDEN) {
+                    throw XuiAuthException(panelId)
+                }
+                response.body() ?: error("Empty body from panel $panelId")
             }
-            return retryResponse.body() ?: error("Empty body after re-auth for panel $panelId")
-        }
+            is PanelAuth.Login -> {
+                val api = apiFor(baseUrl, panelId, tls)
+                if (sessionCache.get(panelId) == null) {
+                    login(api, panelId, auth.username, auth.password)
+                }
 
-        return response.body() ?: error("Empty body from panel $panelId")
+                val response = call(api)
+
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    sessionCache.invalidate(panelId)
+                    clientFactory.getCookieJar(panelId, tls).clear()
+                    login(api, panelId, auth.username, auth.password)
+
+                    val retryResponse = call(api)
+                    if (retryResponse.code() == HTTP_UNAUTHORIZED) {
+                        throw XuiAuthException(panelId)
+                    }
+                    return retryResponse.body() ?: error("Empty body after re-auth for panel $panelId")
+                }
+
+                response.body() ?: error("Empty body from panel $panelId")
+            }
+        }
     }
 
     private suspend fun login(api: XuiApi, panelId: String, username: String, password: String) {
@@ -131,12 +157,11 @@ class XuiClient @Inject constructor(
     suspend fun fetchInbounds(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): Result<List<InboundDto>, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            listInbounds(panelId, baseUrl, username, password, tls)
+            listInbounds(panelId, baseUrl, auth, tls)
         }.fold(
             onSuccess = { response ->
                 val list = response.obj
@@ -157,12 +182,11 @@ class XuiClient @Inject constructor(
     suspend fun fetchOnlines(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): Result<Set<String>, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.onlines()
             }
         }.fold(
@@ -183,14 +207,13 @@ class XuiClient @Inject constructor(
     suspend fun setInboundEnabled(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         enabled: Boolean,
         id: Int,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.setInboundEnable(id, enabled)
             }
         }.fold(
@@ -211,13 +234,12 @@ class XuiClient @Inject constructor(
     suspend fun deleteInbound(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         id: Int,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.deleteInbound(id)
             }
         }.fold(
@@ -238,12 +260,11 @@ class XuiClient @Inject constructor(
     suspend fun restartXray(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.restartXrayService()
             }
         }.fold(
@@ -264,12 +285,11 @@ class XuiClient @Inject constructor(
     suspend fun stopXray(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.stopXrayService()
             }
         }.fold(
@@ -290,12 +310,11 @@ class XuiClient @Inject constructor(
     suspend fun fetchServerStatus(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
     ): Result<ServerStatusDto, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            serverStatus(panelId, baseUrl, username, password, tls)
+            serverStatus(panelId, baseUrl, auth, tls)
         }.fold(
             onSuccess = { response ->
                 val obj = response.obj
@@ -312,15 +331,14 @@ class XuiClient @Inject constructor(
     suspend fun addClient(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         inboundId: Int,
         client: ClientConfig,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         val settings = ClientsJson.encodeSettingsBody(client)
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.addClient(inboundId, settings)
             }
         }.fold(
@@ -338,8 +356,7 @@ class XuiClient @Inject constructor(
     suspend fun updateClient(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         inboundId: Int,
         clientKey: String,
@@ -347,7 +364,7 @@ class XuiClient @Inject constructor(
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         val settings = ClientsJson.encodeSettingsBody(client)
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.updateClient(clientKey, inboundId, settings)
             }
         }.fold(
@@ -365,14 +382,13 @@ class XuiClient @Inject constructor(
     suspend fun deleteClient(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         inboundId: Int,
         clientKey: String,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.deleteClient(inboundId, clientKey)
             }
         }.fold(
@@ -390,14 +406,13 @@ class XuiClient @Inject constructor(
     suspend fun resetClientTraffic(
         panelId: String,
         baseUrl: String,
-        username: String,
-        password: String,
+        auth: PanelAuth,
         tls: PanelTls,
         inboundId: Int,
         email: String,
     ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
-            withSession(panelId, baseUrl, username, password, tls) { api ->
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.resetClientTraffic(inboundId, email)
             }
         }.fold(
@@ -416,6 +431,9 @@ class XuiClient @Inject constructor(
      * Attempts a one-off login against [credentials] without persisting the session.
      * Returns [Result.Success] with [ProbeOutcome] (containing captured SPKI) if login succeeds,
      * or a typed [DomainError] otherwise.
+     *
+     * When [ProbeCredentials.apiToken] is non-blank, verifies the token by calling serverStatus
+     * with a Bearer header instead of performing a form login.
      */
     suspend fun probeLogin(credentials: ProbeCredentials): Result<ProbeOutcome, DomainError> =
         withContext(Dispatchers.IO) {
@@ -424,33 +442,62 @@ class XuiClient @Inject constructor(
                 pinnedSpkiSha256 = credentials.pinnedSpkiSha256,
             )
             val (client, probeCaptureListener) = clientFactory.buildTransient(tls)
-            val api = Retrofit.Builder()
+
+            val apiBase = Retrofit.Builder()
                 .baseUrl(credentials.baseUrl)
-                .client(client)
                 .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
-                .build()
-                .create(XuiApi::class.java)
 
-            runCatching {
-                api.login(credentials.login, credentials.password)
-            }.fold(
-                onSuccess = { response ->
-                    when {
-                        response.code() == HTTP_UNAUTHORIZED || response.code() == HTTP_FORBIDDEN ->
-                            Result.Failure(DomainError.InvalidCredentials)
-
-                        response.isSuccessful && response.body()?.success == true ->
-                            Result.Success(ProbeOutcome(capturedSpkiBase64 = probeCaptureListener?.getOrNull()))
-
-                        response.isSuccessful ->
-                            Result.Failure(DomainError.InvalidCredentials)
-
-                        else ->
-                            Result.Failure(DomainError.PanelUnreachable(response.code()))
+            if (!credentials.apiToken.isNullOrBlank()) {
+                val bearerClient = client.newBuilder()
+                    .addInterceptor { chain ->
+                        chain.proceed(
+                            chain.request().newBuilder()
+                                .addHeader("Authorization", "Bearer ${credentials.apiToken}")
+                                .build(),
+                        )
                     }
-                },
-                onFailure = { cause -> cause.toProbeDomainError() },
-            )
+                    .build()
+                val api = apiBase.client(bearerClient).build().create(XuiApi::class.java)
+                runCatching {
+                    api.serverStatus()
+                }.fold(
+                    onSuccess = { response ->
+                        when {
+                            response.code() == HTTP_UNAUTHORIZED || response.code() == HTTP_FORBIDDEN ->
+                                Result.Failure(DomainError.InvalidCredentials)
+
+                            response.isSuccessful ->
+                                Result.Success(ProbeOutcome(capturedSpkiBase64 = probeCaptureListener?.getOrNull()))
+
+                            else ->
+                                Result.Failure(DomainError.PanelUnreachable(response.code()))
+                        }
+                    },
+                    onFailure = { cause -> cause.toProbeDomainError() },
+                )
+            } else {
+                val api = apiBase.client(client).build().create(XuiApi::class.java)
+                runCatching {
+                    api.login(credentials.login, credentials.password)
+                }.fold(
+                    onSuccess = { response ->
+                        when {
+                            response.code() == HTTP_UNAUTHORIZED || response.code() == HTTP_FORBIDDEN ->
+                                Result.Failure(DomainError.InvalidCredentials)
+
+                            response.isSuccessful && response.body()?.success == true ->
+                                Result.Success(ProbeOutcome(capturedSpkiBase64 = probeCaptureListener?.getOrNull()))
+
+                            response.isSuccessful ->
+                                Result.Failure(DomainError.InvalidCredentials)
+
+                            else ->
+                                Result.Failure(DomainError.PanelUnreachable(response.code()))
+                        }
+                    },
+                    onFailure = { cause -> cause.toProbeDomainError() },
+                )
+            }
         }
 
     /**

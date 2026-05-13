@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.common.DomainError
+import com.firesin.xuipanel.core.common.PanelAuth
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
@@ -54,8 +55,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = panelId,
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.PINNED, "pinned-abc=="),
         )
 
@@ -80,8 +80,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = panelId,
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.PINNED, "pinned-xyz=="),
         )
 
@@ -108,8 +107,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = panelId,
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.PINNED, "pinned-xyz=="),
         )
 
@@ -130,8 +128,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = "panel-tls-error",
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.SYSTEM, null),
         )
 
@@ -154,8 +151,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.setInboundEnabled(
             panelId = panelId,
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.PINNED, "pinned=="),
             enabled = true,
             id = 1,
@@ -181,8 +177,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.deleteInbound(
             panelId = panelId,
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.PINNED, "pinned=="),
             id = 2,
         )
@@ -204,8 +199,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchServerStatus(
             panelId = panelId,
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.PINNED, "pinned=="),
         )
 
@@ -298,8 +292,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = "panel-null-msg",
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.SYSTEM, null),
         )
 
@@ -319,8 +312,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = "panel-network",
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.SYSTEM, null),
         )
 
@@ -338,8 +330,7 @@ class XuiClientErrorMappingTest {
         val result = xuiClient.fetchInbounds(
             panelId = "panel-unexpected",
             baseUrl = "https://example.com",
-            username = "user",
-            password = "pass",
+            auth = PanelAuth.Login("user", "pass"),
             tls = PanelTls(TlsMode.SYSTEM, null),
         )
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.data.model.Panel
+import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
@@ -80,8 +81,7 @@ class DashboardViewModel @Inject constructor(
             val result = xuiClient.restartXray(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
             )
             _actionEvent.value = when (result) {
@@ -101,8 +101,7 @@ class DashboardViewModel @Inject constructor(
             val result = xuiClient.stopXray(
                 panelId = panel.id,
                 baseUrl = panel.baseUrl,
-                username = panel.login,
-                password = panel.password,
+                auth = panel.toAuth(),
                 tls = panel.toPanelTls(),
             )
             _actionEvent.value = when (result) {
@@ -129,8 +128,7 @@ class DashboardViewModel @Inject constructor(
         val result = xuiClient.fetchServerStatus(
             panelId = panel.id,
             baseUrl = panel.baseUrl,
-            username = panel.login,
-            password = panel.password,
+            auth = panel.toAuth(),
             tls = panel.toPanelTls(),
         )
         _uiState.value = when (result) {

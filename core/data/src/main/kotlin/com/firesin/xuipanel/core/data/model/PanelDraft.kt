@@ -8,4 +8,5 @@ data class PanelDraft(
     val login: String,
     val password: String,
     val tlsMode: TlsMode,
+    val apiToken: String? = null,
 )

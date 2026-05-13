@@ -66,6 +66,7 @@ class PanelRepositoryImpl @Inject constructor(
             isActive = isFirst,
             createdAt = now,
             lastLoginAt = now,
+            apiToken = draft.apiToken,
         )
         dao.insert(panel.toEntity())
         return Result.Success(panel)
@@ -121,6 +122,7 @@ class PanelRepositoryImpl @Inject constructor(
             isActive = existing.isActive != 0,
             createdAt = Instant.ofEpochMilli(existing.createdAt),
             lastLoginAt = now,
+            apiToken = draft.apiToken,
         )
         dao.insert(updated.toEntity())
         return Result.Success(updated)
@@ -139,6 +141,7 @@ class PanelRepositoryImpl @Inject constructor(
             password = draft.password,
             tlsMode = TlsMode.PINNED,
             pinnedSpkiSha256 = null,
+            apiToken = draft.apiToken,
         )
         val probeResult = xuiClient.probeLogin(probeCredentials)
         if (probeResult is Result.Failure) return probeResult
@@ -162,6 +165,7 @@ class PanelRepositoryImpl @Inject constructor(
             isActive = existing.isActive != 0,
             createdAt = Instant.ofEpochMilli(existing.createdAt),
             lastLoginAt = now,
+            apiToken = draft.apiToken,
         )
         dao.insert(updated.toEntity())
         return Result.Success(updated)
@@ -210,5 +214,6 @@ class PanelRepositoryImpl @Inject constructor(
         password = password,
         tlsMode = tlsMode,
         pinnedSpkiSha256 = if (tlsMode == TlsMode.PINNED) existing?.pinnedSpkiSha256 else null,
+        apiToken = apiToken,
     )
 }
