@@ -259,13 +259,15 @@ private fun InboundCard(
     modifier: Modifier = Modifier,
 ) {
     val isReadOnly = !inbound.protocol.isEditableProtocol()
+    val hasClients = inbound.protocol.protocolHasClients()
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onManageClients),
+            .then(if (hasClients) Modifier.clickable(onClick = onManageClients) else Modifier),
         shape = CardShape,
-        color = MaterialTheme.colorScheme.surface,
+        color = if (hasClients) MaterialTheme.colorScheme.surface
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         shadowElevation = 0.dp,
         tonalElevation = 0.dp,
         border = androidx.compose.foundation.BorderStroke(
@@ -327,15 +329,17 @@ private fun InboundCard(
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
-            // Stats row
+            // Stats row — hide the clients count for protocols that don't support clients
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                StatColumn(
-                    caption = stringResource(R.string.inbounds_stat_clients),
-                    value = (inbound.clientStats?.size ?: 0).toString(),
-                )
+                if (hasClients) {
+                    StatColumn(
+                        caption = stringResource(R.string.inbounds_stat_clients),
+                        value = (inbound.clientStats?.size ?: 0).toString(),
+                    )
+                }
                 StatColumn(
                     caption = stringResource(R.string.inbounds_stat_traffic),
                     value = inbound.trafficLabel(),
@@ -427,6 +431,14 @@ private fun InboundDto.trafficLabel(): String {
 
 private fun String.isEditableProtocol(): Boolean =
     lowercase() in setOf("vmess", "vless", "shadowsocks")
+
+/**
+ * Protocols whose `settings.clients` is a multi-user list — those are the only inbounds where
+ * a "Manage clients" drill-down makes sense. Mixed/HTTP/WireGuard/Tunnel/TUN have either
+ * peer/account lists or no users at all, so we hide the navigation for them.
+ */
+private fun String.protocolHasClients(): Boolean =
+    lowercase() in setOf("vmess", "vless", "trojan", "shadowsocks", "hysteria", "hysteria2")
 
 @Composable
 private fun DomainError.toUserMessage(): String = when (this) {
