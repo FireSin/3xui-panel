@@ -56,6 +56,7 @@ import com.firesin.xuipanel.core.common.util.prettyBytes
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.SectionHeader
 import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
+import com.firesin.xuipanel.core.designsystem.component.Sparkline
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.data.repository.DailyPoint
@@ -89,6 +90,7 @@ fun StatsScreen(
         onToggleExpanded = viewModel::toggleExpanded,
         onRangeChange = viewModel::setRange,
         chartFlow = viewModel::chartFlow,
+        panelChartFlow = viewModel::panelChartFlow,
         onNavigateToClientStats = onNavigateToClientStats,
     )
 }
@@ -104,6 +106,7 @@ private fun StatsContent(
     onToggleExpanded: (Int) -> Unit,
     onRangeChange: (ChartRange) -> Unit,
     chartFlow: (panelId: String, inboundId: Int) -> kotlinx.coroutines.flow.Flow<List<DailyPoint>>,
+    panelChartFlow: (panelId: String) -> kotlinx.coroutines.flow.Flow<List<DailyPoint>> = { kotlinx.coroutines.flow.flowOf(emptyList()) },
     onNavigateToClientStats: (panelId: String, inboundId: Int, emailKey: String, clientLabel: String) -> Unit = { _, _, _, _ -> },
 ) {
     Scaffold(
@@ -172,8 +175,11 @@ private fun StatsContent(
 
                     // Hero card
                     item {
+                        val sparklinePoints by panelChartFlow(uiState.panel.id)
+                            .collectAsStateWithLifecycle(initialValue = emptyList())
                         StatsHeroCard(
                             summary = uiState.summary,
+                            sparklinePoints = sparklinePoints,
                             modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     }
@@ -269,6 +275,7 @@ private fun StatsContent(
 @Composable
 private fun StatsHeroCard(
     summary: ServerSummary,
+    sparklinePoints: List<DailyPoint>,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -321,6 +328,12 @@ private fun StatsHeroCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            if (sparklinePoints.size >= 2) {
+                Spacer(Modifier.height(12.dp))
+                Sparkline(
+                    values = sparklinePoints.map { it.up + it.down },
+                )
             }
         }
     }

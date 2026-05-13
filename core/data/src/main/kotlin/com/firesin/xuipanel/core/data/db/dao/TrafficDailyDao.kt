@@ -1,11 +1,18 @@
 package com.firesin.xuipanel.core.data.db.dao
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.firesin.xuipanel.core.data.db.entity.TrafficDailyEntity
 import kotlinx.coroutines.flow.Flow
+
+data class PanelDailySumRow(
+    @ColumnInfo(name = "day_epoch") val dayEpoch: Long,
+    @ColumnInfo(name = "up_delta") val upDelta: Long,
+    @ColumnInfo(name = "down_delta") val downDelta: Long,
+)
 
 @Dao
 interface TrafficDailyDao {
@@ -61,6 +68,22 @@ interface TrafficDailyDao {
         fromDay: Long,
         toDay: Long,
     ): Flow<List<TrafficDailyEntity>>
+
+    @Query(
+        """SELECT day_epoch,
+                  SUM(up_delta) AS up_delta,
+                  SUM(down_delta) AS down_delta
+           FROM traffic_daily
+           WHERE panel_id = :panelId AND scope_kind = 'INBOUND'
+             AND day_epoch >= :fromDay AND day_epoch <= :toDay
+           GROUP BY day_epoch
+           ORDER BY day_epoch ASC""",
+    )
+    fun observeForPanelAggregated(
+        panelId: String,
+        fromDay: Long,
+        toDay: Long,
+    ): Flow<List<PanelDailySumRow>>
 
     @Query("DELETE FROM traffic_daily WHERE day_epoch < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)

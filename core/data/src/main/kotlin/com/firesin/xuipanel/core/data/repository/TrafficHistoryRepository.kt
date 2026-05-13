@@ -39,6 +39,13 @@ interface TrafficHistoryRepository {
         fromDay: Long,
         toDay: Long,
     ): Flow<List<DailyPoint>>
+
+    /** Reactive daily points aggregated across all inbounds of the panel. */
+    fun observePanelDaily(
+        panelId: String,
+        fromDay: Long,
+        toDay: Long,
+    ): Flow<List<DailyPoint>>
 }
 
 data class DailyPoint(val dayEpoch: Long, val up: Long, val down: Long)

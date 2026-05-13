@@ -52,13 +52,24 @@ class StatsViewModel @Inject constructor(
      */
     fun chartFlow(panelId: String, inboundId: Int): Flow<List<DailyPoint>> =
         _range.flatMapLatest { chartRange ->
-            val msPerDay = 86_400_000L
-            val now = System.currentTimeMillis()
-            val todayMidnight = (now / msPerDay) * msPerDay
-            val fromEpoch = todayMidnight - chartRange.days * msPerDay
-            val toEpoch = todayMidnight + msPerDay
-            historyRepository.observeInboundDaily(panelId, inboundId, fromEpoch, toEpoch)
+            val (from, to) = chartRange.epochBounds()
+            historyRepository.observeInboundDaily(panelId, inboundId, from, to)
         }
+
+    /** Aggregated daily points across all inbounds of the panel — drives the hero sparkline. */
+    fun panelChartFlow(panelId: String): Flow<List<DailyPoint>> =
+        _range.flatMapLatest { chartRange ->
+            val (from, to) = chartRange.epochBounds()
+            historyRepository.observePanelDaily(panelId, from, to)
+        }
+
+    private fun ChartRange.epochBounds(): Pair<Long, Long> {
+        val msPerDay = 86_400_000L
+        val todayMidnight = (System.currentTimeMillis() / msPerDay) * msPerDay
+        val fromEpoch = todayMidnight - days * msPerDay
+        val toEpoch = todayMidnight + msPerDay
+        return fromEpoch to toEpoch
+    }
 
     init {
         viewModelScope.launch {

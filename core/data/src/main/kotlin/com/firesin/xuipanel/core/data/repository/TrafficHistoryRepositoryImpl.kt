@@ -146,6 +146,17 @@ class TrafficHistoryRepositoryImpl @Inject constructor(
             toDay = toDay,
         ).map { rows -> rows.map { DailyPoint(it.dayEpoch, it.upDelta, it.downDelta) } }
 
+    override fun observePanelDaily(
+        panelId: String,
+        fromDay: Long,
+        toDay: Long,
+    ): Flow<List<DailyPoint>> =
+        dailyDao.observeForPanelAggregated(
+            panelId = panelId,
+            fromDay = fromDay,
+            toDay = toDay,
+        ).map { rows -> rows.map { DailyPoint(it.dayEpoch, it.upDelta, it.downDelta) } }
+
     private companion object {
         const val SCOPE_INBOUND = "INBOUND"
         const val SCOPE_CLIENT = "CLIENT"
