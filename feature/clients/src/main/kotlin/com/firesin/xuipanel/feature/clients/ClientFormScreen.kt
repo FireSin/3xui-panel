@@ -297,6 +297,7 @@ fun ClientFormScreen(
                             onValueChange = { email = it },
                             isError = emailError,
                             topDivider = false,
+                            stacked = true,
                         )
                         FieldRow(
                             label = stringResource(R.string.client_form_uuid_label),
@@ -333,6 +334,7 @@ fun ClientFormScreen(
                             onValueChange = { email = it },
                             isError = emailError,
                             topDivider = false,
+                            stacked = true,
                         )
                         FieldRow(
                             label = stringResource(R.string.client_form_password_label),
@@ -433,6 +435,7 @@ fun ClientFormScreen(
                     onValueChange = { subId = it },
                     monoValue = true,
                     topDivider = false,
+                    stacked = true,
                     trailing = {
                         TextButton(onClick = { subId = randomSubId() }) {
                             Text(
@@ -446,6 +449,8 @@ fun ClientFormScreen(
                     label = stringResource(R.string.client_form_comment_label),
                     value = comment,
                     onValueChange = { comment = it },
+                    stacked = true,
+                    singleLineValue = false,
                 )
             }
 

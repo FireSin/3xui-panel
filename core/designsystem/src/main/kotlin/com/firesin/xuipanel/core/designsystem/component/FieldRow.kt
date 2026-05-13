@@ -49,6 +49,8 @@ fun FieldRow(
     keyboardOptions: KeyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
     labelWidth: Dp = 96.dp,
     topDivider: Boolean = true,
+    stacked: Boolean = false,
+    singleLineValue: Boolean = true,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -60,35 +62,38 @@ fun FieldRow(
                     .background(MaterialTheme.colorScheme.outlineVariant),
             )
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = FIELD_ROW_MIN_HEIGHT_DP.dp)
-                .padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(modifier = Modifier.width(labelWidth)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                    color = if (isError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-            val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            val textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 15.sp,
-                fontFamily = if (monoValue) MonoFontFamily else null,
-                color = textColor,
-            )
-            Box(modifier = Modifier.weight(1f)) {
+        val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+        val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        val textStyle = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = 15.sp,
+            fontFamily = if (monoValue) MonoFontFamily else null,
+            color = textColor,
+        )
+        val labelColor = if (isError) MaterialTheme.colorScheme.error
+        else MaterialTheme.colorScheme.onSurface
+
+        if (stacked) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        color = labelColor,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (trailing != null) trailing()
+                }
+                Spacer(Modifier.height(2.dp))
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
                     readOnly = readOnly,
                     enabled = enabled,
-                    singleLine = true,
+                    singleLine = singleLineValue,
                     textStyle = textStyle,
                     keyboardOptions = keyboardOptions,
                     visualTransformation = visualTransformation,
@@ -105,9 +110,48 @@ fun FieldRow(
                     },
                 )
             }
-            if (trailing != null) {
-                Spacer(Modifier.width(4.dp))
-                trailing()
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = FIELD_ROW_MIN_HEIGHT_DP.dp)
+                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.width(labelWidth)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        color = labelColor,
+                    )
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        readOnly = readOnly,
+                        enabled = enabled,
+                        singleLine = singleLineValue,
+                        textStyle = textStyle,
+                        keyboardOptions = keyboardOptions,
+                        visualTransformation = visualTransformation,
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (value.isEmpty() && placeholder != null) {
+                                Text(
+                                    text = placeholder,
+                                    style = textStyle.copy(color = placeholderColor),
+                                )
+                            }
+                            innerTextField()
+                        },
+                    )
+                }
+                if (trailing != null) {
+                    Spacer(Modifier.width(4.dp))
+                    trailing()
+                }
             }
         }
     }
