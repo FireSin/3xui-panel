@@ -9,10 +9,13 @@ import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
+import com.firesin.xuipanel.core.xui.dto.ClientStatDto
 import com.firesin.xuipanel.core.xui.dto.ClientsJson
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.urlKey
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -29,6 +32,12 @@ sealed class ClientsUiState {
         val inbounds: List<InboundDto>,
         val selectedInboundId: Int?,
         val clients: List<ClientConfig>,
+        /** Per-email live traffic stats from the selected inbound (used/up/down/total). */
+        val clientStats: Map<String, ClientStatDto> = emptyMap(),
+        /** Emails reported as currently online by the panel. */
+        val onlineEmails: Set<String> = emptySet(),
+        /** False when the /onlines endpoint failed — UI hides online dots. */
+        val onlinesAvailable: Boolean = false,
     ) : ClientsUiState()
     data class Error(val panel: Panel, val error: DomainError) : ClientsUiState()
 }
@@ -67,6 +76,7 @@ class ClientsViewModel @Inject constructor(
         _uiState.value = current.copy(
             selectedInboundId = inboundId,
             clients = parseClientsFor(current.inbounds, inboundId),
+            clientStats = statsFor(current.inbounds, inboundId),
         )
     }
 
@@ -187,29 +197,50 @@ class ClientsViewModel @Inject constructor(
     }
 
     private suspend fun fetchInbounds(panel: Panel, selectedInboundId: Int?) {
-        val result = xuiClient.fetchInbounds(
-            panelId = panel.id,
-            baseUrl = panel.baseUrl,
-            username = panel.login,
-            password = panel.password,
-            tls = panel.toPanelTls(),
-        )
-        _uiState.value = when (result) {
+        val (inboundsResult, onlinesResult) = coroutineScope {
+            val inboundsDeferred = async {
+                xuiClient.fetchInbounds(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    username = panel.login,
+                    password = panel.password,
+                    tls = panel.toPanelTls(),
+                )
+            }
+            val onlinesDeferred = async {
+                xuiClient.fetchOnlines(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    username = panel.login,
+                    password = panel.password,
+                    tls = panel.toPanelTls(),
+                )
+            }
+            inboundsDeferred.await() to onlinesDeferred.await()
+        }
+        _uiState.value = when (inboundsResult) {
             is Result.Success -> {
-                val inbounds = result.data
+                val inbounds = inboundsResult.data
                 val resolvedId = when {
                     selectedInboundId != null && inbounds.any { it.id == selectedInboundId } -> selectedInboundId
                     inbounds.isNotEmpty() -> inbounds.first().id
                     else -> null
+                }
+                val (onlineEmails, onlinesAvailable) = when (onlinesResult) {
+                    is Result.Success -> onlinesResult.data to true
+                    is Result.Failure -> emptySet<String>() to false
                 }
                 ClientsUiState.Content(
                     panel = panel,
                     inbounds = inbounds,
                     selectedInboundId = resolvedId,
                     clients = parseClientsFor(inbounds, resolvedId),
+                    clientStats = statsFor(inbounds, resolvedId),
+                    onlineEmails = onlineEmails,
+                    onlinesAvailable = onlinesAvailable,
                 )
             }
-            is Result.Failure -> ClientsUiState.Error(panel, result.error)
+            is Result.Failure -> ClientsUiState.Error(panel, inboundsResult.error)
         }
     }
 
@@ -221,6 +252,11 @@ class ClientsViewModel @Inject constructor(
         } else {
             emptyList()
         }
+    }
+
+    private fun statsFor(inbounds: List<InboundDto>, inboundId: Int?): Map<String, ClientStatDto> {
+        val inbound = inbounds.firstOrNull { it.id == inboundId } ?: return emptyMap()
+        return inbound.clientStats.orEmpty().associateBy { it.email }
     }
 }
 

@@ -69,6 +69,7 @@ import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
+import com.firesin.xuipanel.core.xui.dto.ClientStatDto
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.urlKey
 import com.firesin.xuipanel.feature.clients.ui.ClientsUiState
@@ -357,6 +358,9 @@ private fun ClientsContent(
                                     filteredClients.forEachIndexed { index, client ->
                                         ClientRow(
                                             client = client,
+                                            stats = uiState.clientStats[client.email],
+                                            online = client.email in uiState.onlineEmails,
+                                            showOnlineDot = uiState.onlinesAvailable,
                                             inboundId = uiState.selectedInboundId ?: 0,
                                             isSupported = isSupported,
                                             showTopDivider = index > 0,
@@ -426,6 +430,9 @@ private fun SearchBar(
 @Composable
 private fun ClientRow(
     client: ClientConfig,
+    stats: ClientStatDto?,
+    online: Boolean,
+    showOnlineDot: Boolean,
     inboundId: Int,
     isSupported: Boolean,
     showTopDivider: Boolean,
@@ -433,8 +440,8 @@ private fun ClientRow(
     modifier: Modifier = Modifier,
 ) {
     val expiry = classifyExpiry(client.expiryTime)
-    val usedBytes = 0L // ClientConfig doesn't carry live up/down — show limit-only info
-    val limitBytes = client.totalGB
+    val usedBytes = (stats?.up ?: 0L) + (stats?.down ?: 0L)
+    val limitBytes = stats?.total?.takeIf { it > 0L } ?: client.totalGB
 
     // Determine progress: if no limit, pct = 0
     val usagePct = if (limitBytes > 0L) (usedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f) else 0f
@@ -465,7 +472,7 @@ private fun ClientRow(
             )
         }
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            // Top row: dot + email + expires
+            // Top row: dot + email + (online) + expires
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -487,6 +494,9 @@ private fun ClientRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                if (showOnlineDot && online) {
+                    OnlineBadge()
+                }
                 ExpiryText(expiry = expiry)
             }
 
@@ -509,7 +519,7 @@ private fun ClientRow(
                     trackColor = MaterialTheme.colorScheme.outlineVariant,
                 )
                 Text(
-                    text = trafficCaption(client),
+                    text = trafficCaption(usedBytes, limitBytes),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = MonoFontFamily,
                         fontSize = 11.sp,
@@ -519,6 +529,29 @@ private fun ClientRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun OnlineBadge() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+        )
+        Text(
+            text = "online",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontFamily = MonoFontFamily,
+                fontSize = 10.sp,
+            ),
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
@@ -543,8 +576,11 @@ private fun ExpiryText(expiry: ExpiryLabel) {
 }
 
 @Composable
-private fun trafficCaption(client: ClientConfig): String =
-    if (client.totalGB <= 0L) "∞" else prettyBytes(client.totalGB)
+private fun trafficCaption(usedBytes: Long, limitBytes: Long): String {
+    val used = prettyBytes(usedBytes)
+    val limit = if (limitBytes > 0L) prettyBytes(limitBytes) else "∞"
+    return "$used / $limit"
+}
 
 @Composable
 private fun DomainError.toUserMessage(): String = when (this) {

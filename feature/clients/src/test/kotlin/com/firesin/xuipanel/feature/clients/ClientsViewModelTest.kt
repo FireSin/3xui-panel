@@ -43,6 +43,8 @@ class ClientsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        coEvery { xuiClient.fetchOnlines(any(), any(), any(), any(), any()) } returns
+            Result.Success(emptySet())
     }
 
     @AfterEach
