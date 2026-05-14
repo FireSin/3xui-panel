@@ -10,6 +10,9 @@ import com.firesin.xuipanel.core.xui.dto.StreamSettingsParser
 import java.net.URLEncoder
 import java.util.Base64
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -35,6 +38,13 @@ object ClientUri {
         inbound: InboundDto,
         host: String,
     ): Result<String, ShareError> {
+        // Hysteria does not use the standard stream transport model — its streamSettings
+        // has network="hysteria" which the shared parser rejects as UnsupportedTransport.
+        // Route it early so it parses TLS directly from the raw JSON.
+        if (client is ClientConfig.Hysteria) {
+            return buildHysteria(client, inbound, host)
+        }
+
         val streamResult = StreamSettingsParser.parse(inbound.streamSettings)
         val stream = when (streamResult) {
             is Result.Success -> streamResult.data
@@ -51,8 +61,8 @@ object ClientUri {
             is ClientConfig.Vless -> buildVless(client, inbound, host, stream)
             is ClientConfig.Vmess -> buildVmess(client, inbound, host, stream)
             is ClientConfig.Shadowsocks -> buildShadowsocks(client, inbound, host, stream)
-            is ClientConfig.Trojan -> Result.Failure(ShareError.UnsupportedProtocol("trojan"))
-            is ClientConfig.Hysteria -> Result.Failure(ShareError.UnsupportedProtocol("hysteria"))
+            is ClientConfig.Trojan -> buildTrojan(client, inbound, host, stream)
+            is ClientConfig.Hysteria -> error("unreachable — Hysteria is handled above")
         }
     }
 
@@ -201,6 +211,119 @@ object ClientUri {
 
         val remark = buildRemark(inbound.remark, client.email)
         val base = "ss://$userinfo@$host:${inbound.port}"
+        return Result.Success(buildLinkWithParams(base, params, remark))
+    }
+
+    // ── TROJAN ────────────────────────────────────────────────────────────────
+
+    /**
+     * `trojan://{password}@{host}:{port}?{params}#{remark}`
+     *
+     * Structure mirrors [buildVless]: same transport params, same TLS/Reality handling.
+     * `flow` is only included for Reality + TCP (same upstream gate as VLESS).
+     *
+     * upstream: sub/subService.go genTrojanLink @main
+     */
+    private fun buildTrojan(
+        client: ClientConfig.Trojan,
+        inbound: InboundDto,
+        host: String,
+        stream: StreamSettings,
+    ): Result<String, ShareError> {
+        val params = mutableMapOf<String, String>()
+        params["type"] = networkName(stream)
+
+        applyNetworkParams(stream, params)
+
+        when (val sec = stream.security) {
+            is Security.None -> params["security"] = "none"
+            is Security.Tls -> applyTlsParams(sec, params)
+            is Security.Reality -> {
+                applyRealityParams(sec, params)
+                // upstream: genTrojanLink gates flow on Reality + TCP only
+                if (stream is StreamSettings.Tcp && client.flow.isNotEmpty()) {
+                    params["flow"] = client.flow
+                }
+            }
+        }
+
+        val remark = buildRemark(inbound.remark, client.email)
+        val base = "trojan://${client.password}@$host:${inbound.port}"
+        return Result.Success(buildLinkWithParams(base, params, remark))
+    }
+
+    // ── HYSTERIA ──────────────────────────────────────────────────────────────
+
+    /**
+     * `hysteria2://{auth}@{host}:{port}?{params}#{remark}`
+     * (or `hysteria://` when `settings.version == 1`)
+     *
+     * Hysteria does not use the shared stream-transport model; this builder reads
+     * TLS directly from `streamSettings` JSON.  `security=tls` is always set.
+     *
+     * Params (when present): `sni`, `alpn`, `fp`, `insecure=1`, `obfs`, `obfs-password`.
+     *
+     * upstream: sub/subService.go genHysteriaLink @main
+     */
+    private fun buildHysteria(
+        client: ClientConfig.Hysteria,
+        inbound: InboundDto,
+        host: String,
+    ): Result<String, ShareError> {
+        val streamRoot: JsonObject = runCatching {
+            lenientJson.parseToJsonElement(inbound.streamSettings).jsonObject
+        }.getOrElse {
+            return Result.Failure(ShareError.InvalidStreamSettings("malformed streamSettings"))
+        }
+
+        val params = mutableMapOf<String, String>()
+        params["security"] = "tls"
+
+        val tlsObj = streamRoot["tlsSettings"]?.jsonObject
+        if (tlsObj != null) {
+            val sni = tlsObj["serverName"]?.jsonPrimitive?.content?.takeIf { it.isNotEmpty() }
+            sni?.let { params["sni"] = it }
+
+            val alpn = tlsObj["alpn"]?.runCatching {
+                jsonArray.map { it.jsonPrimitive.content }
+            }?.getOrNull() ?: emptyList()
+            if (alpn.isNotEmpty()) params["alpn"] = alpn.joinToString(",")
+
+            val settingsObj = tlsObj["settings"]?.jsonObject
+            val fp = settingsObj?.get("fingerprint")?.jsonPrimitive?.content?.takeIf { it.isNotEmpty() }
+            fp?.let { params["fp"] = it }
+
+            val insecure = settingsObj?.get("allowInsecure")?.jsonPrimitive?.booleanOrNull ?: false
+            if (insecure) params["insecure"] = "1"
+        }
+
+        // Salamander obfs (Hysteria2 only) — mirrors upstream genHysteriaLink
+        val finalMask = streamRoot["finalmask"]?.jsonObject
+        if (finalMask != null) {
+            val udpMasks = finalMask["udp"]?.runCatching { jsonArray }?.getOrNull()
+            udpMasks?.forEach { maskEl ->
+                val mask = maskEl.jsonObject
+                if (mask["type"]?.jsonPrimitive?.content == "salamander") {
+                    val pw = mask["settings"]?.jsonObject?.get("password")
+                        ?.jsonPrimitive?.content
+                    if (!pw.isNullOrEmpty()) {
+                        params["obfs"] = "salamander"
+                        params["obfs-password"] = pw
+                        return@forEach
+                    }
+                }
+            }
+        }
+
+        // Determine protocol version from inbound.settings ("version": 1 → hysteria, else hysteria2)
+        val version = runCatching {
+            lenientJson.parseToJsonElement(inbound.settings).jsonObject["version"]
+                ?.jsonPrimitive?.content?.toIntOrNull() ?: 2
+        }.getOrDefault(2)
+        val scheme = if (version == 1) "hysteria" else "hysteria2"
+
+        val remark = buildRemark(inbound.remark, client.email)
+        val base = "$scheme://${client.auth}@$host:${inbound.port}"
         return Result.Success(buildLinkWithParams(base, params, remark))
     }
 

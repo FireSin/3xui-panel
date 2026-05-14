@@ -282,6 +282,251 @@ class ClientUriTest {
         assertInstanceOf(ShareError.MissingInboundPassword::class.java, (result as Result.Failure).error)
     }
 
+    // ── TROJAN ────────────────────────────────────────────────────────────────
+
+    private val trojanClient = ClientConfig.Trojan(
+        password = "s3cr3t",
+        flow = "",
+        email = "grace",
+        enable = true,
+        totalGB = 0L,
+        expiryTime = 0L,
+        limitIp = 0,
+        subId = "",
+        comment = "",
+    )
+
+    @Test
+    fun `Trojan TLS TCP - URI starts with trojan scheme and contains password, TLS params`() {
+        val streamSettings = """
+        {
+          "network": "tcp",
+          "security": "tls",
+          "tcpSettings": {"header": {"type": "none"}},
+          "tlsSettings": {
+            "serverName": "trojan.example.com",
+            "alpn": ["h2", "http/1.1"],
+            "settings": {"fingerprint": "chrome"}
+          }
+        }
+        """.trimIndent()
+
+        val inbound = baseInbound.copy(
+            protocol = "trojan",
+            port = 8443,
+            streamSettings = streamSettings,
+        )
+        val result = ClientUri.build(trojanClient, inbound, "trojan.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val uri = (result as Result.Success).data
+
+        assertTrue(uri.startsWith("trojan://s3cr3t@trojan.example.com:8443"),
+            "URI must start with trojan://password@host:port")
+
+        val params = parseQueryParams(uri)
+        assertEquals("tcp", params["type"])
+        assertEquals("tls", params["security"])
+        assertEquals("trojan.example.com", params["sni"])
+        assertEquals("h2,http/1.1", params["alpn"])
+        assertEquals("chrome", params["fp"])
+
+        val fragment = URI(uri.replace(" ", "%20")).fragment
+        assertEquals("my-panel-grace", fragment)
+    }
+
+    @Test
+    fun `Trojan Reality TCP - includes flow param`() {
+        val streamSettings = """
+        {
+          "network": "tcp",
+          "security": "reality",
+          "tcpSettings": {"header": {"type": "none"}},
+          "realitySettings": {
+            "serverNames": ["reality.example.com"],
+            "shortIds": ["deadbeef"],
+            "settings": {"publicKey": "pubkey456", "fingerprint": "safari"}
+          }
+        }
+        """.trimIndent()
+
+        val client = trojanClient.copy(flow = "xtls-rprx-vision")
+        val inbound = baseInbound.copy(protocol = "trojan", streamSettings = streamSettings)
+        val result = ClientUri.build(client, inbound, "h.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val params = parseQueryParams((result as Result.Success).data)
+        assertEquals("reality", params["security"])
+        assertEquals("xtls-rprx-vision", params["flow"])
+        assertEquals("pubkey456", params["pbk"])
+    }
+
+    @Test
+    fun `Trojan WS TLS - no flow param (WS transport)`() {
+        val streamSettings = """
+        {
+          "network": "ws",
+          "security": "tls",
+          "wsSettings": {"path": "/ws", "host": "ws.example.com"},
+          "tlsSettings": {"serverName": "ws.example.com", "alpn": ["h2"], "settings": {}}
+        }
+        """.trimIndent()
+
+        val client = trojanClient.copy(flow = "xtls-rprx-vision")
+        val inbound = baseInbound.copy(protocol = "trojan", streamSettings = streamSettings)
+        val result = ClientUri.build(client, inbound, "ws.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val params = parseQueryParams((result as Result.Success).data)
+        assertEquals("ws", params["type"])
+        assertTrue(!params.containsKey("flow"), "flow must be absent for WS transport")
+    }
+
+    @Test
+    fun `Trojan no security - security=none in params`() {
+        val streamSettings = """{"network":"tcp","security":"none","tcpSettings":{"header":{"type":"none"}}}"""
+        val inbound = baseInbound.copy(protocol = "trojan", streamSettings = streamSettings)
+        val result = ClientUri.build(trojanClient, inbound, "host")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val params = parseQueryParams((result as Result.Success).data)
+        assertEquals("none", params["security"])
+    }
+
+    // ── HYSTERIA ──────────────────────────────────────────────────────────────
+
+    private val hysteriaClient = ClientConfig.Hysteria(
+        auth = "my-auth-string",
+        email = "henry",
+        enable = true,
+        totalGB = 0L,
+        expiryTime = 0L,
+        limitIp = 0,
+        subId = "",
+        comment = "",
+    )
+
+    private val hysteriaStreamSettings = """
+    {
+      "network": "hysteria",
+      "security": "tls",
+      "tlsSettings": {
+        "serverName": "hy2.example.com",
+        "alpn": ["h3"],
+        "settings": {"fingerprint": "chrome", "allowInsecure": false}
+      }
+    }
+    """.trimIndent()
+
+    @Test
+    fun `Hysteria2 - URI scheme is hysteria2 with correct auth, host, TLS params`() {
+        val inbound = baseInbound.copy(
+            protocol = "hysteria",
+            port = 8443,
+            settings = """{"version": 2, "clients": []}""",
+            streamSettings = hysteriaStreamSettings,
+        )
+        val result = ClientUri.build(hysteriaClient, inbound, "hy2.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val uri = (result as Result.Success).data
+
+        assertTrue(uri.startsWith("hysteria2://my-auth-string@hy2.example.com:8443"),
+            "URI must start with hysteria2://auth@host:port but was: $uri")
+
+        val params = parseQueryParams(uri)
+        assertEquals("tls", params["security"])
+        assertEquals("hy2.example.com", params["sni"])
+        assertEquals("h3", params["alpn"])
+        assertEquals("chrome", params["fp"])
+        assertTrue(!params.containsKey("insecure"), "insecure must be absent when allowInsecure=false")
+
+        val fragment = URI(uri.replace(" ", "%20")).fragment
+        assertEquals("my-panel-henry", fragment)
+    }
+
+    @Test
+    fun `Hysteria v1 - URI scheme is hysteria`() {
+        val inbound = baseInbound.copy(
+            protocol = "hysteria",
+            port = 4430,
+            settings = """{"version": 1, "clients": []}""",
+            streamSettings = hysteriaStreamSettings,
+        )
+        val result = ClientUri.build(hysteriaClient, inbound, "hy1.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val uri = (result as Result.Success).data
+        assertTrue(uri.startsWith("hysteria://"), "URI must use hysteria:// for v1 but was: $uri")
+    }
+
+    @Test
+    fun `Hysteria2 insecure=1 when allowInsecure=true`() {
+        val streamSettings = """
+        {
+          "network": "hysteria",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "hy.example.com",
+            "alpn": ["h3"],
+            "settings": {"fingerprint": "chrome", "allowInsecure": true}
+          }
+        }
+        """.trimIndent()
+
+        val inbound = baseInbound.copy(
+            protocol = "hysteria",
+            settings = """{"version": 2, "clients": []}""",
+            streamSettings = streamSettings,
+        )
+        val result = ClientUri.build(hysteriaClient, inbound, "hy.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val params = parseQueryParams((result as Result.Success).data)
+        assertEquals("1", params["insecure"])
+    }
+
+    @Test
+    fun `Hysteria2 salamander obfs - includes obfs and obfs-password`() {
+        val streamSettings = """
+        {
+          "network": "hysteria",
+          "security": "tls",
+          "tlsSettings": {"serverName": "hy.example.com", "alpn": ["h3"], "settings": {}},
+          "finalmask": {
+            "udp": [
+              {"type": "salamander", "settings": {"password": "obfspw123"}}
+            ]
+          }
+        }
+        """.trimIndent()
+
+        val inbound = baseInbound.copy(
+            protocol = "hysteria",
+            settings = """{"version": 2, "clients": []}""",
+            streamSettings = streamSettings,
+        )
+        val result = ClientUri.build(hysteriaClient, inbound, "hy.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        val params = parseQueryParams((result as Result.Success).data)
+        assertEquals("salamander", params["obfs"])
+        assertEquals("obfspw123", params["obfs-password"])
+    }
+
+    @Test
+    fun `Hysteria version absent in settings defaults to hysteria2 scheme`() {
+        val inbound = baseInbound.copy(
+            protocol = "hysteria",
+            settings = """{"clients": []}""",
+            streamSettings = hysteriaStreamSettings,
+        )
+        val result = ClientUri.build(hysteriaClient, inbound, "hy.example.com")
+
+        assertInstanceOf(Result.Success::class.java, result)
+        assertTrue((result as Result.Success).data.startsWith("hysteria2://"))
+    }
+
     // ── Unsupported transport ─────────────────────────────────────────────────
 
     @Test
