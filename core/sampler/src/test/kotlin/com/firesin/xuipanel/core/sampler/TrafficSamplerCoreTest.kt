@@ -73,7 +73,7 @@ class TrafficSamplerCoreTest {
         val outcome = core.runOnce()
 
         assertEquals(TrafficSamplerCore.Outcome.NoPanels, outcome)
-        coVerify(exactly = 0) { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { xuiClient.fetchInbounds(any(), any(), any(), any()) }
     }
 
     // ── All panels succeed ────────────────────────────────────────────────────
@@ -84,13 +84,13 @@ class TrafficSamplerCoreTest {
         coEvery { panelRepository.observeAll() } returns flowOf(panels)
 
         coEvery {
-            xuiClient.fetchInbounds(any(), any(), any(), any(), any())
+            xuiClient.fetchInbounds(any(), any(), any(), any())
         } returns Result.Success(listOf(inbound()))
 
         val outcome = core.runOnce()
 
         assertEquals(TrafficSamplerCore.Outcome.PartialOrFullSuccess, outcome)
-        coVerify(exactly = 2) { xuiClient.fetchInbounds(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 2) { xuiClient.fetchInbounds(any(), any(), any(), any()) }
         coVerify(exactly = 2) { historyRepository.commitSample(any(), any(), any()) }
     }
 
@@ -102,18 +102,18 @@ class TrafficSamplerCoreTest {
         coEvery { panelRepository.observeAll() } returns flowOf(panels)
 
         coEvery {
-            xuiClient.fetchInbounds(eq("p1"), any(), any(), any(), any())
+            xuiClient.fetchInbounds(eq("p1"), any(), any(), any())
         } returns Result.Failure(DomainError.InvalidCredentials)
 
         coEvery {
-            xuiClient.fetchInbounds(eq("p2"), any(), any(), any(), any())
+            xuiClient.fetchInbounds(eq("p2"), any(), any(), any())
         } returns Result.Success(listOf(inbound()))
 
         val outcome = core.runOnce()
 
         assertEquals(TrafficSamplerCore.Outcome.PartialOrFullSuccess, outcome)
         // p2 must still be attempted even after p1 failure
-        coVerify(exactly = 1) { xuiClient.fetchInbounds(eq("p2"), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { xuiClient.fetchInbounds(eq("p2"), any(), any(), any()) }
         coVerify(exactly = 1) { historyRepository.commitSample(eq("p2"), any(), any()) }
         coVerify(exactly = 0) { historyRepository.commitSample(eq("p1"), any(), any()) }
     }
@@ -126,7 +126,7 @@ class TrafficSamplerCoreTest {
         coEvery { panelRepository.observeAll() } returns flowOf(panels)
 
         coEvery {
-            xuiClient.fetchInbounds(any(), any(), any(), any(), any())
+            xuiClient.fetchInbounds(any(), any(), any(), any())
         } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
         val outcome = core.runOnce()
@@ -143,7 +143,7 @@ class TrafficSamplerCoreTest {
         coEvery { panelRepository.observeAll() } returns flowOf(listOf(singlePanel))
 
         coEvery {
-            xuiClient.fetchInbounds(eq("solo"), any(), any(), any(), any())
+            xuiClient.fetchInbounds(eq("solo"), any(), any(), any())
         } returns Result.Success(listOf(inbound()))
 
         core.runOnce()
@@ -164,7 +164,7 @@ class TrafficSamplerCoreTest {
         coEvery { panelRepository.observeAll() } returns flowOf(listOf(panel()))
 
         coEvery {
-            xuiClient.fetchInbounds(any(), any(), any(), any(), any())
+            xuiClient.fetchInbounds(any(), any(), any(), any())
         } returns Result.Success(listOf(inbound()))
 
         coEvery {

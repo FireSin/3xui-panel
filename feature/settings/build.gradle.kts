@@ -50,6 +50,12 @@ dependencies {
 
     implementation(libs.androidx.biometric)
 
+    implementation(project(":core:sampler"))
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.documentfile)
+
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit5.api)

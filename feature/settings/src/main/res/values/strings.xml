@@ -128,4 +128,17 @@
 
     <!-- SAF filename hint for DB download -->
     <string name="settings_backup_db_filename">x-ui.db</string>
+
+    <!-- Auto backup section -->
+    <string name="settings_autobackup_section_header">Автоматический бэкап</string>
+    <string name="settings_autobackup_schedule_off">Выкл</string>
+    <string name="settings_autobackup_schedule_daily">Ежедневно</string>
+    <string name="settings_autobackup_schedule_weekly">Еженедельно</string>
+    <string name="settings_autobackup_folder_label">Папка</string>
+    <string name="settings_autobackup_folder_not_set">Папка не выбрана</string>
+    <string name="settings_autobackup_folder_choose">Выбрать</string>
+    <string name="settings_autobackup_last_run_never">Не запускался</string>
+    <string name="settings_autobackup_last_run">Последний бэкап: %1$s</string>
+    <string name="settings_autobackup_trigger_now">Сделать сейчас</string>
+    <string name="settings_autobackup_no_folder">Выберите папку для бэкапов</string>
 </resources>

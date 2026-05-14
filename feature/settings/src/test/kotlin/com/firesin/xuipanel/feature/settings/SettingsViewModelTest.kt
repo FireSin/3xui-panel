@@ -8,7 +8,10 @@ import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.repository.AppSecurityRepository
+import com.firesin.xuipanel.core.data.repository.AutoBackupPreferences
+import com.firesin.xuipanel.core.data.repository.AutoBackupSchedule
 import com.firesin.xuipanel.core.data.repository.PanelRepository
+import com.firesin.xuipanel.core.sampler.BackupScheduler
 import com.firesin.xuipanel.core.xui.XuiClient
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -40,6 +43,8 @@ class SettingsViewModelTest {
     private val xuiClient: XuiClient = mockk(relaxed = true)
     private val context: Context = mockk()
     private val biometricManager: BiometricManager = mockk()
+    private val autoBackupPreferences: AutoBackupPreferences = mockk(relaxed = true)
+    private val backupScheduler: BackupScheduler = mockk(relaxed = true)
 
     private val unavailableHint = "Сначала настройте PIN"
     private val noActivePanelMsg = "Нет активной панели"
@@ -59,6 +64,11 @@ class SettingsViewModelTest {
         every { repository.installId } returns flowOf("test-install-id")
         // Default: no active panel
         every { panelRepository.observeActive() } returns flowOf(null)
+        // Auto backup defaults
+        every { autoBackupPreferences.targetUri } returns flowOf(null)
+        every { autoBackupPreferences.schedule } returns flowOf(AutoBackupSchedule.OFF)
+        every { autoBackupPreferences.lastRunAt } returns flowOf(null)
+        every { autoBackupPreferences.lastResult } returns flowOf(null)
     }
 
     @AfterEach
@@ -82,7 +92,7 @@ class SettingsViewModelTest {
     private fun viewModel(lockEnabled: Boolean = false): SettingsViewModel {
         every { repository.isLockEnabled } returns flowOf(lockEnabled)
         every { repository.isLockOnPauseEnabled } returns flowOf(false)
-        return SettingsViewModel(context, repository, panelRepository, xuiClient)
+        return SettingsViewModel(context, repository, panelRepository, xuiClient, autoBackupPreferences, backupScheduler)
     }
 
     // ---- Existing lock/theme tests ----
@@ -382,6 +392,72 @@ class SettingsViewModelTest {
             assertTrue(event is SettingsViewModel.BackupEvent.Error)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // ---- Auto backup state tests ----
+
+    @Test
+    fun `autoBackupSchedule initial value is OFF`() = runTest {
+        biometricAvailable()
+        val vm = viewModel()
+
+        vm.autoBackupSchedule.test {
+            assertEquals(AutoBackupSchedule.OFF, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setAutoBackupSchedule OFF when no folder - emits snackbar and keeps OFF`() = runTest {
+        biometricAvailable()
+        val noFolderMsg = "Выберите папку для бэкапов"
+        every { context.getString(R.string.settings_autobackup_no_folder) } returns noFolderMsg
+        every { autoBackupPreferences.targetUri } returns flowOf(null)
+        val vm = viewModel()
+
+        vm.snackbarMessage.test {
+            vm.setAutoBackupSchedule(AutoBackupSchedule.DAILY)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(noFolderMsg, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        // Schedule must NOT be persisted
+        coVerify(exactly = 0) { autoBackupPreferences.setSchedule(any()) }
+    }
+
+    @Test
+    fun `setAutoBackupSchedule DAILY with folder set - persists and schedules`() = runTest {
+        biometricAvailable()
+        val uri = mockk<android.net.Uri>(relaxed = true)
+        every { autoBackupPreferences.targetUri } returns flowOf(uri)
+        mockkStatic(androidx.work.WorkManager::class)
+        val wm = mockk<androidx.work.WorkManager>(relaxed = true)
+        every { androidx.work.WorkManager.getInstance(context) } returns wm
+
+        val vm = viewModel()
+
+        vm.setAutoBackupSchedule(AutoBackupSchedule.DAILY)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { autoBackupPreferences.setSchedule(AutoBackupSchedule.DAILY) }
+        coVerify(exactly = 1) { backupScheduler.apply(wm, AutoBackupSchedule.DAILY) }
+    }
+
+    @Test
+    fun `setAutoBackupSchedule OFF does not check folder`() = runTest {
+        biometricAvailable()
+        every { autoBackupPreferences.targetUri } returns flowOf(null)
+        mockkStatic(androidx.work.WorkManager::class)
+        val wm = mockk<androidx.work.WorkManager>(relaxed = true)
+        every { androidx.work.WorkManager.getInstance(context) } returns wm
+
+        val vm = viewModel()
+
+        vm.setAutoBackupSchedule(AutoBackupSchedule.OFF)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { autoBackupPreferences.setSchedule(AutoBackupSchedule.OFF) }
+        coVerify(exactly = 1) { backupScheduler.apply(wm, AutoBackupSchedule.OFF) }
     }
 
     // ---- Helpers ----

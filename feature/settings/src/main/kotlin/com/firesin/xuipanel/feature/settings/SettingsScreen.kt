@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.settings
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,10 +24,12 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +61,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.firesin.xuipanel.core.data.repository.AutoBackupSchedule
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.ThemeMode
@@ -78,6 +85,11 @@ fun SettingsScreen(
     val isActionLoading by viewModel.isActionLoading.collectAsStateWithLifecycle()
     val xrayVersion by viewModel.xrayVersion.collectAsStateWithLifecycle()
     val panelUpdateInfo by viewModel.panelUpdateInfo.collectAsStateWithLifecycle()
+    val autoBackupSchedule by viewModel.autoBackupSchedule.collectAsStateWithLifecycle()
+    val autoBackupFolderName by viewModel.autoBackupFolderName.collectAsStateWithLifecycle()
+    val autoBackupLastRunAt by viewModel.autoBackupLastRunAt.collectAsStateWithLifecycle()
+    val autoBackupLastResult by viewModel.autoBackupLastResult.collectAsStateWithLifecycle()
+    val autoBackupTargetUri by viewModel.autoBackupTargetUri.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var configJsonDialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -101,6 +113,19 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) viewModel.importDb(uri)
+    }
+
+    // SAF launcher: user picks folder for auto-backup
+    val openTreeLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            viewModel.onAutoBackupFolderPicked(uri)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -196,6 +221,19 @@ fun SettingsScreen(
                     )
                 },
                 onViewConfig = { viewModel.loadConfigJson() },
+            )
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            AutoBackupSection(
+                schedule = autoBackupSchedule,
+                folderName = autoBackupFolderName,
+                hasFolderSelected = autoBackupTargetUri != null,
+                lastRunAt = autoBackupLastRunAt,
+                lastResult = autoBackupLastResult,
+                onScheduleChange = viewModel::setAutoBackupSchedule,
+                onChooseFolder = { openTreeLauncher.launch(null) },
+                onTriggerNow = viewModel::triggerAutoBackupNow,
             )
             Spacer(Modifier.height(8.dp))
             AboutCard(installId = installId)
@@ -1005,5 +1043,136 @@ private fun BackupSectionPreview() {
         onImportDb = {},
         onUpdateGeofile = {},
         onViewConfig = {},
+    )
+}
+
+// ---- Auto backup section ----
+
+private val DISPLAY_TIMESTAMP_FMT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+
+@Composable
+private fun AutoBackupSection(
+    schedule: AutoBackupSchedule,
+    folderName: String?,
+    hasFolderSelected: Boolean,
+    lastRunAt: Long?,
+    lastResult: String?,
+    onScheduleChange: (AutoBackupSchedule) -> Unit,
+    onChooseFolder: () -> Unit,
+    onTriggerNow: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.settings_autobackup_section_header),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+
+        // Schedule picker
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                SegmentedSchedulePicker(
+                    schedule = schedule,
+                    onSelect = onScheduleChange,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Folder row
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_autobackup_folder_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = folderName ?: stringResource(R.string.settings_autobackup_folder_not_set),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                FilledTonalButton(onClick = onChooseFolder) {
+                    Text(stringResource(R.string.settings_autobackup_folder_choose))
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // Last run status
+        val lastRunText = if (lastRunAt != null && lastResult != null) {
+            val dateStr = DISPLAY_TIMESTAMP_FMT.format(
+                Instant.ofEpochMilli(lastRunAt).atZone(ZoneId.systemDefault()),
+            )
+            stringResource(R.string.settings_autobackup_last_run, "$dateStr — $lastResult")
+        } else {
+            stringResource(R.string.settings_autobackup_last_run_never)
+        }
+        Text(
+            text = lastRunText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        // Trigger now button
+        Button(
+            onClick = onTriggerNow,
+            enabled = hasFolderSelected,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.settings_autobackup_trigger_now))
+        }
+    }
+}
+
+@Composable
+private fun SegmentedSchedulePicker(
+    schedule: AutoBackupSchedule,
+    onSelect: (AutoBackupSchedule) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SegmentedPicker(
+        options = AutoBackupSchedule.entries,
+        selected = schedule,
+        onSelect = onSelect,
+        label = { s ->
+            when (s) {
+                AutoBackupSchedule.OFF -> stringResource(R.string.settings_autobackup_schedule_off)
+                AutoBackupSchedule.DAILY -> stringResource(R.string.settings_autobackup_schedule_daily)
+                AutoBackupSchedule.WEEKLY -> stringResource(R.string.settings_autobackup_schedule_weekly)
+            }
+        },
+        modifier = modifier,
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AutoBackupSectionPreview() {
+    AutoBackupSection(
+        schedule = AutoBackupSchedule.DAILY,
+        folderName = "Backups",
+        hasFolderSelected = true,
+        lastRunAt = System.currentTimeMillis() - 3_600_000L,
+        lastResult = "Success(3)",
+        onScheduleChange = {},
+        onChooseFolder = {},
+        onTriggerNow = {},
     )
 }

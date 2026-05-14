@@ -6,15 +6,20 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.AppSecurityRepository
+import com.firesin.xuipanel.core.data.repository.AutoBackupPreferences
+import com.firesin.xuipanel.core.data.repository.AutoBackupSchedule
 import com.firesin.xuipanel.core.data.repository.PanelRepository
+import com.firesin.xuipanel.core.sampler.BackupScheduler
 import com.firesin.xuipanel.core.xui.XuiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,6 +49,8 @@ class SettingsViewModel @Inject constructor(
     private val appSecurityRepository: AppSecurityRepository,
     private val panelRepository: PanelRepository,
     private val xuiClient: XuiClient,
+    private val autoBackupPreferences: AutoBackupPreferences,
+    private val backupScheduler: BackupScheduler,
 ) : ViewModel() {
 
     private val biometricManager = BiometricManager.from(context)
@@ -364,6 +371,65 @@ class SettingsViewModel @Inject constructor(
                 _isActionLoading.value = false
             }
         }
+    }
+
+    // ---- Auto backup ----
+
+    /** Currently selected SAF folder URI; null = not chosen. */
+    val autoBackupTargetUri: StateFlow<Uri?> = autoBackupPreferences.targetUri
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Resolved folder display name, or null when URI not set or invalid. */
+    val autoBackupFolderName: StateFlow<String?> = autoBackupPreferences.targetUri
+        .map { uri -> uri?.let { DocumentFile.fromTreeUri(context, it)?.name } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val autoBackupSchedule: StateFlow<AutoBackupSchedule> = autoBackupPreferences.schedule
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AutoBackupSchedule.OFF)
+
+    val autoBackupLastRunAt: StateFlow<Long?> = autoBackupPreferences.lastRunAt
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val autoBackupLastResult: StateFlow<String?> = autoBackupPreferences.lastResult
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /**
+     * Called after the user picks a SAF folder in [OpenDocumentTree].
+     * Persists the URI (after taking persistable permission in the UI),
+     * then re-applies the schedule.
+     */
+    fun onAutoBackupFolderPicked(uri: Uri) {
+        viewModelScope.launch {
+            autoBackupPreferences.setTargetUri(uri)
+            // Re-apply to reschedule if schedule was already set (it was OFF before folder was set)
+            val schedule = autoBackupPreferences.schedule.first()
+            if (schedule != AutoBackupSchedule.OFF) {
+                backupScheduler.apply(WorkManager.getInstance(context), schedule)
+            }
+        }
+    }
+
+    /**
+     * Changes the backup schedule.
+     * If [schedule] != OFF and no folder is set → shows snackbar and keeps OFF.
+     */
+    fun setAutoBackupSchedule(schedule: AutoBackupSchedule) {
+        viewModelScope.launch {
+            if (schedule != AutoBackupSchedule.OFF) {
+                val uri = autoBackupPreferences.targetUri.first()
+                if (uri == null) {
+                    _snackbarMessage.tryEmit(context.getString(R.string.settings_autobackup_no_folder))
+                    return@launch
+                }
+            }
+            autoBackupPreferences.setSchedule(schedule)
+            backupScheduler.apply(WorkManager.getInstance(context), schedule)
+        }
+    }
+
+    /** Enqueues an immediate one-shot backup (does not affect periodic schedule). */
+    fun triggerAutoBackupNow() {
+        backupScheduler.triggerNow(WorkManager.getInstance(context))
     }
 
     private companion object {
