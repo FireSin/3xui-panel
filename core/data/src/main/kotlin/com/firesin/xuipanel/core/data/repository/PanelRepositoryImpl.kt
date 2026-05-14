@@ -153,6 +153,7 @@ class PanelRepositoryImpl @Inject constructor(
             tlsMode = TlsMode.PINNED,
             pinnedSpkiSha256 = null,
             apiToken = draft.apiToken,
+            twoFactorCode = draft.twoFactorCode,
         )
         val probeResult = xuiClient.probeLogin(probeCredentials)
         if (probeResult is Result.Failure) return probeResult

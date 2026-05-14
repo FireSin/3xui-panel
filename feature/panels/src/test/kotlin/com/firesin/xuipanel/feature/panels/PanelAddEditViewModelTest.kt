@@ -362,6 +362,140 @@ class PanelAddEditViewModelTest {
         }
     }
 
+    // ── rePin + 2FA tests ─────────────────────────────────────────────────────
+
+    @Test
+    fun `requestRePin on 2FA panel - first call shows OTP field`() = runTest {
+        val panel = fakePanel("repin-id")
+        coEvery { repository.get("repin-id") } returns panel
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(true)
+
+        val vm = createViewModel(panelId = "repin-id")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.uiState.test {
+            skipItems(1) // loaded Editing
+
+            vm.requestRePin()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val saving = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saving::class.java, saving)
+
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assert(editing.form.twoFactorRequired) { "Expected twoFactorRequired=true after requestRePin on 2FA panel" }
+            assertNull(editing.submitError)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { repository.rePin(any(), any()) }
+    }
+
+    @Test
+    fun `requestRePin on 2FA panel - second call with OTP completes repin`() = runTest {
+        val panel = fakePanel("repin-id2")
+        coEvery { repository.get("repin-id2") } returns panel
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(true)
+        coEvery { repository.rePin(any(), any()) } returns Result.Success(panel)
+
+        val vm = createViewModel(panelId = "repin-id2")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // First call: probeTwoFactor returns true → twoFactorRequired set
+        vm.uiState.test {
+            skipItems(1)
+            vm.requestRePin()
+            testDispatcher.scheduler.advanceUntilIdle()
+            skipItems(1) // Saving
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assert(editing.form.twoFactorRequired)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // User enters OTP
+        vm.updateTwoFactorCode("654321")
+
+        // Second call: twoFactorRequired already true → goes straight to rePin
+        vm.uiState.test {
+            skipItems(1)
+            vm.requestRePin()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val saving = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saving::class.java, saving)
+
+            val saved = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saved::class.java, saved)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            repository.rePin(
+                "repin-id2",
+                match { draft: PanelDraft -> draft.twoFactorCode == "654321" },
+            )
+        }
+        // probeTwoFactor called only once (first requestRePin)
+        coVerify(exactly = 1) { repository.probeTwoFactor(any()) }
+    }
+
+    @Test
+    fun `requestRePin on non-2FA panel - repin called without OTP probe`() = runTest {
+        val panel = fakePanel("repin-id3")
+        coEvery { repository.get("repin-id3") } returns panel
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(false)
+        coEvery { repository.rePin(any(), any()) } returns Result.Success(panel)
+
+        val vm = createViewModel(panelId = "repin-id3")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.uiState.test {
+            skipItems(1)
+            vm.requestRePin()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val saving = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saving::class.java, saving)
+
+            val saved = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saved::class.java, saved)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { repository.rePin("repin-id3", match { it.twoFactorCode == null }) }
+    }
+
+    @Test
+    fun `requestRePin probe failure shows error without calling rePin`() = runTest {
+        val panel = fakePanel("repin-id4")
+        coEvery { repository.get("repin-id4") } returns panel
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Failure(
+            DomainError.Network(Exception("timeout"))
+        )
+
+        val vm = createViewModel(panelId = "repin-id4")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.uiState.test {
+            skipItems(1)
+            vm.requestRePin()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            skipItems(1) // Saving
+
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assertNotNull(editing.submitError)
+            assertInstanceOf(DomainError.Network::class.java, editing.submitError)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { repository.rePin(any(), any()) }
+    }
+
     private fun fakePanel(id: String) = Panel(
         id = id,
         name = "Panel $id",

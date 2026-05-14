@@ -33,15 +33,20 @@ class GeoSourcesViewModel @Inject constructor(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage
 
+    private val _aliases = MutableStateFlow<List<String>>(emptyList())
+    val aliases: StateFlow<List<String>> = _aliases
+
     init {
         repository.observeActive()
             .distinctUntilChanged { a, b -> a?.id == b?.id }
             .onEach { panel ->
                 if (panel == null) {
                     _uiState.value = GeoSourcesUiState.NoActivePanel
+                    _aliases.value = emptyList()
                 } else {
                     _uiState.value = GeoSourcesUiState.Loading(panel)
                     loadList(panel)
+                    loadAliases(panel)
                 }
             }
             .launchIn(viewModelScope)
@@ -165,6 +170,19 @@ class GeoSourcesViewModel @Inject constructor(
             is Result.Success -> GeoSourcesUiState.Content(panel, result.data)
             is Result.Failure -> GeoSourcesUiState.Error(panel, result.error)
         }
+    }
+
+    private suspend fun loadAliases(panel: Panel) {
+        val result = xuiClient.fetchCustomGeoAliases(
+            panelId = panel.id,
+            baseUrl = panel.baseUrl,
+            auth = panel.toAuth(),
+            tls = panel.toPanelTls(),
+        )
+        if (result is Result.Success) {
+            _aliases.value = result.data
+        }
+        // On failure — silently keep empty list; aliases section stays hidden
     }
 
     private fun activePanel(): Panel? =

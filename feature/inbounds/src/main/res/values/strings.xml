@@ -149,6 +149,27 @@
     <string name="add_inbound_expiry_pick">Выбрать</string>
     <string name="add_inbound_expiry_clear">Сбросить</string>
 
+    <!-- CopyClientsDialog -->
+    <string name="inbounds_action_copy_clients">Копировать клиентов из…</string>
+    <string name="inbounds_copy_clients_title">Копировать клиентов</string>
+    <string name="inbounds_copy_clients_source_label">Источник</string>
+    <string name="inbounds_copy_clients_select_clients">Клиенты (не выбрано = все)</string>
+    <string name="inbounds_copy_clients_flow_label">Flow override</string>
+    <string name="inbounds_copy_clients_flow_placeholder">Оставить как есть</string>
+    <string name="inbounds_copy_clients_confirm">Копировать</string>
+    <string name="inbounds_copy_clients_cancel">Отмена</string>
+    <string name="inbounds_copy_clients_success">Клиенты скопированы</string>
+    <string name="inbounds_copy_clients_no_source">Нет подходящих инбаундов для копирования</string>
+
+    <!-- ImportInboundsDialog -->
+    <string name="inbounds_action_import_json">Импорт JSON</string>
+    <string name="inbounds_import_title">Импорт инбаундов</string>
+    <string name="inbounds_import_json_label">JSON инбаунда</string>
+    <string name="inbounds_import_json_placeholder">Вставьте JSON, экспортированный из 3x-ui</string>
+    <string name="inbounds_import_confirm">Импортировать</string>
+    <string name="inbounds_import_cancel">Отмена</string>
+    <string name="inbounds_import_success">Инбаунды успешно импортированы</string>
+
     <!-- Error messages -->
     <string name="inbounds_error_invalid_credentials">Неверный логин или пароль</string>
     <string name="inbounds_error_tls">Ошибка TLS: %s</string>

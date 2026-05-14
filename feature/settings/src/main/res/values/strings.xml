@@ -43,6 +43,10 @@
     <string name="geo_sources_dialog_save">Сохранить</string>
     <string name="geo_sources_dialog_cancel">Отмена</string>
 
+    <string name="geo_sources_aliases_header">Доступные алиасы</string>
+    <string name="geo_sources_aliases_show_all">Все (%1$d)</string>
+    <string name="geo_sources_aliases_copied">Скопировано</string>
+
     <!-- System actions section -->
     <string name="settings_system_actions_header">Системные действия</string>
 

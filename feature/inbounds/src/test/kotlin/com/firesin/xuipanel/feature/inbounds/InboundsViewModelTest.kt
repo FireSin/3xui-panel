@@ -347,6 +347,110 @@ class InboundsViewModelTest {
         assertNull(vm.errorMessage.value)
     }
 
+    @Test
+    fun `copyClients success calls xuiClient then refetches`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(fakeInbound()))
+        coEvery {
+            xuiClient.copyClients(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns Result.Success(Unit)
+
+        val vm = InboundsViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.copyClients(targetInboundId = 1, sourceInboundId = 2, clientEmails = emptyList(), flow = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            xuiClient.copyClients(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                targetInboundId = 1,
+                sourceInboundId = 2,
+                clientEmails = emptyList(),
+                flow = null,
+            )
+        }
+        // fetchInbounds called once on init + once after copyClients
+        coVerify(atLeast = 2) { xuiClient.fetchInbounds(panel.id, any(), any(), any()) }
+    }
+
+    @Test
+    fun `copyClients failure surfaces in errorMessage`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(fakeInbound()))
+        coEvery {
+            xuiClient.copyClients(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
+
+        val vm = InboundsViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.errorMessage.test {
+            skipItems(1)
+            vm.copyClients(targetInboundId = 1, sourceInboundId = 2, clientEmails = emptyList(), flow = null)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertInstanceOf(DomainError.Network::class.java, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `importInbounds success calls xuiClient then refetches`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(fakeInbound()))
+        coEvery {
+            xuiClient.importInbounds(any(), any(), any(), any(), any())
+        } returns Result.Success(Unit)
+
+        val vm = InboundsViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.importInbounds("""{"remark":"test","port":443}""")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            xuiClient.importInbounds(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                jsonText = """{"remark":"test","port":443}""",
+            )
+        }
+        coVerify(atLeast = 2) { xuiClient.fetchInbounds(panel.id, any(), any(), any()) }
+    }
+
+    @Test
+    fun `importInbounds failure surfaces in errorMessage`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(fakeInbound()))
+        coEvery {
+            xuiClient.importInbounds(any(), any(), any(), any(), any())
+        } returns Result.Failure(DomainError.PanelResponse(0, "invalid json"))
+
+        val vm = InboundsViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.errorMessage.test {
+            skipItems(1)
+            vm.importInbounds("bad json")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertInstanceOf(DomainError.PanelResponse::class.java, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun fakePanel() = Panel(
         id = "p1",
         name = "Test Panel",

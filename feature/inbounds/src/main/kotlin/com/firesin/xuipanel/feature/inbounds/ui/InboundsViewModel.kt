@@ -99,6 +99,48 @@ class InboundsViewModel @Inject constructor(
         }
     }
 
+    fun copyClients(
+        targetInboundId: Int,
+        sourceInboundId: Int,
+        clientEmails: List<String>,
+        flow: String?,
+    ) {
+        val panel = activePanel() ?: return
+        viewModelScope.launch {
+            val result = xuiClient.copyClients(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                targetInboundId = targetInboundId,
+                sourceInboundId = sourceInboundId,
+                clientEmails = clientEmails,
+                flow = flow,
+            )
+            when (result) {
+                is Result.Success -> fetchInbounds(panel)
+                is Result.Failure -> _errorMessage.value = result.error
+            }
+        }
+    }
+
+    fun importInbounds(jsonText: String) {
+        val panel = activePanel() ?: return
+        viewModelScope.launch {
+            val result = xuiClient.importInbounds(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                jsonText = jsonText,
+            )
+            when (result) {
+                is Result.Success -> fetchInbounds(panel)
+                is Result.Failure -> _errorMessage.value = result.error
+            }
+        }
+    }
+
     fun errorShown() {
         _errorMessage.value = null
     }

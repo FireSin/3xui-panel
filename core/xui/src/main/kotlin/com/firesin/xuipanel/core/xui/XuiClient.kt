@@ -9,8 +9,10 @@ import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
+import com.firesin.xuipanel.core.xui.dto.CustomGeoAliasesResponseDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
+import com.firesin.xuipanel.core.xui.dto.CopyClientsRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientTrafficDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoResourceDto
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
@@ -30,6 +32,7 @@ import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.X25519KeyPairDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogEntryDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
@@ -782,6 +785,83 @@ class XuiClient @Inject constructor(
         )
     }
 
+    /**
+     * Copies clients from [sourceInboundId] into [targetInboundId].
+     * [clientEmails] empty = copy all; [flow] null/blank = preserve original flow.
+     * api.txt lines 164–172: POST /panel/api/inbounds/:id/copyClients.
+     */
+    suspend fun copyClients(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        targetInboundId: Int,
+        sourceInboundId: Int,
+        clientEmails: List<String>,
+        flow: String?,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        val body = CopyClientsRequestDto(
+            targetInboundId = targetInboundId,
+            sourceInboundId = sourceInboundId,
+            clientEmails = clientEmails,
+            flow = flow.orEmpty(),
+        )
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.copyClients(targetInboundId, body)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Bulk-imports inbounds from a raw JSON string (as exported by the 3x-ui panel).
+     * The body is sent as a form-encoded field "data" — api.txt line 220–225.
+     *
+     * [jsonText] is passed verbatim; no local validation is performed.
+     * Assumption: api.txt says «body uses form encoding with a single "data" field»;
+     * the value is the JSON-encoded inbound payload. Zapped as-is.
+     */
+    suspend fun importInbounds(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        jsonText: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        val requestBody = jsonText.toRequestBody("text/plain".toMediaTypeOrNull())
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.importInbounds(requestBody)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                // Long-running import; panel may restart Xray — apply EOF tolerance
+                val isEofOrIo = generateSequence(cause as Throwable?) { it.cause }
+                    .any { it is EOFException || it is IOException }
+                if (isEofOrIo) {
+                    return@fold Result.Success(Unit)
+                }
+                cause.toDomainError(panelId)
+            },
+        )
+    }
+
     suspend fun resetClientTraffic(
         panelId: String,
         baseUrl: String,
@@ -926,6 +1006,28 @@ class XuiClient @Inject constructor(
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
                 api.listCustomGeo()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun fetchCustomGeoAliases(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<List<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getCustomGeoAliases()
             }
         }.fold(
             onSuccess = { response ->

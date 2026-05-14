@@ -39,6 +39,9 @@ class GeoSourcesViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        // Default stub: aliases endpoint returns empty list unless overridden per-test
+        coEvery { xuiClient.fetchCustomGeoAliases(any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
     }
 
     @AfterEach
@@ -135,6 +138,53 @@ class GeoSourcesViewModelTest {
         val vm = GeoSourcesViewModel(repository, xuiClient)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        assertInstanceOf(GeoSourcesUiState.NoActivePanel::class.java, vm.uiState.value)
+    }
+
+    @Test
+    fun `aliases_populated_on_success`() = runTest {
+        val panel = fakePanel()
+        val aliasList = listOf("geoip:cn", "geoip:private", "geosite:google")
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchCustomGeoList(any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
+        coEvery { xuiClient.fetchCustomGeoAliases(any(), any(), any(), any()) } returns
+            Result.Success(aliasList)
+
+        val vm = GeoSourcesViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(aliasList, vm.aliases.value)
+    }
+
+    @Test
+    fun `aliases_stay_empty_on_failure`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchCustomGeoList(any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
+        coEvery { xuiClient.fetchCustomGeoAliases(any(), any(), any(), any()) } returns
+            Result.Failure(DomainError.Network(RuntimeException("timeout")))
+
+        val vm = GeoSourcesViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.aliases.value.isEmpty())
+    }
+
+    @Test
+    fun `aliases_cleared_when_panel_becomes_null`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel, null)
+        coEvery { xuiClient.fetchCustomGeoList(any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
+        coEvery { xuiClient.fetchCustomGeoAliases(any(), any(), any(), any()) } returns
+            Result.Success(listOf("geoip:cn"))
+
+        val vm = GeoSourcesViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.aliases.value.isEmpty())
         assertInstanceOf(GeoSourcesUiState.NoActivePanel::class.java, vm.uiState.value)
     }
 

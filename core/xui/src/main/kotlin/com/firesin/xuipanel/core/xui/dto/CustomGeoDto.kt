@@ -29,3 +29,10 @@ data class AddCustomGeoRequestDto(
     @SerialName("alias") val alias: String,
     @SerialName("url") val url: String,
 )
+
+@Serializable
+data class CustomGeoAliasesResponseDto(
+    @SerialName("success") val success: Boolean,
+    @SerialName("obj") val obj: List<String>? = null,
+    @SerialName("msg") val msg: String? = null,
+)

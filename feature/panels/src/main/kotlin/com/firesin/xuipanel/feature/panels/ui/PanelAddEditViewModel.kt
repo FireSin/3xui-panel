@@ -220,24 +220,63 @@ class PanelAddEditViewModel @Inject constructor(
     /**
      * Called when the user confirms re-pinning from the mismatch dialog.
      * Uses [PanelRepository.rePin] which probes with a null pin, capturing the new SPKI.
+     *
+     * For Login-mode panels: probes 2FA first if [PanelFormState.twoFactorRequired] is not yet
+     * set. If the panel requires TOTP, returns to Editing with [PanelFormState.twoFactorRequired]
+     * = true so the OTP field appears; the mismatch dialog is preserved so the user can confirm
+     * again after entering the code.
      */
     fun confirmRePin() {
         val editing = _uiState.value as? PanelAddEditUiState.Editing ?: return
         if (editing.pinMismatchDialog?.verifiedByUser != true) return
         val id = panelId ?: return // re-pin only valid in edit mode
 
-        _uiState.value = editing.copy(pinMismatchDialog = null)
         val form = editing.form
+        val savedMismatchDialog = editing.pinMismatchDialog
         _uiState.value = PanelAddEditUiState.Saving(form)
 
         viewModelScope.launch {
+            val isTokenAuth = form.authMode == AuthMode.TOKEN
+
+            if (!isTokenAuth && !form.twoFactorRequired) {
+                val probeDraft = PanelDraft(
+                    name = form.name.trim(),
+                    baseUrl = form.baseUrl.trim(),
+                    login = form.login.trim(),
+                    password = form.password,
+                    tlsMode = TlsMode.PINNED,
+                )
+                when (val probeResult = repository.probeTwoFactor(probeDraft)) {
+                    is Result.Failure -> {
+                        _uiState.value = PanelAddEditUiState.Editing(
+                            form = form,
+                            isEditMode = true,
+                            submitError = probeResult.error,
+                        )
+                        return@launch
+                    }
+                    is Result.Success -> {
+                        if (probeResult.data) {
+                            // Panel has 2FA — ask user for OTP and wait for re-confirm.
+                            _uiState.value = PanelAddEditUiState.Editing(
+                                form = form.copy(twoFactorRequired = true),
+                                isEditMode = true,
+                                pinMismatchDialog = savedMismatchDialog,
+                            )
+                            return@launch
+                        }
+                    }
+                }
+            }
+
             val draft = PanelDraft(
                 name = form.name.trim(),
                 baseUrl = form.baseUrl.trim(),
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = TlsMode.PINNED,
-                apiToken = if (form.authMode == AuthMode.TOKEN) form.apiToken.trim() else null,
+                apiToken = if (isTokenAuth) form.apiToken.trim() else null,
+                twoFactorCode = if (!isTokenAuth && form.twoFactorRequired) form.twoFactorCode.trim() else null,
             )
             when (val result = repository.rePin(id, draft)) {
                 is Result.Success -> _uiState.value = PanelAddEditUiState.Saved
@@ -252,7 +291,13 @@ class PanelAddEditViewModel @Inject constructor(
         }
     }
 
-    /** Manually initiate re-pin (from TLS section "Re-pin" row, edit mode only). */
+    /**
+     * Manually initiate re-pin (from TLS section "Re-pin" row, edit mode only).
+     *
+     * Mirrors [confirmRePin]'s 2FA probe-first logic: if the panel requires TOTP and the user
+     * has not entered a code yet, returns to Editing with [PanelFormState.twoFactorRequired] =
+     * true. On the next "Re-pin" press the code is forwarded to [PanelRepository.rePin].
+     */
     fun requestRePin() {
         val id = panelId ?: return
         val editing = _uiState.value as? PanelAddEditUiState.Editing ?: return
@@ -260,13 +305,46 @@ class PanelAddEditViewModel @Inject constructor(
         _uiState.value = PanelAddEditUiState.Saving(form)
 
         viewModelScope.launch {
+            val isTokenAuth = form.authMode == AuthMode.TOKEN
+
+            if (!isTokenAuth && !form.twoFactorRequired) {
+                val probeDraft = PanelDraft(
+                    name = form.name.trim(),
+                    baseUrl = form.baseUrl.trim(),
+                    login = form.login.trim(),
+                    password = form.password,
+                    tlsMode = TlsMode.PINNED,
+                )
+                when (val probeResult = repository.probeTwoFactor(probeDraft)) {
+                    is Result.Failure -> {
+                        _uiState.value = PanelAddEditUiState.Editing(
+                            form = form,
+                            isEditMode = true,
+                            submitError = probeResult.error,
+                        )
+                        return@launch
+                    }
+                    is Result.Success -> {
+                        if (probeResult.data) {
+                            // Panel has 2FA — ask user for OTP and wait for re-request.
+                            _uiState.value = PanelAddEditUiState.Editing(
+                                form = form.copy(twoFactorRequired = true),
+                                isEditMode = true,
+                            )
+                            return@launch
+                        }
+                    }
+                }
+            }
+
             val draft = PanelDraft(
                 name = form.name.trim(),
                 baseUrl = form.baseUrl.trim(),
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = TlsMode.PINNED,
-                apiToken = if (form.authMode == AuthMode.TOKEN) form.apiToken.trim() else null,
+                apiToken = if (isTokenAuth) form.apiToken.trim() else null,
+                twoFactorCode = if (!isTokenAuth && form.twoFactorRequired) form.twoFactorCode.trim() else null,
             )
             when (val result = repository.rePin(id, draft)) {
                 is Result.Success -> _uiState.value = PanelAddEditUiState.Saved

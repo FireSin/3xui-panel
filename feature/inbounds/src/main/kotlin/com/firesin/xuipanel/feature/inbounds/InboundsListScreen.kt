@@ -25,26 +25,34 @@ import androidx.compose.material.icons.filled.MoreVert
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import com.firesin.xuipanel.core.designsystem.component.IosToggle
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -92,6 +100,17 @@ fun InboundsListScreen(
     var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteName by remember { mutableStateOf("") }
 
+    // copyClients dialog: target inbound id and full inbounds list for source selection
+    var copyClientsTargetId by remember { mutableStateOf<Int?>(null) }
+
+    // importInbounds dialog
+    var showImportDialog by remember { mutableStateOf(false) }
+
+    // snackbar messages for success operations
+    val copySuccessMsg = stringResource(R.string.inbounds_copy_clients_success)
+    val importSuccessMsg = stringResource(R.string.inbounds_import_success)
+    var pendingSuccessMsg by remember { mutableStateOf<String?>(null) }
+
     // Refresh inbounds when the screen comes back into focus (add/delete via child screens).
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
@@ -104,6 +123,15 @@ fun InboundsListScreen(
             viewModel.errorShown()
         }
     }
+
+    LaunchedEffect(pendingSuccessMsg) {
+        pendingSuccessMsg?.let {
+            snackbarHostState.showSnackbar(it)
+            pendingSuccessMsg = null
+        }
+    }
+
+    val allInbounds = (uiState as? InboundsUiState.Content)?.inbounds.orEmpty()
 
     InboundsContent(
         uiState = uiState,
@@ -120,6 +148,8 @@ fun InboundsListScreen(
             pendingDeleteId = id
             pendingDeleteName = name
         },
+        onCopyClientsClick = { targetId -> copyClientsTargetId = targetId },
+        onImportClick = { showImportDialog = true },
     )
 
     pendingDeleteId?.let { id ->
@@ -130,6 +160,35 @@ fun InboundsListScreen(
                 pendingDeleteId = null
             },
             onDismiss = { pendingDeleteId = null },
+        )
+    }
+
+    copyClientsTargetId?.let { targetId ->
+        val otherInbounds = allInbounds.filter { it.id != targetId && it.protocol.protocolHasClients() }
+        CopyClientsDialog(
+            otherInbounds = otherInbounds,
+            onConfirm = { sourceId, emails, flow ->
+                viewModel.copyClients(
+                    targetInboundId = targetId,
+                    sourceInboundId = sourceId,
+                    clientEmails = emails,
+                    flow = flow,
+                )
+                copyClientsTargetId = null
+                pendingSuccessMsg = copySuccessMsg
+            },
+            onDismiss = { copyClientsTargetId = null },
+        )
+    }
+
+    if (showImportDialog) {
+        ImportInboundsDialog(
+            onConfirm = { jsonText ->
+                viewModel.importInbounds(jsonText)
+                showImportDialog = false
+                pendingSuccessMsg = importSuccessMsg
+            },
+            onDismiss = { showImportDialog = false },
         )
     }
 }
@@ -148,6 +207,8 @@ private fun InboundsContent(
     onAddInboundClick: () -> Unit = {},
     onEditInbound: (inboundId: Int) -> Unit = {},
     onDeleteInbound: (inboundId: Int, name: String) -> Unit = { _, _ -> },
+    onCopyClientsClick: (targetInboundId: Int) -> Unit = {},
+    onImportClick: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -169,6 +230,28 @@ private fun InboundsContent(
                     }
                 },
                 actions = {
+                    var topBarMenuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { topBarMenuExpanded = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.inbounds_cd_more),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = topBarMenuExpanded,
+                            onDismissRequest = { topBarMenuExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.inbounds_action_import_json)) },
+                                onClick = {
+                                    topBarMenuExpanded = false
+                                    onImportClick()
+                                },
+                            )
+                        }
+                    }
                     IconButton(onClick = onAddInboundClick) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -255,6 +338,7 @@ private fun InboundsContent(
                                     onDeleteInbound = {
                                         onDeleteInbound(inbound.id, inbound.displayName())
                                     },
+                                    onCopyClients = { onCopyClientsClick(inbound.id) },
                                 )
                             }
                             item { Spacer(Modifier.height(16.dp)) }
@@ -273,6 +357,7 @@ private fun InboundCard(
     onToggleEnabled: (Boolean) -> Unit = {},
     onEditInbound: () -> Unit = {},
     onDeleteInbound: () -> Unit = {},
+    onCopyClients: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isReadOnly = !inbound.protocol.isEditableProtocol()
@@ -339,6 +424,15 @@ private fun InboundCard(
                                 onClick = {
                                     overflowExpanded = false
                                     onEditInbound()
+                                },
+                            )
+                        }
+                        if (inbound.protocol.protocolHasClients()) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.inbounds_action_copy_clients)) },
+                                onClick = {
+                                    overflowExpanded = false
+                                    onCopyClients()
                                 },
                             )
                         }
@@ -472,6 +566,179 @@ private fun StatColumn(
     }
 }
 
+
+/**
+ * Dialog for copying clients from one inbound into another.
+ *
+ * [otherInbounds] — список инбаундов-источников (уже отфильтрован: без текущего, только с клиентами).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CopyClientsDialog(
+    otherInbounds: List<InboundDto>,
+    onConfirm: (sourceId: Int, clientEmails: List<String>, flow: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (otherInbounds.isEmpty()) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.inbounds_copy_clients_title)) },
+            text = { Text(stringResource(R.string.inbounds_copy_clients_no_source)) },
+            confirmButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.inbounds_copy_clients_cancel))
+                }
+            },
+        )
+        return
+    }
+
+    var sourceExpanded by remember { mutableStateOf(false) }
+    var selectedSource by remember { mutableStateOf(otherInbounds.first()) }
+    val clientChecks = remember(selectedSource) {
+        mutableStateMapOf<String, Boolean>().also { map ->
+            selectedSource.clientStats?.forEach { stat -> map[stat.email] = false }
+        }
+    }
+    var flowText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.inbounds_copy_clients_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Source inbound dropdown
+                ExposedDropdownMenuBox(
+                    expanded = sourceExpanded,
+                    onExpandedChange = { sourceExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = selectedSource.displayName(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.inbounds_copy_clients_source_label)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sourceExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = sourceExpanded,
+                        onDismissRequest = { sourceExpanded = false },
+                    ) {
+                        otherInbounds.forEach { ib ->
+                            DropdownMenuItem(
+                                text = { Text(ib.displayName()) },
+                                onClick = {
+                                    selectedSource = ib
+                                    sourceExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+
+                // Client selection checkboxes (if source has clientStats)
+                val clients = selectedSource.clientStats
+                if (!clients.isNullOrEmpty()) {
+                    Text(
+                        text = stringResource(R.string.inbounds_copy_clients_select_clients),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    clients.forEach { stat ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Checkbox(
+                                checked = clientChecks[stat.email] == true,
+                                onCheckedChange = { checked -> clientChecks[stat.email] = checked },
+                            )
+                            Text(
+                                text = stat.email,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+                                modifier = Modifier.padding(start = 4.dp),
+                            )
+                        }
+                    }
+                }
+
+                // Flow override
+                OutlinedTextField(
+                    value = flowText,
+                    onValueChange = { flowText = it },
+                    label = { Text(stringResource(R.string.inbounds_copy_clients_flow_label)) },
+                    placeholder = { Text(stringResource(R.string.inbounds_copy_clients_flow_placeholder)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val selectedEmails = clientChecks.entries
+                        .filter { it.value }
+                        .map { it.key }
+                    onConfirm(
+                        selectedSource.id,
+                        selectedEmails, // empty = all
+                        flowText.takeIf { it.isNotBlank() },
+                    )
+                },
+            ) {
+                Text(stringResource(R.string.inbounds_copy_clients_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.inbounds_copy_clients_cancel))
+            }
+        },
+    )
+}
+
+/**
+ * Dialog for bulk-importing inbounds via raw JSON text.
+ */
+@Composable
+private fun ImportInboundsDialog(
+    onConfirm: (jsonText: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var jsonText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.inbounds_import_title)) },
+        text = {
+            OutlinedTextField(
+                value = jsonText,
+                onValueChange = { jsonText = it },
+                label = { Text(stringResource(R.string.inbounds_import_json_label)) },
+                placeholder = { Text(stringResource(R.string.inbounds_import_json_placeholder)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                maxLines = 20,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(jsonText) },
+                enabled = jsonText.isNotBlank(),
+            ) {
+                Text(stringResource(R.string.inbounds_import_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.inbounds_import_cancel))
+            }
+        },
+    )
+}
 
 private fun InboundDto.displayName(): String =
     remark.ifBlank { "${protocol}-${port}" }

@@ -1,8 +1,11 @@
 package com.firesin.xuipanel.feature.settings.geo
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -41,10 +46,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.xui.dto.CustomGeoResourceDto
 import com.firesin.xuipanel.feature.settings.R
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -67,8 +76,11 @@ fun GeoSourcesScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val aliases by viewModel.aliases.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editItem by remember { mutableStateOf<CustomGeoResourceDto?>(null) }
@@ -77,6 +89,7 @@ fun GeoSourcesScreen(
     val deletedMsg = stringResource(R.string.geo_sources_snackbar_deleted)
     val downloadedMsg = stringResource(R.string.geo_sources_snackbar_downloaded)
     val updateAllDoneMsg = stringResource(R.string.geo_sources_snackbar_update_all_done)
+    val copiedMsg = stringResource(R.string.geo_sources_aliases_copied)
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { msg ->
@@ -163,29 +176,46 @@ fun GeoSourcesScreen(
                         .fillMaxSize()
                         .padding(innerPadding),
                 ) {
-                    if (state.items.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = stringResource(R.string.geo_sources_empty_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = stringResource(R.string.geo_sources_empty_description),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (aliases.isNotEmpty()) {
+                            item(key = "aliases_section") {
+                                AliasesSection(
+                                    aliases = aliases,
+                                    onAliasClick = { alias ->
+                                        clipboardManager.setText(AnnotatedString(alias))
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(copiedMsg)
+                                        }
+                                    },
                                 )
                             }
                         }
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+                        if (state.items.isEmpty()) {
+                            item(key = "empty_placeholder") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 32.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = stringResource(R.string.geo_sources_empty_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.geo_sources_empty_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
                             items(state.items, key = { it.id }) { item ->
                                 GeoSourceCard(
                                     item = item,
@@ -368,6 +398,70 @@ private fun GeoTypeChip(type: String, modifier: Modifier = Modifier) {
             },
         ),
         modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AliasesSection(
+    aliases: List<String>,
+    onAliasClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val showAllLabel = stringResource(R.string.geo_sources_aliases_show_all, aliases.size)
+
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.geo_sources_aliases_header),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(
+                        text = showAllLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                    )
+                }
+            }
+            AnimatedVisibility(visible = expanded) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    aliases.forEach { alias ->
+                        SuggestionChip(
+                            onClick = { onAliasClick(alias) },
+                            label = {
+                                Text(
+                                    text = alias,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AliasesSectionPreview() {
+    AliasesSection(
+        aliases = listOf("geoip:cn", "geoip:private", "geosite:google", "geosite:github", "geoip:myips"),
+        onAliasClick = {},
     )
 }
 

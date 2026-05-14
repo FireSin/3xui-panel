@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
+import com.firesin.xuipanel.core.xui.dto.CopyClientsRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientTrafficResponseDto
 import com.firesin.xuipanel.core.xui.dto.TwoFactorResponseDto
 import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
@@ -9,6 +10,7 @@ import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.ConfigJsonResponseDto
+import com.firesin.xuipanel.core.xui.dto.CustomGeoAliasesResponseDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoListResponseDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
@@ -30,6 +32,7 @@ import com.firesin.xuipanel.core.xui.dto.TestNodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogsResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayVersionResponseDto
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -159,6 +162,26 @@ interface XuiApi {
     @POST("panel/api/inbounds/addClient")
     suspend fun addClient(@Body body: ClientSettingsBodyDto): Response<LoginResponseDto>
 
+    /**
+     * Copy selected clients from [body.sourceInboundId] into the inbound identified by [id].
+     * [body.targetInboundId] must equal [id] (server validates both).
+     * api.txt lines 164–172.
+     */
+    @POST("panel/api/inbounds/{id}/copyClients")
+    suspend fun copyClients(
+        @Path("id") id: Int,
+        @Body body: CopyClientsRequestDto,
+    ): Response<LoginResponseDto>
+
+    /**
+     * Bulk-import inbounds from a form-encoded JSON blob.
+     * api.txt line 220–225: POST /panel/api/inbounds/import, body is form field "data".
+     * Assumption (api.txt is sparse): field name is "data", value is JSON-encoded inbound payload.
+     */
+    @POST("panel/api/inbounds/import")
+    @Multipart
+    suspend fun importInbounds(@Part("data") data: RequestBody): Response<LoginResponseDto>
+
     /** Update a single client. JSON body — see [ClientSettingsBodyDto]. */
     @POST("panel/api/inbounds/updateClient/{clientKey}")
     suspend fun updateClient(
@@ -206,6 +229,9 @@ interface XuiApi {
 
     @GET("panel/api/custom-geo/list")
     suspend fun listCustomGeo(): Response<CustomGeoListResponseDto>
+
+    @GET("panel/api/custom-geo/aliases")
+    suspend fun getCustomGeoAliases(): Response<CustomGeoAliasesResponseDto>
 
     @POST("panel/api/custom-geo/add")
     suspend fun addCustomGeo(@Body body: AddCustomGeoRequestDto): Response<LoginResponseDto>
