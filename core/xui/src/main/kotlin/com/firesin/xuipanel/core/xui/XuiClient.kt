@@ -1204,6 +1204,131 @@ class XuiClient @Inject constructor(
         )
     }
 
+    // ---- Power-user system actions ----
+
+    /**
+     * Resets upload + download counters on every inbound. Destructive — all accounting
+     * history is lost. The endpoint takes no body and no path params.
+     */
+    suspend fun resetAllTraffics(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.resetAllTraffics()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Tells the panel to self-update to the latest version and restart.
+     *
+     * The server-restart typically causes OkHttp to surface an [EOFException] or
+     * [IOException] before the JSON response body arrives — this mirrors the pattern
+     * used by [setInboundEnabled]. We treat both as success because the update
+     * was already triggered server-side.
+     */
+    suspend fun updatePanel(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.updatePanel()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                val isEofOrIo = generateSequence(cause as Throwable?) { it.cause }
+                    .any { it is EOFException || it is IOException }
+                if (isEofOrIo) {
+                    // Panel restarted before writing the response — treat as success.
+                    return@fold Result.Success(Unit)
+                }
+                cause.toDomainError(panelId)
+            },
+        )
+    }
+
+    /**
+     * Downloads and installs the specified Xray [version] tag (e.g. "v25.5.16" or "latest").
+     * Long-running — applies the same EOF/IO tolerance as [updatePanel].
+     */
+    suspend fun installXray(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        version: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.installXray(version)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                val isEofOrIo = generateSequence(cause as Throwable?) { it.cause }
+                    .any { it is EOFException || it is IOException }
+                if (isEofOrIo) {
+                    return@fold Result.Success(Unit)
+                }
+                cause.toDomainError(panelId)
+            },
+        )
+    }
+
+    /**
+     * Sends a fresh DB backup to every Telegram admin recipient configured on the panel.
+     */
+    suspend fun backupToTgBot(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.backupToTgBot()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
     /** Triggers a live probe of an existing node, updating its cached status server-side. */
     suspend fun probeNode(
         panelId: String,

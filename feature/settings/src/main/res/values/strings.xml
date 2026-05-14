@@ -42,4 +42,44 @@
     <string name="geo_sources_dialog_title_edit">Изменить источник</string>
     <string name="geo_sources_dialog_save">Сохранить</string>
     <string name="geo_sources_dialog_cancel">Отмена</string>
+
+    <!-- System actions section -->
+    <string name="settings_system_actions_header">Системные действия</string>
+
+    <string name="settings_reset_traffics_title">Сбросить весь трафик</string>
+    <string name="settings_reset_traffics_subtitle">Обнулить счётчики всех инбаундов</string>
+    <string name="settings_reset_traffics_dialog_title">Сбросить трафик?</string>
+    <string name="settings_reset_traffics_dialog_msg">Счётчики трафика всех инбаундов будут обнулены. История учёта будет потеряна безвозвратно.</string>
+    <string name="settings_reset_traffics_confirm">Сбросить</string>
+    <string name="settings_reset_traffics_success">Трафик сброшен</string>
+    <string name="settings_reset_traffics_error">Ошибка сброса трафика</string>
+
+    <string name="settings_update_panel_title">Обновить панель</string>
+    <string name="settings_update_panel_subtitle">Обновить до последней версии 3x-ui</string>
+    <string name="settings_update_panel_dialog_title">Обновить панель?</string>
+    <string name="settings_update_panel_dialog_msg">Панель обновится до последней версии и автоматически перезапустится. Это может занять несколько минут.</string>
+    <string name="settings_update_panel_confirm">Обновить</string>
+    <string name="settings_update_panel_success">Обновление запущено — панель перезапускается</string>
+    <string name="settings_update_panel_error">Ошибка обновления панели</string>
+
+    <string name="settings_install_xray_title">Установить Xray</string>
+    <string name="settings_install_xray_subtitle">Задать конкретную версию бинарного файла</string>
+    <string name="settings_install_xray_dialog_title">Установить версию Xray</string>
+    <string name="settings_install_xray_dialog_msg">Укажите тег версии (например, v25.5.16) или «latest».</string>
+    <string name="settings_install_xray_version_hint">v25.5.16</string>
+    <string name="settings_install_xray_confirm">Установить</string>
+    <string name="settings_install_xray_success">Установка запущена</string>
+    <string name="settings_install_xray_error">Ошибка установки Xray</string>
+    <string name="settings_install_xray_version_empty">Версия не указана</string>
+
+    <string name="settings_backup_tg_title">Бэкап в Telegram</string>
+    <string name="settings_backup_tg_subtitle">Отправить бэкап БД в Telegram-бот</string>
+    <string name="settings_backup_tg_dialog_title">Отправить бэкап?</string>
+    <string name="settings_backup_tg_dialog_msg">Бэкап базы данных будет отправлен в Telegram-бот.</string>
+    <string name="settings_backup_tg_confirm">Отправить</string>
+    <string name="settings_backup_tg_success">Бэкап отправлен</string>
+    <string name="settings_backup_tg_error">Ошибка отправки бэкапа</string>
+
+    <string name="settings_system_no_active_panel">Нет активной панели</string>
+    <string name="settings_system_cancel">Отмена</string>
 </resources>

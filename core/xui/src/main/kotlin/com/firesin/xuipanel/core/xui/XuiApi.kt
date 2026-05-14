@@ -234,4 +234,34 @@ interface XuiApi {
         @Path("metric") metric: String,
         @Path("bucket") bucketSecs: Int,
     ): Response<ServerHistoryResponseDto>
+
+    // ---- Power-user system actions ----
+
+    /**
+     * Reset upload + download counters on every inbound. Destructive — all traffic
+     * accounting history is lost. No request body, no path params (api.txt line 202).
+     */
+    @POST("panel/api/inbounds/resetAllTraffics")
+    suspend fun resetAllTraffics(): Response<LoginResponseDto>
+
+    /**
+     * Self-update the panel to the latest version. The server restarts on success;
+     * the response connection may be dropped before the body is read (api.txt line 363).
+     */
+    @POST("panel/api/server/updatePanel")
+    suspend fun updatePanel(): Response<LoginResponseDto>
+
+    /**
+     * Download and install the specified Xray [version] tag (e.g. "v25.5.16" or "latest").
+     * Long-running — the server may restart Xray before writing the response (api.txt line 356).
+     */
+    @POST("panel/api/server/installXray/{version}")
+    suspend fun installXray(@Path("version") version: String): Response<LoginResponseDto>
+
+    /**
+     * Send a DB backup to every Telegram admin recipient configured on the panel.
+     * GET with no body, no params (api.txt line 526).
+     */
+    @GET("panel/api/backuptotgbot")
+    suspend fun backupToTgBot(): Response<LoginResponseDto>
 }
