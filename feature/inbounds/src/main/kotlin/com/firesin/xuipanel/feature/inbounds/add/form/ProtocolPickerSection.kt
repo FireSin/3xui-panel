@@ -22,6 +22,7 @@ import com.firesin.xuipanel.feature.inbounds.add.ui.ProtocolType
 fun ProtocolPickerSection(
     selected: ProtocolType,
     onSelected: (ProtocolType) -> Unit,
+    enabled: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -34,21 +35,25 @@ fun ProtocolPickerSection(
                 onValueChange = {},
                 readOnly = true,
                 topDivider = false,
-                trailing = {
-                    androidx.compose.material3.TextButton(onClick = { expanded = true }) {
-                        Text(stringResource(R.string.add_inbound_change))
+                trailing = if (enabled) {
+                    {
+                        androidx.compose.material3.TextButton(onClick = { expanded = true }) {
+                            Text(stringResource(R.string.add_inbound_change))
+                        }
                     }
-                },
+                } else null,
             )
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                ProtocolType.entries.forEach { proto ->
-                    DropdownMenuItem(
-                        text = { Text(proto.label) },
-                        onClick = {
-                            onSelected(proto)
-                            expanded = false
-                        },
-                    )
+            if (enabled) {
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    ProtocolType.entries.forEach { proto ->
+                        DropdownMenuItem(
+                            text = { Text(proto.label) },
+                            onClick = {
+                                onSelected(proto)
+                                expanded = false
+                            },
+                        )
+                    }
                 }
             }
         }

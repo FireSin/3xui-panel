@@ -227,7 +227,9 @@ data class AddInboundFormState(
     val sniffingDestOverride: Set<String> = setOf("http", "tls", "quic"),
     val sniffingMetadataOnly: Boolean = false,
     val sniffingRouteOnly: Boolean = false,
-)
+) {
+    companion object
+}
 
 private const val SHORT_ID_LEN = 8
 fun randomShortId(): String {
@@ -350,6 +352,203 @@ private fun buildProtocolSettings(s: AddInboundFormState): ProtocolSettings = wh
         network = s.dokodemoNetwork,
         followRedirect = s.dokodemoFollowRedirect,
     )
+}
+
+fun AddInboundFormState.Companion.fromInboundDraft(draft: InboundDraft): AddInboundFormState {
+    val protocolType = when (draft.protocol.protocolName) {
+        "vless" -> ProtocolType.VLESS
+        "vmess" -> ProtocolType.VMESS
+        "trojan" -> ProtocolType.TROJAN
+        "shadowsocks" -> ProtocolType.SHADOWSOCKS
+        "wireguard" -> ProtocolType.WIREGUARD
+        "mixed" -> ProtocolType.SOCKS
+        "http" -> ProtocolType.HTTP
+        "tunnel" -> ProtocolType.DOKODEMO
+        else -> ProtocolType.VLESS // hysteria2 — edit unsupported, fallback
+    }
+
+    val base = AddInboundFormState(
+        remark = draft.remark,
+        port = draft.port.toString(),
+        listen = draft.listen,
+        enable = draft.enable,
+        expiryTime = draft.expiryTime,
+        totalGb = if (draft.total <= 0L) "0" else (draft.total / BYTES_PER_GB).toString(),
+        selectedProtocol = protocolType,
+        // sniffing
+        sniffingEnabled = draft.sniffing.enabled,
+        sniffingDestOverride = draft.sniffing.destOverride.toSet(),
+        sniffingMetadataOnly = draft.sniffing.metadataOnly,
+        sniffingRouteOnly = draft.sniffing.routeOnly,
+    )
+
+    val withProtocol = applyProtocol(base, draft.protocol)
+    return applyStream(withProtocol, draft.stream)
+}
+
+private fun applyProtocol(s: AddInboundFormState, p: com.firesin.xuipanel.core.xui.draft.ProtocolSettings): AddInboundFormState = when (p) {
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Vless -> s.copy(
+        vlessClients = p.clients.map { c ->
+            VlessClientState(
+                id = c.id,
+                email = c.email,
+                flow = c.flow,
+                totalGb = if (c.totalGB <= 0L) "0" else (c.totalGB / BYTES_PER_GB).toString(),
+                expiryTime = c.expiryTime,
+                enable = c.enable,
+                subId = c.subId,
+            )
+        }.ifEmpty { listOf(VlessClientState()) },
+        vlessDecryption = p.decryption,
+        vlessFallbacks = p.fallbacks,
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Vmess -> s.copy(
+        vmessClients = p.clients.map { c ->
+            VmessClientState(
+                id = c.id,
+                email = c.email,
+                totalGb = if (c.totalGB <= 0L) "0" else (c.totalGB / BYTES_PER_GB).toString(),
+                expiryTime = c.expiryTime,
+                enable = c.enable,
+                subId = c.subId,
+            )
+        }.ifEmpty { listOf(VmessClientState()) },
+        vmessDisableInsecure = p.disableInsecureEncryption,
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Trojan -> s.copy(
+        trojanClients = p.clients.map { c ->
+            TrojanClientState(
+                password = c.password,
+                email = c.email,
+                flow = c.flow,
+                totalGb = if (c.totalGB <= 0L) "0" else (c.totalGB / BYTES_PER_GB).toString(),
+                expiryTime = c.expiryTime,
+                enable = c.enable,
+                subId = c.subId,
+            )
+        }.ifEmpty { listOf(TrojanClientState()) },
+        trojanFallbacks = p.fallbacks,
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Shadowsocks -> s.copy(
+        ssMethod = p.method,
+        ssPassword = p.password,
+        ssNetwork = p.network,
+        ssClients = p.clients.map { c ->
+            ShadowsocksClientState(
+                password = c.password,
+                email = c.email,
+                totalGb = if (c.totalGB <= 0L) "0" else (c.totalGB / BYTES_PER_GB).toString(),
+                expiryTime = c.expiryTime,
+                enable = c.enable,
+                subId = c.subId,
+            )
+        },
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Socks -> s.copy(
+        socksAuth = p.auth,
+        socksAccounts = p.accounts.map { UserPassState(user = it.user, pass = it.pass) },
+        socksUdp = p.udp,
+        socksIp = p.ip,
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Http -> s.copy(
+        httpAccounts = p.accounts.map { UserPassState(user = it.user, pass = it.pass) },
+        httpAllowTransparent = p.allowTransparent,
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Wireguard -> s.copy(
+        wgSecretKey = p.secretKey,
+        wgMtu = p.mtu.toString(),
+        wgNoKernelTun = p.noKernelTun,
+        wgPeers = p.peers.map { peer ->
+            WgPeerState(
+                publicKey = peer.publicKey,
+                allowedIPs = peer.allowedIPs.joinToString(", "),
+                presharedKey = peer.presharedKey,
+                keepAlive = peer.keepAlive.toString(),
+            )
+        }.ifEmpty { listOf(WgPeerState()) },
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Dokodemo -> s.copy(
+        dokodemoAddress = p.address,
+        dokodemoTargetPort = p.targetPort.toString(),
+        dokodemoNetwork = p.network,
+        dokodemoFollowRedirect = p.followRedirect,
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Hysteria2 -> s // unsupported — no-op
+}
+
+private fun applyStream(s: AddInboundFormState, stream: com.firesin.xuipanel.core.xui.draft.StreamConfig?): AddInboundFormState {
+    if (stream == null) return s
+
+    val withTransport = when (val t = stream.transport) {
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.Tcp -> s.copy(
+            selectedNetwork = NetworkType.TCP,
+            tcpHeaderType = when (t.header) {
+                is TcpHeader.Http -> "http"
+                TcpHeader.None -> "none"
+            },
+            tcpHttpPath = (t.header as? TcpHeader.Http)?.path ?: "/",
+            tcpHttpHost = (t.header as? TcpHeader.Http)?.host ?: "",
+        )
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.Ws -> s.copy(
+            selectedNetwork = NetworkType.WS,
+            wsPath = t.path,
+            wsHost = t.host,
+        )
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.Grpc -> s.copy(
+            selectedNetwork = NetworkType.GRPC,
+            grpcServiceName = t.serviceName,
+            grpcAuthority = t.authority,
+            grpcMultiMode = t.multiMode,
+        )
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.HttpUpgrade -> s.copy(
+            selectedNetwork = NetworkType.HTTPUPGRADE,
+            httpUpgradePath = t.path,
+            httpUpgradeHost = t.host,
+        )
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.XHttp -> s.copy(
+            selectedNetwork = NetworkType.XHTTP,
+            xhttpPath = t.path,
+            xhttpHost = t.host,
+            xhttpMode = t.mode,
+        )
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.Kcp -> s.copy(
+            selectedNetwork = NetworkType.KCP,
+            kcpMtu = t.mtu.toString(),
+            kcpTti = t.tti.toString(),
+            kcpUplinkCapacity = t.uplinkCapacity.toString(),
+            kcpDownlinkCapacity = t.downlinkCapacity.toString(),
+            kcpCongestion = t.congestion,
+            kcpReadBufferSize = t.readBufferSize.toString(),
+            kcpWriteBufferSize = t.writeBufferSize.toString(),
+            kcpSeed = t.seed,
+            kcpHeaderType = t.header.type,
+        )
+    }
+
+    return when (val sec = stream.security) {
+        com.firesin.xuipanel.core.xui.draft.SecurityConfig.None -> withTransport.copy(
+            selectedSecurity = SecurityType.NONE,
+        )
+        is com.firesin.xuipanel.core.xui.draft.SecurityConfig.Tls -> withTransport.copy(
+            selectedSecurity = SecurityType.TLS,
+            tlsServerName = sec.serverName,
+            tlsMinVersion = sec.minVersion,
+            tlsMaxVersion = sec.maxVersion,
+            tlsAlpn = sec.alpn.toSet(),
+            tlsCertificateFile = sec.certificates.firstOrNull()?.certificateFile ?: "",
+            tlsKeyFile = sec.certificates.firstOrNull()?.keyFile ?: "",
+            tlsFingerprint = sec.fingerprint,
+        )
+        is com.firesin.xuipanel.core.xui.draft.SecurityConfig.Reality -> withTransport.copy(
+            selectedSecurity = SecurityType.REALITY,
+            realityDest = sec.dest,
+            realityServerNames = sec.serverNames.joinToString("\n"),
+            realityPrivateKey = sec.privateKey,
+            realityPublicKey = sec.publicKey,
+            realityShortIds = sec.shortIds.joinToString("\n"),
+            realityFingerprint = sec.fingerprint,
+        )
+    }
 }
 
 private val STREAM_PROTOCOLS = setOf(

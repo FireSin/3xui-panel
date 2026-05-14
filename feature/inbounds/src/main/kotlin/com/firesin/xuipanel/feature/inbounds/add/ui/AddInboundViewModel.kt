@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.inbounds.add.ui
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
@@ -9,6 +10,7 @@ import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
+import com.firesin.xuipanel.core.xui.draft.InboundDecoder
 import com.firesin.xuipanel.core.xui.draft.InboundEncoder
 import com.firesin.xuipanel.core.xui.util.randomUuid
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +27,7 @@ import javax.inject.Inject
 class AddInboundViewModel @Inject constructor(
     private val repository: PanelRepository,
     private val xuiClient: XuiClient,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AddInboundUiState>(AddInboundUiState.Editing())
@@ -37,6 +40,56 @@ class AddInboundViewModel @Inject constructor(
             .distinctUntilChanged { a, b -> a?.id == b?.id }
             .onEach { panel -> activePanel = panel }
             .launchIn(viewModelScope)
+
+        val inboundId = savedStateHandle.get<Int>("inboundId")
+        if (inboundId != null) {
+            loadForEdit(inboundId)
+        }
+    }
+
+    private fun loadForEdit(inboundId: Int) {
+        _uiState.value = AddInboundUiState.Editing(isLoading = true, editingInboundId = inboundId)
+        viewModelScope.launch {
+            // Wait for active panel (may arrive slightly after init)
+            val panel = repository.observeActive().first { it != null } ?: run {
+                _uiState.value = AddInboundUiState.Editing(
+                    errorMessage = "Нет активной панели",
+                    editingInboundId = inboundId,
+                )
+                return@launch
+            }
+            when (val result = xuiClient.fetchInbounds(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+            )) {
+                is Result.Success -> {
+                    val dto = result.data.find { it.id == inboundId }
+                    if (dto == null) {
+                        _uiState.value = AddInboundUiState.Editing(
+                            errorMessage = "Инбаунд #$inboundId не найден",
+                            editingInboundId = inboundId,
+                        )
+                    } else {
+                        val draft = InboundDecoder.decode(dto)
+                        val formState = AddInboundFormState.fromInboundDraft(draft)
+                        _uiState.value = AddInboundUiState.Editing(
+                            formState = formState,
+                            isLoading = false,
+                            editingInboundId = inboundId,
+                        )
+                    }
+                }
+                is Result.Failure -> {
+                    _uiState.value = AddInboundUiState.Editing(
+                        errorMessage = result.error.toUserMessage(),
+                        isLoading = false,
+                        editingInboundId = inboundId,
+                    )
+                }
+            }
+        }
     }
 
     // ---- form field updaters ----
@@ -254,13 +307,26 @@ class AddInboundViewModel @Inject constructor(
         viewModelScope.launch {
             val draft = editing.formState.toInboundDraft()
             val dto = InboundEncoder.encode(draft)
-            when (val result = xuiClient.addInbound(
-                panelId = panel.id,
-                baseUrl = panel.baseUrl,
-                auth = panel.toAuth(),
-                tls = panel.toPanelTls(),
-                body = dto,
-            )) {
+            val editId = editing.editingInboundId
+            val result = if (editId != null) {
+                xuiClient.updateInbound(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    auth = panel.toAuth(),
+                    tls = panel.toPanelTls(),
+                    id = editId,
+                    body = dto,
+                )
+            } else {
+                xuiClient.addInbound(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    auth = panel.toAuth(),
+                    tls = panel.toPanelTls(),
+                    body = dto,
+                )
+            }
+            when (result) {
                 is Result.Success -> _uiState.value = AddInboundUiState.Saved
                 is Result.Failure -> {
                     _uiState.value = ((_uiState.value as? AddInboundUiState.Editing) ?: editing).copy(

@@ -21,10 +21,13 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import com.firesin.xuipanel.core.designsystem.component.IosToggle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -78,6 +81,7 @@ fun InboundsListScreen(
     onManageClients: (inboundId: Int) -> Unit = {},
     onMenuClick: () -> Unit = {},
     onNavigateAddInbound: () -> Unit = {},
+    onNavigateEditInbound: (inboundId: Int) -> Unit = {},
     viewModel: InboundsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -111,6 +115,11 @@ fun InboundsListScreen(
         onToggleEnabled = viewModel::toggle,
         onMenuClick = onMenuClick,
         onAddInboundClick = onNavigateAddInbound,
+        onEditInbound = onNavigateEditInbound,
+        onDeleteInbound = { id, name ->
+            pendingDeleteId = id
+            pendingDeleteName = name
+        },
     )
 
     pendingDeleteId?.let { id ->
@@ -137,6 +146,8 @@ private fun InboundsContent(
     onToggleEnabled: (inboundId: Int, enable: Boolean) -> Unit = { _, _ -> },
     onMenuClick: () -> Unit = {},
     onAddInboundClick: () -> Unit = {},
+    onEditInbound: (inboundId: Int) -> Unit = {},
+    onDeleteInbound: (inboundId: Int, name: String) -> Unit = { _, _ -> },
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -240,6 +251,10 @@ private fun InboundsContent(
                                     onToggleEnabled = { newValue ->
                                         onToggleEnabled(inbound.id, newValue)
                                     },
+                                    onEditInbound = { onEditInbound(inbound.id) },
+                                    onDeleteInbound = {
+                                        onDeleteInbound(inbound.id, inbound.displayName())
+                                    },
                                 )
                             }
                             item { Spacer(Modifier.height(16.dp)) }
@@ -256,10 +271,14 @@ private fun InboundCard(
     inbound: InboundDto,
     onManageClients: () -> Unit = {},
     onToggleEnabled: (Boolean) -> Unit = {},
+    onEditInbound: () -> Unit = {},
+    onDeleteInbound: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isReadOnly = !inbound.protocol.isEditableProtocol()
     val hasClients = inbound.protocol.protocolHasClients()
+    val canEdit = !inbound.protocol.isHysteria()
+    var overflowExpanded by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier
@@ -276,7 +295,7 @@ private fun InboundCard(
         ),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Top row: pill + port + spacer + toggle (for editable protocols)
+            // Top row: pill + port + spacer + toggle (for editable protocols) + overflow menu
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -297,6 +316,40 @@ private fun InboundCard(
                         checked = inbound.enable,
                         onCheckedChange = onToggleEnabled,
                     )
+                }
+                Box {
+                    IconButton(
+                        onClick = { overflowExpanded = true },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.inbounds_cd_more),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = overflowExpanded,
+                        onDismissRequest = { overflowExpanded = false },
+                    ) {
+                        if (canEdit) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.inbounds_action_edit)) },
+                                onClick = {
+                                    overflowExpanded = false
+                                    onEditInbound()
+                                },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.inbounds_action_delete)) },
+                            onClick = {
+                                overflowExpanded = false
+                                onDeleteInbound()
+                            },
+                        )
+                    }
                 }
             }
 
@@ -431,6 +484,9 @@ private fun InboundDto.trafficLabel(): String {
 
 private fun String.isEditableProtocol(): Boolean =
     lowercase() in setOf("vmess", "vless", "shadowsocks")
+
+private fun String.isHysteria(): Boolean =
+    lowercase() in setOf("hysteria", "hysteria2")
 
 /**
  * Protocols whose `settings.clients` is a multi-user list — those are the only inbounds where

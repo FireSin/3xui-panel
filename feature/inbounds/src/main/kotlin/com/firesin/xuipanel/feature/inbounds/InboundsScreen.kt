@@ -12,11 +12,13 @@ fun InboundsScreen(
     onManageClients: (inboundId: Int) -> Unit = {},
     onMenuClick: () -> Unit = {},
     onNavigateAddInbound: () -> Unit = {},
+    onNavigateEditInbound: (inboundId: Int) -> Unit = {},
 ) {
     InboundsListScreen(
         onAddPanel = onAddPanel,
         onManageClients = onManageClients,
         onMenuClick = onMenuClick,
         onNavigateAddInbound = onNavigateAddInbound,
+        onNavigateEditInbound = onNavigateEditInbound,
     )
 }

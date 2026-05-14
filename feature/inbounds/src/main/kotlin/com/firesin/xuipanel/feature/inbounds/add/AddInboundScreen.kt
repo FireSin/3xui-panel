@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.feature.inbounds.add
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +84,8 @@ fun AddInboundScreen(
     AddInboundContent(
         formState = editing?.formState ?: AddInboundFormState(),
         isSaving = editing?.isSaving ?: false,
+        isLoading = editing?.isLoading ?: false,
+        isEditing = editing?.editingInboundId != null,
         snackbarHostState = snackbarHostState,
         onClose = onClose,
         onSave = viewModel::save,
@@ -194,6 +198,8 @@ fun AddInboundScreen(
 private fun AddInboundContent(
     formState: AddInboundFormState,
     isSaving: Boolean,
+    isLoading: Boolean = false,
+    isEditing: Boolean = false,
     snackbarHostState: SnackbarHostState,
     onClose: () -> Unit,
     onSave: () -> Unit,
@@ -293,7 +299,13 @@ private fun AddInboundContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.add_inbound_title)) },
+                title = {
+                    Text(
+                        stringResource(
+                            if (isEditing) R.string.edit_inbound_title else R.string.add_inbound_title
+                        )
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -306,7 +318,7 @@ private fun AddInboundContent(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { if (!isSaving) onSave() },
+                onClick = { if (!isSaving && !isLoading) onSave() },
                 icon = {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -318,11 +330,28 @@ private fun AddInboundContent(
                         Icon(Icons.Default.Check, contentDescription = null)
                     }
                 },
-                text = { Text(stringResource(R.string.add_inbound_save)) },
+                text = {
+                    Text(
+                        stringResource(
+                            if (isEditing) R.string.add_inbound_button_save else R.string.add_inbound_save
+                        )
+                    )
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -351,6 +380,7 @@ private fun AddInboundContent(
             ProtocolPickerSection(
                 selected = formState.selectedProtocol,
                 onSelected = onProtocolChange,
+                enabled = !isEditing,
             )
 
             Spacer(Modifier.height(12.dp))

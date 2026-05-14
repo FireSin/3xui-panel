@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.inbounds
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
@@ -54,7 +55,7 @@ class AddInboundViewModelTest {
     @Test
     fun `default state has VLESS and Reality and one client`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
-        val vm = AddInboundViewModel(repository, xuiClient)
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
         testDispatcher.scheduler.advanceUntilIdle()
 
         val editing = vm.uiState.value as AddInboundUiState.Editing
@@ -67,7 +68,7 @@ class AddInboundViewModelTest {
     @Test
     fun `switching protocol preserves common fields`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
-        val vm = AddInboundViewModel(repository, xuiClient)
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.updateRemark("my-remark")
@@ -87,7 +88,7 @@ class AddInboundViewModelTest {
         every { repository.observeActive() } returns flowOf(panel)
         coEvery { xuiClient.addInbound(any(), any(), any(), any(), any()) } returns Result.Success(Unit)
 
-        val vm = AddInboundViewModel(repository, xuiClient)
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.updateRemark("test-vless")
@@ -115,7 +116,7 @@ class AddInboundViewModelTest {
         coEvery { xuiClient.addInbound(any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
-        val vm = AddInboundViewModel(repository, xuiClient)
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.save()
@@ -132,7 +133,7 @@ class AddInboundViewModelTest {
         coEvery { xuiClient.fetchNewX25519(any(), any(), any(), any()) } returns
             Result.Success(X25519KeyPairDto(privateKey = "priv-abc", publicKey = "pub-xyz"))
 
-        val vm = AddInboundViewModel(repository, xuiClient)
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.generateX25519()
@@ -150,7 +151,7 @@ class AddInboundViewModelTest {
         coEvery { xuiClient.fetchNewX25519(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = AddInboundViewModel(repository, xuiClient)
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
         testDispatcher.scheduler.advanceUntilIdle()
 
         val keyBefore = (vm.uiState.value as AddInboundUiState.Editing).formState.realityPrivateKey

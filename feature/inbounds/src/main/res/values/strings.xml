@@ -34,6 +34,11 @@
 
     <!-- AddInboundScreen -->
     <string name="add_inbound_title">Новый инбаунд</string>
+    <string name="edit_inbound_title">Редактировать инбаунд</string>
+    <string name="add_inbound_button_save">Сохранить</string>
+    <string name="inbounds_action_edit">Редактировать</string>
+    <string name="inbounds_action_delete">Удалить</string>
+    <string name="inbounds_cd_more">Действия</string>
     <string name="add_inbound_cd_back">Назад</string>
     <string name="add_inbound_save">Сохранить</string>
     <string name="add_inbound_cancel">Отмена</string>

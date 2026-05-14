@@ -7,6 +7,7 @@ import com.firesin.xuipanel.feature.inbounds.InboundsScreen
 import com.firesin.xuipanel.feature.inbounds.add.navigation.AddInboundRoute
 import com.firesin.xuipanel.feature.inbounds.add.navigation.addInboundGraph
 import com.firesin.xuipanel.feature.inbounds.add.navigation.navigateToAddInbound
+import com.firesin.xuipanel.feature.inbounds.add.navigation.navigateToEditInbound
 
 const val InboundsRoute = "inbounds"
 
@@ -26,6 +27,7 @@ fun NavGraphBuilder.inboundsGraph(
             onManageClients = onManageClients,
             onMenuClick = onMenuClick,
             onNavigateAddInbound = { navController.navigateToAddInbound() },
+            onNavigateEditInbound = { inboundId -> navController.navigateToEditInbound(inboundId) },
         )
     }
 
