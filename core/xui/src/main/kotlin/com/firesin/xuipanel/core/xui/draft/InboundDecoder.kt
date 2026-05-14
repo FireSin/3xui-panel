@@ -25,7 +25,7 @@ object InboundDecoder {
     private val json = Json { ignoreUnknownKeys = true }
 
     /** Protocols that carry a meaningful streamSettings block. */
-    private val STREAM_PROTOCOLS = setOf("vless", "vmess", "trojan", "shadowsocks")
+    private val STREAM_PROTOCOLS = setOf("vless", "vmess", "trojan", "shadowsocks", "hysteria")
 
     fun decode(dto: InboundDto): InboundDraft {
         val settingsObj = runCatching { json.parseToJsonElement(dto.settings).jsonObject }
@@ -108,10 +108,22 @@ object InboundDecoder {
             network = s["network"]?.jsonPrimitive?.contentOrNull ?: "tcp,udp",
             followRedirect = s["followRedirect"]?.jsonPrimitive?.booleanOrNull ?: false,
         )
-        // hysteria / hysteria2 — edit not supported; return a placeholder
-        else -> ProtocolSettings.Hysteria2(
-            clients = emptyList(),
+        "hysteria" -> ProtocolSettings.Hysteria(
+            version = s["version"]?.jsonPrimitive?.intOrNull ?: 2,
+            clients = s["clients"]?.jsonArray?.map { decodeHysteriaClient(it.jsonObject) } ?: emptyList(),
         )
+        "tun" -> ProtocolSettings.Tun(
+            mtu = s["mtu"]?.jsonPrimitive?.intOrNull ?: 1500,
+            gso = s["gso"]?.jsonPrimitive?.booleanOrNull ?: false,
+            gro = s["gro"]?.jsonPrimitive?.booleanOrNull ?: false,
+            enableExFilter = s["enableExFilter"]?.jsonPrimitive?.booleanOrNull ?: false,
+            strictRoute = s["strictRoute"]?.jsonPrimitive?.booleanOrNull ?: true,
+            routeAddress = s["routeAddress"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
+            routeAddressSet = s["routeAddressSet"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
+            routeExcludeAddress = s["routeExcludeAddress"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
+            routeExcludeAddressSet = s["routeExcludeAddressSet"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
+        )
+        else -> ProtocolSettings.Vless(clients = emptyList())
     }
 
     // ---- clients ----
@@ -160,6 +172,19 @@ object InboundDecoder {
     private fun decodeShadowsocksClient(o: JsonObject): ShadowsocksClient = ShadowsocksClient(
         password = o["password"]?.jsonPrimitive?.contentOrNull ?: "",
         method = o["method"]?.jsonPrimitive?.contentOrNull ?: "",
+        email = o["email"]?.jsonPrimitive?.contentOrNull ?: "",
+        totalGB = o["totalGB"]?.jsonPrimitive?.longOrNull ?: 0L,
+        expiryTime = o["expiryTime"]?.jsonPrimitive?.longOrNull ?: 0L,
+        limitIp = o["limitIp"]?.jsonPrimitive?.intOrNull ?: 0,
+        subId = o["subId"]?.jsonPrimitive?.contentOrNull ?: "",
+        tgId = o["tgId"]?.jsonPrimitive?.contentOrNull ?: "",
+        comment = o["comment"]?.jsonPrimitive?.contentOrNull ?: "",
+        reset = o["reset"]?.jsonPrimitive?.intOrNull ?: 0,
+        enable = o["enable"]?.jsonPrimitive?.booleanOrNull ?: true,
+    )
+
+    private fun decodeHysteriaClient(o: JsonObject): HysteriaClient = HysteriaClient(
+        auth = o["auth"]?.jsonPrimitive?.contentOrNull ?: "",
         email = o["email"]?.jsonPrimitive?.contentOrNull ?: "",
         totalGB = o["totalGB"]?.jsonPrimitive?.longOrNull ?: 0L,
         expiryTime = o["expiryTime"]?.jsonPrimitive?.longOrNull ?: 0L,
@@ -243,6 +268,13 @@ object InboundDecoder {
                 writeBufferSize = kcp["writeBufferSize"]?.jsonPrimitive?.intOrNull ?: 2,
                 seed = kcp["seed"]?.jsonPrimitive?.contentOrNull ?: "",
                 header = decodeKcpHeader(headerType),
+            )
+        }
+        "hysteria" -> {
+            val hy = s["hysteriaSettings"]?.jsonObject ?: JsonObject(emptyMap())
+            TransportConfig.HysteriaTransport(
+                auth = hy["auth"]?.jsonPrimitive?.contentOrNull ?: "",
+                udpIdleTimeout = hy["udpIdleTimeout"]?.jsonPrimitive?.intOrNull ?: 60,
             )
         }
         else -> { // "tcp" or unknown

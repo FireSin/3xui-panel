@@ -149,17 +149,27 @@ class AddInboundViewModel @Inject constructor(
         copy(ssClients = ssClients.toMutableList().also { it[index] = it[index].block() })
     }
 
-    // Hysteria2
-    fun updateHy2ObfsEnabled(v: Boolean) = updateForm { copy(hy2ObfsEnabled = v) }
-    fun updateHy2ObfsPassword(v: String) = updateForm { copy(hy2ObfsPassword = v) }
-    fun updateHy2IgnoreClientBandwidth(v: Boolean) = updateForm { copy(hy2IgnoreClientBandwidth = v) }
-    fun addHy2Client() = updateForm { copy(hy2Clients = hy2Clients + Hy2ClientState()) }
-    fun removeHy2Client(index: Int) = updateForm {
-        if (hy2Clients.size <= 1) this else copy(hy2Clients = hy2Clients.toMutableList().also { it.removeAt(index) })
+    // Hysteria
+    fun updateHysteriaObfsPassword(v: String) = updateForm { copy(hysteriaObfsPassword = v) }
+    fun updateHysteriaUdpIdleTimeout(v: String) = updateForm { copy(hysteriaUdpIdleTimeout = v) }
+    fun addHysteriaClient() = updateForm { copy(hysteriaClients = hysteriaClients + HysteriaClientState()) }
+    fun removeHysteriaClient(index: Int) = updateForm {
+        if (hysteriaClients.size <= 1) this else copy(hysteriaClients = hysteriaClients.toMutableList().also { it.removeAt(index) })
     }
-    fun updateHy2Client(index: Int, block: Hy2ClientState.() -> Hy2ClientState) = updateForm {
-        copy(hy2Clients = hy2Clients.toMutableList().also { it[index] = it[index].block() })
+    fun updateHysteriaClient(index: Int, block: HysteriaClientState.() -> HysteriaClientState) = updateForm {
+        copy(hysteriaClients = hysteriaClients.toMutableList().also { it[index] = it[index].block() })
     }
+
+    // TUN
+    fun updateTunMtu(v: String) = updateForm { copy(tunMtu = v) }
+    fun updateTunGso(v: Boolean) = updateForm { copy(tunGso = v) }
+    fun updateTunGro(v: Boolean) = updateForm { copy(tunGro = v) }
+    fun updateTunEnableExFilter(v: Boolean) = updateForm { copy(tunEnableExFilter = v) }
+    fun updateTunStrictRoute(v: Boolean) = updateForm { copy(tunStrictRoute = v) }
+    fun updateTunRouteAddress(v: String) = updateForm { copy(tunRouteAddress = v) }
+    fun updateTunRouteAddressSet(v: String) = updateForm { copy(tunRouteAddressSet = v) }
+    fun updateTunRouteExcludeAddress(v: String) = updateForm { copy(tunRouteExcludeAddress = v) }
+    fun updateTunRouteExcludeAddressSet(v: String) = updateForm { copy(tunRouteExcludeAddressSet = v) }
 
     // SOCKS
     fun updateSocksAuth(v: String) = updateForm { copy(socksAuth = v) }

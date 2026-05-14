@@ -338,6 +338,73 @@ class InboundDecoderTest {
         assertEquals(listOf("http", "tls", "quic"), draft.sniffing.destOverride)
     }
 
+    // ---- TUN (no stream) ----
+
+    @Test
+    fun `tun no-stream round-trip is stable`() {
+        val draft = InboundDraft(
+            remark = "tun-inbound",
+            port = 0,
+            protocol = ProtocolSettings.Tun(
+                mtu = 1500,
+                gso = false,
+                gro = false,
+                enableExFilter = false,
+                strictRoute = true,
+                routeAddress = listOf("10.0.0.0/8"),
+                routeAddressSet = emptyList(),
+                routeExcludeAddress = emptyList(),
+                routeExcludeAddressSet = emptyList(),
+            ),
+            stream = null,
+        )
+        val dto = draftToDto(draft)
+        val encoded = InboundEncoder.encode(draft)
+        val reEncoded = dto.reEncoded()
+        assertEquals(encoded, reEncoded)
+    }
+
+    // ---- HYSTERIA + HysteriaTransport + TLS ----
+
+    @Test
+    fun `hysteria tls round-trip is stable`() {
+        val draft = InboundDraft(
+            remark = "hysteria-inbound",
+            port = 443,
+            protocol = ProtocolSettings.Hysteria(
+                version = 2,
+                clients = listOf(
+                    HysteriaClient(
+                        auth = "secret123",
+                        email = "user@example.com",
+                        totalGB = 0L,
+                        expiryTime = 0L,
+                        limitIp = 0,
+                        subId = "",
+                        tgId = "",
+                        comment = "",
+                        reset = 0,
+                        enable = true,
+                    ),
+                ),
+            ),
+            stream = StreamConfig(
+                transport = TransportConfig.HysteriaTransport(auth = "obfs-pass", udpIdleTimeout = 60),
+                security = SecurityConfig.Tls(
+                    serverName = "example.com",
+                    minVersion = "1.2",
+                    maxVersion = "1.3",
+                    alpn = listOf("h3"),
+                    fingerprint = "",
+                ),
+            ),
+        )
+        val dto = draftToDto(draft)
+        val encoded = InboundEncoder.encode(draft)
+        val reEncoded = dto.reEncoded()
+        assertEquals(encoded, reEncoded)
+    }
+
     // ---- Edge: empty / malformed JSON doesn't crash ----
 
     @Test

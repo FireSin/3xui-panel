@@ -189,6 +189,91 @@ class InboundEncoderTest {
     }
 
     @Test
+    fun `tun encodes all fields including empty route lists`() {
+        val draft = InboundDraft(
+            remark = "tun-inbound",
+            port = 0,
+            protocol = ProtocolSettings.Tun(
+                mtu = 1500,
+                gso = false,
+                gro = false,
+                enableExFilter = false,
+                strictRoute = true,
+                routeAddress = emptyList(),
+                routeAddressSet = emptyList(),
+                routeExcludeAddress = emptyList(),
+                routeExcludeAddressSet = emptyList(),
+            ),
+            stream = null,
+        )
+        val req = InboundEncoder.encode(draft)
+        assertEquals("tun", req.protocol)
+        assertEquals("{}", req.streamSettings)
+        val s = parser.parseToJsonElement(req.settings).jsonObject
+        assertEquals(1500, s["mtu"]!!.jsonPrimitive.content.toInt())
+        assertFalse(s["gso"]!!.jsonPrimitive.content.toBoolean())
+        assertTrue(s["strictRoute"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals(0, (s["routeAddress"] as JsonArray).size)
+    }
+
+    @Test
+    fun `tun encodes non-empty route lists`() {
+        val draft = InboundDraft(
+            remark = "tun-routes",
+            port = 0,
+            protocol = ProtocolSettings.Tun(
+                routeAddress = listOf("10.0.0.0/8", "192.168.0.0/16"),
+                routeExcludeAddress = listOf("8.8.8.8/32"),
+            ),
+            stream = null,
+        )
+        val req = InboundEncoder.encode(draft)
+        val s = parser.parseToJsonElement(req.settings).jsonObject
+        assertEquals(2, (s["routeAddress"] as JsonArray).size)
+        assertEquals("10.0.0.0/8", s["routeAddress"]!!.jsonArray[0].jsonPrimitive.content)
+        assertEquals(1, (s["routeExcludeAddress"] as JsonArray).size)
+    }
+
+    @Test
+    fun `hysteria encodes version clients and hysteriaSettings in stream`() {
+        val draft = InboundDraft(
+            remark = "hysteria-inbound",
+            port = 443,
+            protocol = ProtocolSettings.Hysteria(
+                version = 2,
+                clients = listOf(
+                    HysteriaClient(auth = "secret123", email = "user@example.com"),
+                ),
+            ),
+            stream = StreamConfig(
+                transport = TransportConfig.HysteriaTransport(auth = "obfs-pass", udpIdleTimeout = 60),
+                security = SecurityConfig.Tls(
+                    serverName = "example.com",
+                    alpn = listOf("h3"),
+                ),
+            ),
+        )
+        val req = InboundEncoder.encode(draft)
+        assertEquals("hysteria", req.protocol)
+        val s = parser.parseToJsonElement(req.settings).jsonObject
+        assertEquals(2, s["version"]!!.jsonPrimitive.content.toInt())
+        assertEquals(1, s["clients"]!!.jsonArray.size)
+        assertEquals("secret123", s["clients"]!!.jsonArray[0].jsonObject["auth"]!!.jsonPrimitive.content)
+        assertEquals("user@example.com", s["clients"]!!.jsonArray[0].jsonObject["email"]!!.jsonPrimitive.content)
+
+        val stream = parser.parseToJsonElement(req.streamSettings).jsonObject
+        assertEquals("hysteria", stream["network"]!!.jsonPrimitive.content)
+        assertEquals("tls", stream["security"]!!.jsonPrimitive.content)
+        val hy = stream["hysteriaSettings"]!!.jsonObject
+        assertEquals("obfs-pass", hy["auth"]!!.jsonPrimitive.content)
+        assertEquals(60, hy["udpIdleTimeout"]!!.jsonPrimitive.content.toInt())
+        assertTrue(hy.containsKey("masquerade"))
+        val tls = stream["tlsSettings"]!!.jsonObject
+        assertEquals("example.com", tls["serverName"]!!.jsonPrimitive.content)
+        assertEquals("h3", tls["alpn"]!!.jsonArray[0].jsonPrimitive.content)
+    }
+
+    @Test
     fun `tcp http header obfuscation emits header request with path and host`() {
         val draft = InboundDraft(
             remark = "VLESS-HTTP-obfs",

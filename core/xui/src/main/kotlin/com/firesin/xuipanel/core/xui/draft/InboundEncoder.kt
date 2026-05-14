@@ -3,6 +3,7 @@ package com.firesin.xuipanel.core.xui.draft
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
@@ -64,15 +65,21 @@ object InboundEncoder {
             putClients(p.clients) { encodeShadowsocksClient(it) }
         }.encode()
 
-        is ProtocolSettings.Hysteria2 -> buildJsonObject {
-            if (p.obfs != null) {
-                putJsonObject("obfs") {
-                    put("type", p.obfs.type)
-                    put("password", p.obfs.password)
-                }
-            }
-            put("ignore_client_bandwidth", p.ignoreClientBandwidth)
-            putClients(p.clients) { encodeHy2Client(it) }
+        is ProtocolSettings.Hysteria -> buildJsonObject {
+            put("version", p.version)
+            putClients(p.clients) { encodeHysteriaClient(it) }
+        }.encode()
+
+        is ProtocolSettings.Tun -> buildJsonObject {
+            put("mtu", p.mtu)
+            put("gso", p.gso)
+            put("gro", p.gro)
+            put("enableExFilter", p.enableExFilter)
+            put("strictRoute", p.strictRoute)
+            putJsonArray("routeAddress") { p.routeAddress.forEach { add(it) } }
+            putJsonArray("routeAddressSet") { p.routeAddressSet.forEach { add(it) } }
+            putJsonArray("routeExcludeAddress") { p.routeExcludeAddress.forEach { add(it) } }
+            putJsonArray("routeExcludeAddressSet") { p.routeExcludeAddressSet.forEach { add(it) } }
         }.encode()
 
         is ProtocolSettings.Socks -> buildJsonObject {
@@ -171,7 +178,7 @@ object InboundEncoder {
         )
     }
 
-    private fun encodeHy2Client(c: Hy2Client): JsonObject = buildJsonObject {
+    private fun encodeHysteriaClient(c: HysteriaClient): JsonObject = buildJsonObject {
         put("auth", c.auth)
         putCommonClientFields(
             email = c.email, totalGB = c.totalGB, expiryTime = c.expiryTime,
@@ -273,6 +280,12 @@ object InboundEncoder {
                 put("writeBufferSize", t.writeBufferSize)
                 put("seed", t.seed)
                 putJsonObject("header") { put("type", t.header.type) }
+            }
+
+            is TransportConfig.HysteriaTransport -> putJsonObject("hysteriaSettings") {
+                put("auth", t.auth)
+                put("udpIdleTimeout", t.udpIdleTimeout)
+                put("masquerade", JsonNull)
             }
         }
     }

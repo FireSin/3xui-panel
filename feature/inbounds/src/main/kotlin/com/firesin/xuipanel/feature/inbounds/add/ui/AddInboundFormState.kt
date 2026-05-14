@@ -1,18 +1,17 @@
 package com.firesin.xuipanel.feature.inbounds.add.ui
 
+import com.firesin.xuipanel.core.xui.draft.Fallback
+import com.firesin.xuipanel.core.xui.draft.HysteriaClient
+import com.firesin.xuipanel.core.xui.draft.InboundDraft
 import com.firesin.xuipanel.core.xui.draft.KcpHeader
+import com.firesin.xuipanel.core.xui.draft.ProtocolSettings
 import com.firesin.xuipanel.core.xui.draft.SecurityConfig
+import com.firesin.xuipanel.core.xui.draft.ShadowsocksClient
 import com.firesin.xuipanel.core.xui.draft.SniffingConfig
 import com.firesin.xuipanel.core.xui.draft.StreamConfig
 import com.firesin.xuipanel.core.xui.draft.TcpHeader
-import com.firesin.xuipanel.core.xui.draft.TransportConfig
-import com.firesin.xuipanel.core.xui.draft.Fallback
-import com.firesin.xuipanel.core.xui.draft.Hy2Client
-import com.firesin.xuipanel.core.xui.draft.Hy2Obfs
-import com.firesin.xuipanel.core.xui.draft.InboundDraft
-import com.firesin.xuipanel.core.xui.draft.ProtocolSettings
-import com.firesin.xuipanel.core.xui.draft.ShadowsocksClient
 import com.firesin.xuipanel.core.xui.draft.TlsCertificate
+import com.firesin.xuipanel.core.xui.draft.TransportConfig
 import com.firesin.xuipanel.core.xui.draft.TrojanClient
 import com.firesin.xuipanel.core.xui.draft.UserPass
 import com.firesin.xuipanel.core.xui.draft.VlessClient
@@ -26,12 +25,11 @@ enum class ProtocolType(val label: String) {
     TROJAN("Trojan"),
     SHADOWSOCKS("Shadowsocks"),
     WIREGUARD("WireGuard"),
+    HYSTERIA("Hysteria"),
     SOCKS("Mixed"),
     HTTP("HTTP"),
     DOKODEMO("Tunnel"),
-    // HYSTERIA2 deferred — needs network=hysteria transport, mandatory TLS settings,
-    // hysteriaSettings stream block, and {version:2, clients:[{auth,...}]} settings shape.
-    // Re-add when the dedicated transport form is built.
+    TUN("Tun"),
 }
 
 enum class NetworkType(val label: String) {
@@ -87,8 +85,7 @@ data class ShadowsocksClientState(
     val subId: String = "",
 )
 
-data class Hy2ClientState(
-    /** Sent over the wire as `auth` (hysteria2 client identifier). */
+data class HysteriaClientState(
     val auth: String = randomShortId() + randomShortId(),
     val email: String = "",
     val totalGb: String = "0",
@@ -137,11 +134,21 @@ data class AddInboundFormState(
     val ssNetwork: String = "tcp,udp",
     val ssClients: List<ShadowsocksClientState> = emptyList(),
 
-    // Hysteria2
-    val hy2ObfsEnabled: Boolean = false,
-    val hy2ObfsPassword: String = "",
-    val hy2IgnoreClientBandwidth: Boolean = false,
-    val hy2Clients: List<Hy2ClientState> = listOf(Hy2ClientState()),
+    // Hysteria
+    val hysteriaObfsPassword: String = "",
+    val hysteriaUdpIdleTimeout: String = "60",
+    val hysteriaClients: List<HysteriaClientState> = listOf(HysteriaClientState()),
+
+    // TUN
+    val tunMtu: String = "1500",
+    val tunGso: Boolean = false,
+    val tunGro: Boolean = false,
+    val tunEnableExFilter: Boolean = false,
+    val tunStrictRoute: Boolean = true,
+    val tunRouteAddress: String = "",
+    val tunRouteAddressSet: String = "",
+    val tunRouteExcludeAddress: String = "",
+    val tunRouteExcludeAddressSet: String = "",
 
     // SOCKS
     val socksAuth: String = "noauth",
@@ -352,6 +359,30 @@ private fun buildProtocolSettings(s: AddInboundFormState): ProtocolSettings = wh
         network = s.dokodemoNetwork,
         followRedirect = s.dokodemoFollowRedirect,
     )
+    ProtocolType.HYSTERIA -> ProtocolSettings.Hysteria(
+        version = 2,
+        clients = s.hysteriaClients.map { c ->
+            HysteriaClient(
+                auth = c.auth,
+                email = c.email,
+                totalGB = (c.totalGb.toLongOrNull() ?: 0L) * BYTES_PER_GB,
+                expiryTime = c.expiryTime,
+                enable = c.enable,
+                subId = c.subId,
+            )
+        },
+    )
+    ProtocolType.TUN -> ProtocolSettings.Tun(
+        mtu = s.tunMtu.toIntOrNull() ?: 1500,
+        gso = s.tunGso,
+        gro = s.tunGro,
+        enableExFilter = s.tunEnableExFilter,
+        strictRoute = s.tunStrictRoute,
+        routeAddress = s.tunRouteAddress.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+        routeAddressSet = s.tunRouteAddressSet.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+        routeExcludeAddress = s.tunRouteExcludeAddress.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+        routeExcludeAddressSet = s.tunRouteExcludeAddressSet.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+    )
 }
 
 fun AddInboundFormState.Companion.fromInboundDraft(draft: InboundDraft): AddInboundFormState {
@@ -364,7 +395,9 @@ fun AddInboundFormState.Companion.fromInboundDraft(draft: InboundDraft): AddInbo
         "mixed" -> ProtocolType.SOCKS
         "http" -> ProtocolType.HTTP
         "tunnel" -> ProtocolType.DOKODEMO
-        else -> ProtocolType.VLESS // hysteria2 — edit unsupported, fallback
+        "hysteria" -> ProtocolType.HYSTERIA
+        "tun" -> ProtocolType.TUN
+        else -> ProtocolType.VLESS
     }
 
     val base = AddInboundFormState(
@@ -473,7 +506,29 @@ private fun applyProtocol(s: AddInboundFormState, p: com.firesin.xuipanel.core.x
         dokodemoNetwork = p.network,
         dokodemoFollowRedirect = p.followRedirect,
     )
-    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Hysteria2 -> s // unsupported — no-op
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Hysteria -> s.copy(
+        hysteriaClients = p.clients.map { c ->
+            HysteriaClientState(
+                auth = c.auth,
+                email = c.email,
+                totalGb = if (c.totalGB <= 0L) "0" else (c.totalGB / BYTES_PER_GB).toString(),
+                expiryTime = c.expiryTime,
+                enable = c.enable,
+                subId = c.subId,
+            )
+        }.ifEmpty { listOf(HysteriaClientState()) },
+    )
+    is com.firesin.xuipanel.core.xui.draft.ProtocolSettings.Tun -> s.copy(
+        tunMtu = p.mtu.toString(),
+        tunGso = p.gso,
+        tunGro = p.gro,
+        tunEnableExFilter = p.enableExFilter,
+        tunStrictRoute = p.strictRoute,
+        tunRouteAddress = p.routeAddress.joinToString(", "),
+        tunRouteAddressSet = p.routeAddressSet.joinToString(", "),
+        tunRouteExcludeAddress = p.routeExcludeAddress.joinToString(", "),
+        tunRouteExcludeAddressSet = p.routeExcludeAddressSet.joinToString(", "),
+    )
 }
 
 private fun applyStream(s: AddInboundFormState, stream: com.firesin.xuipanel.core.xui.draft.StreamConfig?): AddInboundFormState {
@@ -523,6 +578,10 @@ private fun applyStream(s: AddInboundFormState, stream: com.firesin.xuipanel.cor
             kcpSeed = t.seed,
             kcpHeaderType = t.header.type,
         )
+        is com.firesin.xuipanel.core.xui.draft.TransportConfig.HysteriaTransport -> s.copy(
+            hysteriaObfsPassword = t.auth,
+            hysteriaUdpIdleTimeout = t.udpIdleTimeout.toString(),
+        )
     }
 
     return when (val sec = stream.security) {
@@ -552,11 +611,33 @@ private fun applyStream(s: AddInboundFormState, stream: com.firesin.xuipanel.cor
 }
 
 private val STREAM_PROTOCOLS = setOf(
-    ProtocolType.VLESS, ProtocolType.VMESS, ProtocolType.TROJAN, ProtocolType.SHADOWSOCKS
+    ProtocolType.VLESS, ProtocolType.VMESS, ProtocolType.TROJAN, ProtocolType.SHADOWSOCKS, ProtocolType.HYSTERIA
 )
 
 private fun buildStreamConfig(s: AddInboundFormState): StreamConfig? {
     if (s.selectedProtocol !in STREAM_PROTOCOLS) return null
+
+    // Hysteria always uses HysteriaTransport + mandatory TLS with alpn=["h3"]
+    if (s.selectedProtocol == ProtocolType.HYSTERIA) {
+        return StreamConfig(
+            transport = TransportConfig.HysteriaTransport(
+                auth = s.hysteriaObfsPassword,
+                udpIdleTimeout = s.hysteriaUdpIdleTimeout.toIntOrNull() ?: 60,
+            ),
+            security = SecurityConfig.Tls(
+                serverName = s.tlsServerName,
+                minVersion = s.tlsMinVersion,
+                maxVersion = s.tlsMaxVersion,
+                alpn = listOf("h3"),
+                certificates = if (s.tlsCertificateFile.isNotEmpty() || s.tlsKeyFile.isNotEmpty()) {
+                    listOf(TlsCertificate(certificateFile = s.tlsCertificateFile, keyFile = s.tlsKeyFile))
+                } else {
+                    emptyList()
+                },
+                fingerprint = s.tlsFingerprint,
+            ),
+        )
+    }
 
     val transport = when (s.selectedNetwork) {
         NetworkType.TCP -> TransportConfig.Tcp(

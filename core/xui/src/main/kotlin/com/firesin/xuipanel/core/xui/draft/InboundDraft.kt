@@ -66,12 +66,25 @@ sealed interface ProtocolSettings {
         override val protocolName: String = "shadowsocks"
     }
 
-    data class Hysteria2(
-        val obfs: Hy2Obfs? = null,
-        val ignoreClientBandwidth: Boolean = false,
-        val clients: List<Hy2Client>,
+    data class Hysteria(
+        val version: Int = 2,
+        val clients: List<HysteriaClient>,
     ) : ProtocolSettings {
-        override val protocolName: String = "hysteria2"
+        override val protocolName: String = "hysteria"
+    }
+
+    data class Tun(
+        val mtu: Int = 1500,
+        val gso: Boolean = false,
+        val gro: Boolean = false,
+        val enableExFilter: Boolean = false,
+        val strictRoute: Boolean = true,
+        val routeAddress: List<String> = emptyList(),
+        val routeAddressSet: List<String> = emptyList(),
+        val routeExcludeAddress: List<String> = emptyList(),
+        val routeExcludeAddressSet: List<String> = emptyList(),
+    ) : ProtocolSettings {
+        override val protocolName: String = "tun"
     }
 
     data class Socks(
@@ -170,8 +183,7 @@ data class ShadowsocksClient(
     val enable: Boolean = true,
 )
 
-data class Hy2Client(
-    /** Wire field is `auth`, not `password` — 3x-ui hysteria2 uses RandomUtil.randomSeq(10) here. */
+data class HysteriaClient(
     val auth: String,
     val email: String,
     val totalGB: Long = 0L,
@@ -191,12 +203,6 @@ data class WgPeer(
     val allowedIPs: List<String> = listOf("0.0.0.0/0", "::/0"),
     val presharedKey: String = "",
     val keepAlive: Int = 0,
-)
-
-data class Hy2Obfs(
-    /** "salamander" — only mode currently supported by Xray. */
-    val type: String,
-    val password: String,
 )
 
 data class Fallback(
@@ -265,6 +271,13 @@ sealed interface TransportConfig {
         val header: KcpHeader = KcpHeader.None,
     ) : TransportConfig {
         override val network: String = "kcp"
+    }
+
+    data class HysteriaTransport(
+        val auth: String = "",
+        val udpIdleTimeout: Int = 60,
+    ) : TransportConfig {
+        override val network: String = "hysteria"
     }
 }
 

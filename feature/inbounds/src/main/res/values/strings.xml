@@ -129,6 +129,21 @@
     <string name="add_inbound_field_sniffing_enabled">Включить sniffing</string>
     <string name="add_inbound_field_metadata_only">Только метаданные</string>
     <string name="add_inbound_field_route_only">Только маршрутизация</string>
+    <!-- TUN protocol fields -->
+    <string name="add_inbound_field_tun_mtu">MTU</string>
+    <string name="add_inbound_field_tun_gso">GSO</string>
+    <string name="add_inbound_field_tun_gro">GRO</string>
+    <string name="add_inbound_field_tun_enable_ex_filter">Enable extended filter</string>
+    <string name="add_inbound_field_tun_strict_route">Strict route</string>
+    <string name="add_inbound_field_tun_route_address">Route address</string>
+    <string name="add_inbound_field_tun_route_address_set">Route address set</string>
+    <string name="add_inbound_field_tun_route_exclude_address">Route exclude address</string>
+    <string name="add_inbound_field_tun_route_exclude_address_set">Route exclude address set</string>
+    <string name="add_inbound_hint_comma_separated">через запятую</string>
+    <!-- Hysteria protocol fields -->
+    <string name="add_inbound_field_hysteria_udp_idle_timeout">UDP idle timeout (s)</string>
+    <string name="add_inbound_field_hysteria_obfs_password">Obfs password</string>
+    <string name="add_inbound_field_hysteria_alpn_hint">ALPN: h3 (forced)</string>
     <!-- Expiry -->
     <string name="add_inbound_expiry_no_limit">Без срока</string>
     <string name="add_inbound_expiry_pick">Выбрать</string>

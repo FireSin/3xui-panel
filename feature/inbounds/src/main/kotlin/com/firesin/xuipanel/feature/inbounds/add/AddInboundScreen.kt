@@ -39,8 +39,9 @@ import com.firesin.xuipanel.feature.inbounds.R
 import com.firesin.xuipanel.feature.inbounds.add.form.CommonSection
 import com.firesin.xuipanel.feature.inbounds.add.form.DokodemoForm
 import com.firesin.xuipanel.feature.inbounds.add.form.HttpForm
-import com.firesin.xuipanel.feature.inbounds.add.form.Hysteria2Form
+import com.firesin.xuipanel.feature.inbounds.add.form.HysteriaForm
 import com.firesin.xuipanel.feature.inbounds.add.form.ProtocolPickerSection
+import com.firesin.xuipanel.feature.inbounds.add.form.TunForm
 import com.firesin.xuipanel.feature.inbounds.add.form.SecurityForms
 import com.firesin.xuipanel.feature.inbounds.add.form.ShadowsocksForm
 import com.firesin.xuipanel.feature.inbounds.add.form.SniffingSection
@@ -56,7 +57,7 @@ import com.firesin.xuipanel.feature.inbounds.add.ui.AddInboundViewModel
 import com.firesin.xuipanel.feature.inbounds.add.ui.ProtocolType
 
 private val STREAM_PROTOCOLS = setOf(
-    ProtocolType.VLESS, ProtocolType.VMESS, ProtocolType.TROJAN, ProtocolType.SHADOWSOCKS
+    ProtocolType.VLESS, ProtocolType.VMESS, ProtocolType.TROJAN, ProtocolType.SHADOWSOCKS, ProtocolType.HYSTERIA
 )
 
 @Composable
@@ -122,12 +123,20 @@ fun AddInboundScreen(
         onAddSsClient = viewModel::addSsClient,
         onRemoveSsClient = viewModel::removeSsClient,
         onUpdateSsClient = viewModel::updateSsClient,
-        onHy2ObfsEnabledChange = viewModel::updateHy2ObfsEnabled,
-        onHy2ObfsPasswordChange = viewModel::updateHy2ObfsPassword,
-        onHy2IgnoreClientBandwidthChange = viewModel::updateHy2IgnoreClientBandwidth,
-        onAddHy2Client = viewModel::addHy2Client,
-        onRemoveHy2Client = viewModel::removeHy2Client,
-        onUpdateHy2Client = viewModel::updateHy2Client,
+        onHysteriaObfsPasswordChange = viewModel::updateHysteriaObfsPassword,
+        onHysteriaUdpIdleTimeoutChange = viewModel::updateHysteriaUdpIdleTimeout,
+        onAddHysteriaClient = viewModel::addHysteriaClient,
+        onRemoveHysteriaClient = viewModel::removeHysteriaClient,
+        onUpdateHysteriaClient = viewModel::updateHysteriaClient,
+        onTunMtuChange = viewModel::updateTunMtu,
+        onTunGsoChange = viewModel::updateTunGso,
+        onTunGroChange = viewModel::updateTunGro,
+        onTunEnableExFilterChange = viewModel::updateTunEnableExFilter,
+        onTunStrictRouteChange = viewModel::updateTunStrictRoute,
+        onTunRouteAddressChange = viewModel::updateTunRouteAddress,
+        onTunRouteAddressSetChange = viewModel::updateTunRouteAddressSet,
+        onTunRouteExcludeAddressChange = viewModel::updateTunRouteExcludeAddress,
+        onTunRouteExcludeAddressSetChange = viewModel::updateTunRouteExcludeAddressSet,
         onSocksAuthChange = viewModel::updateSocksAuth,
         onSocksUdpChange = viewModel::updateSocksUdp,
         onSocksIpChange = viewModel::updateSocksIp,
@@ -228,12 +237,20 @@ private fun AddInboundContent(
     onAddSsClient: () -> Unit,
     onRemoveSsClient: (Int) -> Unit,
     onUpdateSsClient: (Int, com.firesin.xuipanel.feature.inbounds.add.ui.ShadowsocksClientState.() -> com.firesin.xuipanel.feature.inbounds.add.ui.ShadowsocksClientState) -> Unit,
-    onHy2ObfsEnabledChange: (Boolean) -> Unit,
-    onHy2ObfsPasswordChange: (String) -> Unit,
-    onHy2IgnoreClientBandwidthChange: (Boolean) -> Unit,
-    onAddHy2Client: () -> Unit,
-    onRemoveHy2Client: (Int) -> Unit,
-    onUpdateHy2Client: (Int, com.firesin.xuipanel.feature.inbounds.add.ui.Hy2ClientState.() -> com.firesin.xuipanel.feature.inbounds.add.ui.Hy2ClientState) -> Unit,
+    onHysteriaObfsPasswordChange: (String) -> Unit,
+    onHysteriaUdpIdleTimeoutChange: (String) -> Unit,
+    onAddHysteriaClient: () -> Unit,
+    onRemoveHysteriaClient: (Int) -> Unit,
+    onUpdateHysteriaClient: (Int, com.firesin.xuipanel.feature.inbounds.add.ui.HysteriaClientState.() -> com.firesin.xuipanel.feature.inbounds.add.ui.HysteriaClientState) -> Unit,
+    onTunMtuChange: (String) -> Unit,
+    onTunGsoChange: (Boolean) -> Unit,
+    onTunGroChange: (Boolean) -> Unit,
+    onTunEnableExFilterChange: (Boolean) -> Unit,
+    onTunStrictRouteChange: (Boolean) -> Unit,
+    onTunRouteAddressChange: (String) -> Unit,
+    onTunRouteAddressSetChange: (String) -> Unit,
+    onTunRouteExcludeAddressChange: (String) -> Unit,
+    onTunRouteExcludeAddressSetChange: (String) -> Unit,
     onSocksAuthChange: (String) -> Unit,
     onSocksUdpChange: (Boolean) -> Unit,
     onSocksIpChange: (String) -> Unit,
@@ -461,12 +478,48 @@ private fun AddInboundContent(
                     onNetworkChange = onDokodemoNetworkChange,
                     onFollowRedirectChange = onDokodemoFollowRedirectChange,
                 )
+                ProtocolType.HYSTERIA -> HysteriaForm(
+                    obfsPassword = formState.hysteriaObfsPassword,
+                    udpIdleTimeout = formState.hysteriaUdpIdleTimeout,
+                    tlsServerName = formState.tlsServerName,
+                    tlsCertificateFile = formState.tlsCertificateFile,
+                    tlsKeyFile = formState.tlsKeyFile,
+                    clients = formState.hysteriaClients,
+                    onObfsPasswordChange = onHysteriaObfsPasswordChange,
+                    onUdpIdleTimeoutChange = onHysteriaUdpIdleTimeoutChange,
+                    onTlsServerNameChange = onTlsServerNameChange,
+                    onTlsCertificateFileChange = onTlsCertificateFileChange,
+                    onTlsKeyFileChange = onTlsKeyFileChange,
+                    onAddClient = onAddHysteriaClient,
+                    onRemoveClient = onRemoveHysteriaClient,
+                    onUpdateClient = onUpdateHysteriaClient,
+                )
+                ProtocolType.TUN -> TunForm(
+                    mtu = formState.tunMtu,
+                    gso = formState.tunGso,
+                    gro = formState.tunGro,
+                    enableExFilter = formState.tunEnableExFilter,
+                    strictRoute = formState.tunStrictRoute,
+                    routeAddress = formState.tunRouteAddress,
+                    routeAddressSet = formState.tunRouteAddressSet,
+                    routeExcludeAddress = formState.tunRouteExcludeAddress,
+                    routeExcludeAddressSet = formState.tunRouteExcludeAddressSet,
+                    onMtuChange = onTunMtuChange,
+                    onGsoChange = onTunGsoChange,
+                    onGroChange = onTunGroChange,
+                    onEnableExFilterChange = onTunEnableExFilterChange,
+                    onStrictRouteChange = onTunStrictRouteChange,
+                    onRouteAddressChange = onTunRouteAddressChange,
+                    onRouteAddressSetChange = onTunRouteAddressSetChange,
+                    onRouteExcludeAddressChange = onTunRouteExcludeAddressChange,
+                    onRouteExcludeAddressSetChange = onTunRouteExcludeAddressSetChange,
+                )
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Stream section only for relevant protocols
-            if (formState.selectedProtocol in STREAM_PROTOCOLS) {
+            // Stream section only for relevant protocols (HYSTERIA has transport wired into HysteriaForm)
+            if (formState.selectedProtocol in STREAM_PROTOCOLS && formState.selectedProtocol != ProtocolType.HYSTERIA) {
                 StreamSection(
                     formState = formState,
                     onNetworkChange = onNetworkChange,
@@ -562,12 +615,20 @@ private fun AddInboundScreenPreview() {
             onAddSsClient = {},
             onRemoveSsClient = {},
             onUpdateSsClient = { _, _ -> },
-            onHy2ObfsEnabledChange = {},
-            onHy2ObfsPasswordChange = {},
-            onHy2IgnoreClientBandwidthChange = {},
-            onAddHy2Client = {},
-            onRemoveHy2Client = {},
-            onUpdateHy2Client = { _, _ -> },
+            onHysteriaObfsPasswordChange = {},
+            onHysteriaUdpIdleTimeoutChange = {},
+            onAddHysteriaClient = {},
+            onRemoveHysteriaClient = {},
+            onUpdateHysteriaClient = { _, _ -> },
+            onTunMtuChange = {},
+            onTunGsoChange = {},
+            onTunGroChange = {},
+            onTunEnableExFilterChange = {},
+            onTunStrictRouteChange = {},
+            onTunRouteAddressChange = {},
+            onTunRouteAddressSetChange = {},
+            onTunRouteExcludeAddressChange = {},
+            onTunRouteExcludeAddressSetChange = {},
             onSocksAuthChange = {},
             onSocksUdpChange = {},
             onSocksIpChange = {},

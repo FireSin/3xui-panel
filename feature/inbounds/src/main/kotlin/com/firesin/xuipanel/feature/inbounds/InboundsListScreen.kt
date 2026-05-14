@@ -277,7 +277,7 @@ private fun InboundCard(
 ) {
     val isReadOnly = !inbound.protocol.isEditableProtocol()
     val hasClients = inbound.protocol.protocolHasClients()
-    val canEdit = !inbound.protocol.isHysteria()
+    val canEdit = true
     var overflowExpanded by remember { mutableStateOf(false) }
 
     Surface(
@@ -484,9 +484,6 @@ private fun InboundDto.trafficLabel(): String {
 
 private fun String.isEditableProtocol(): Boolean =
     lowercase() in setOf("vmess", "vless", "shadowsocks")
-
-private fun String.isHysteria(): Boolean =
-    lowercase() in setOf("hysteria", "hysteria2")
 
 /**
  * Protocols whose `settings.clients` is a multi-user list — those are the only inbounds where
