@@ -385,5 +385,6 @@ class ClientsViewModel @Inject constructor(
     }
 }
 
-/** Protocols supported for CRUD in MVP-4. Trojan is deferred to backlog. */
-fun String.isSupportedProtocol(): Boolean = lowercase() in setOf("vmess", "vless", "shadowsocks")
+/** Protocols supported for CRUD. */
+fun String.isSupportedProtocol(): Boolean =
+    lowercase() in setOf("vmess", "vless", "shadowsocks", "trojan", "hysteria")

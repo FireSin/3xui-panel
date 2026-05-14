@@ -51,6 +51,8 @@ object ClientUri {
             is ClientConfig.Vless -> buildVless(client, inbound, host, stream)
             is ClientConfig.Vmess -> buildVmess(client, inbound, host, stream)
             is ClientConfig.Shadowsocks -> buildShadowsocks(client, inbound, host, stream)
+            is ClientConfig.Trojan -> Result.Failure(ShareError.UnsupportedProtocol("trojan"))
+            is ClientConfig.Hysteria -> Result.Failure(ShareError.UnsupportedProtocol("hysteria"))
         }
     }
 

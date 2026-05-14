@@ -28,3 +28,19 @@ fun randomSubId(): String {
         repeat(16) { append(alphabet[secureRandom.nextInt(alphabet.size)]) }
     }
 }
+
+/** Returns a 32-character alphanumeric [a-z0-9] string suitable as a Trojan password. */
+fun randomTrojanPassword(): String {
+    val alphabet = LOWER_AND_DIGITS
+    return buildString(32) {
+        repeat(32) { append(alphabet[secureRandom.nextInt(alphabet.size)]) }
+    }
+}
+
+/** Returns a 32-character alphanumeric [a-z0-9] string suitable as a Hysteria auth secret. */
+fun randomHysteriaAuth(): String {
+    val alphabet = LOWER_AND_DIGITS
+    return buildString(32) {
+        repeat(32) { append(alphabet[secureRandom.nextInt(alphabet.size)]) }
+    }
+}

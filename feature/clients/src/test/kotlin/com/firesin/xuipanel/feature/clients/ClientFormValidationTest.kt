@@ -67,6 +67,30 @@ class ClientFormValidationTest {
         assertTrue(isIdentityValid("shadowsocks", uuid = "", password = "base64pass=="))
     }
 
+    // --- Trojan password validation ---
+
+    @Test
+    fun `empty password is invalid for trojan`() {
+        assertFalse(isIdentityValid("trojan", uuid = "", password = ""))
+    }
+
+    @Test
+    fun `non-empty password is valid for trojan`() {
+        assertTrue(isIdentityValid("trojan", uuid = "", password = "abc123secretpass"))
+    }
+
+    // --- Hysteria auth validation ---
+
+    @Test
+    fun `empty auth is invalid for hysteria`() {
+        assertFalse(isIdentityValid("hysteria", uuid = "", password = ""))
+    }
+
+    @Test
+    fun `non-empty auth is valid for hysteria`() {
+        assertTrue(isIdentityValid("hysteria", uuid = "", password = "hysteriaauth123"))
+    }
+
     // --- totalGB validation ---
 
     @Test
@@ -208,7 +232,7 @@ class ClientFormValidationTest {
 
     private fun isIdentityValid(protocol: String, uuid: String, password: String): Boolean =
         when (protocol.lowercase()) {
-            "shadowsocks" -> password.isNotBlank()
+            "shadowsocks", "trojan", "hysteria" -> password.isNotBlank()
             else -> uuid.isNotBlank()
         }
 
@@ -223,9 +247,17 @@ class ClientFormValidationTest {
         email: String,
         totalGb: Long,
         limitIp: Int,
-    ): Boolean =
-        isEmailValid(email) &&
-            isIdentityValid(protocol, uuid, ssPassword) &&
+        trojanPassword: String = "",
+        hysteriaAuth: String = "",
+    ): Boolean {
+        val secret = when (protocol.lowercase()) {
+            "trojan" -> trojanPassword
+            "hysteria" -> hysteriaAuth
+            else -> ssPassword
+        }
+        return isEmailValid(email) &&
+            isIdentityValid(protocol, uuid, secret) &&
             isTotalGbValid(totalGb) &&
             isLimitIpValid(limitIp)
+    }
 }

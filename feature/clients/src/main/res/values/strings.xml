@@ -109,6 +109,9 @@
     <string name="client_form_total_gb_label_short">Трафик</string>
     <string name="client_form_limit_ip_label_short">Лимит IP</string>
     <string name="client_form_flow_none">none</string>
+    <string name="client_field_trojan_password">Trojan password</string>
+    <string name="client_field_trojan_flow">Flow</string>
+    <string name="client_field_hysteria_auth">Hysteria auth</string>
 
     <!-- Subscription links dialog (edit mode only) -->
     <string name="client_form_sub_links">Все ссылки</string>

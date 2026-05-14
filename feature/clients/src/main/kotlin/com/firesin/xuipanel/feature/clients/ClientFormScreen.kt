@@ -59,8 +59,10 @@ import com.firesin.xuipanel.core.designsystem.component.SectionHeader
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
+import com.firesin.xuipanel.core.xui.util.randomHysteriaAuth
 import com.firesin.xuipanel.core.xui.util.randomShadowsocksPassword
 import com.firesin.xuipanel.core.xui.util.randomSubId
+import com.firesin.xuipanel.core.xui.util.randomTrojanPassword
 import com.firesin.xuipanel.core.xui.util.randomUuid
 import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.ClientIpsState
 import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.SubLinksState
@@ -70,6 +72,7 @@ import java.util.Locale
 
 private const val BYTES_PER_GB = 1_073_741_824L
 private val VLESS_FLOW_OPTIONS = listOf("", "xtls-rprx-vision")
+private val TROJAN_FLOW_OPTIONS = listOf("", "xtls-rprx-vision")
 private const val SS_DEFAULT_METHOD = "chacha20-ietf-poly1305"
 private const val MS_PER_DAY = 86_400_000L
 
@@ -134,6 +137,21 @@ fun ClientFormScreen(
             (existingClient as? ClientConfig.Vless)?.flow ?: "",
         )
     }
+    var trojanPassword by rememberSaveable {
+        mutableStateOf(
+            (existingClient as? ClientConfig.Trojan)?.password ?: "",
+        )
+    }
+    var trojanFlow by rememberSaveable {
+        mutableStateOf(
+            (existingClient as? ClientConfig.Trojan)?.flow ?: "",
+        )
+    }
+    var hysteriaAuth by rememberSaveable {
+        mutableStateOf(
+            (existingClient as? ClientConfig.Hysteria)?.auth ?: "",
+        )
+    }
 
     // --- Common fields ---
     var email by rememberSaveable { mutableStateOf(existingClient?.email ?: "") }
@@ -157,6 +175,8 @@ fun ClientFormScreen(
         derivedStateOf {
             when (protocol.lowercase()) {
                 "shadowsocks" -> ssPassword.isBlank()
+                "trojan" -> trojanPassword.isBlank()
+                "hysteria" -> hysteriaAuth.isBlank()
                 else -> uuid.isBlank()
             }
         }
@@ -208,6 +228,9 @@ fun ClientFormScreen(
                                 ssPassword = ssPassword,
                                 ssMethod = ssMethod,
                                 vlessFlow = vlessFlow,
+                                trojanPassword = trojanPassword,
+                                trojanFlow = trojanFlow,
+                                hysteriaAuth = hysteriaAuth,
                                 email = email,
                                 totalGB = totalGbBytes,
                                 expiryTime = expiryTime,
@@ -372,6 +395,62 @@ fun ClientFormScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+                "trojan" -> {
+                    GroupCard {
+                        FieldRow(
+                            label = stringResource(R.string.client_form_email_label),
+                            value = email,
+                            onValueChange = { email = it },
+                            isError = emailError,
+                            topDivider = false,
+                            stacked = true,
+                        )
+                        FieldRow(
+                            label = stringResource(R.string.client_field_trojan_password),
+                            value = trojanPassword,
+                            onValueChange = { trojanPassword = it },
+                            isError = identityError,
+                            trailing = {
+                                TextButton(onClick = { trojanPassword = randomTrojanPassword() }) {
+                                    Text(
+                                        stringResource(R.string.client_form_generate),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            },
+                        )
+                        TrojanFlowSelectorRow(
+                            selected = trojanFlow,
+                            onSelected = { trojanFlow = it },
+                        )
+                    }
+                }
+                "hysteria" -> {
+                    GroupCard {
+                        FieldRow(
+                            label = stringResource(R.string.client_form_email_label),
+                            value = email,
+                            onValueChange = { email = it },
+                            isError = emailError,
+                            topDivider = false,
+                            stacked = true,
+                        )
+                        FieldRow(
+                            label = stringResource(R.string.client_field_hysteria_auth),
+                            value = hysteriaAuth,
+                            onValueChange = { hysteriaAuth = it },
+                            isError = identityError,
+                            trailing = {
+                                TextButton(onClick = { hysteriaAuth = randomHysteriaAuth() }) {
+                                    Text(
+                                        stringResource(R.string.client_form_generate),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            },
                         )
                     }
                 }
@@ -763,6 +842,35 @@ private fun FlowSelectorRow(
     )
 }
 
+// ── Flow selector row (for Trojan) ────────────────────────────────────────────
+
+@Composable
+private fun TrojanFlowSelectorRow(
+    selected: String,
+    onSelected: (String) -> Unit,
+) {
+    FieldRow(
+        label = stringResource(R.string.client_field_trojan_flow),
+        value = selected.ifBlank { stringResource(R.string.client_form_flow_none) },
+        onValueChange = {},
+        readOnly = true,
+        trailing = {
+            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                TROJAN_FLOW_OPTIONS.forEach { option ->
+                    if (option != selected) {
+                        TextButton(onClick = { onSelected(option) }) {
+                            Text(
+                                text = option.ifBlank { stringResource(R.string.client_form_flow_none) },
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
 // ── Expiry field row (inside GroupCard) ───────────────────────────────────────
 
 @Composable
@@ -858,6 +966,9 @@ private fun buildClientConfig(
     ssPassword: String,
     ssMethod: String,
     vlessFlow: String,
+    trojanPassword: String,
+    trojanFlow: String,
+    hysteriaAuth: String,
     email: String,
     totalGB: Long,
     expiryTime: Long,
@@ -887,6 +998,31 @@ private fun buildClientConfig(
         "shadowsocks" -> ClientConfig.Shadowsocks(
             password = ssPassword,
             method = ssMethod,
+            email = email,
+            enable = enable,
+            totalGB = totalGB,
+            expiryTime = expiryTime,
+            limitIp = limitIp,
+            subId = subId,
+            comment = comment,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
+        "trojan" -> ClientConfig.Trojan(
+            password = trojanPassword,
+            flow = trojanFlow,
+            email = email,
+            enable = enable,
+            totalGB = totalGB,
+            expiryTime = expiryTime,
+            limitIp = limitIp,
+            subId = subId,
+            comment = comment,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
+        "hysteria" -> ClientConfig.Hysteria(
+            auth = hysteriaAuth,
             email = email,
             enable = enable,
             totalGB = totalGB,

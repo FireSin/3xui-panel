@@ -111,6 +111,152 @@ class ClientsJsonTest {
     }
 
     @Test
+    fun `parse_trojan_clients parses password and flow`() {
+        val settings = """
+            {
+              "clients": [
+                {
+                  "password": "trojanpass123",
+                  "flow": "xtls-rprx-vision",
+                  "email": "trojan-user",
+                  "limitIp": 2,
+                  "totalGB": 5368709120,
+                  "expiryTime": 1780000000000,
+                  "enable": true,
+                  "tgId": "",
+                  "subId": "trojansubid12345",
+                  "comment": "trojan test",
+                  "reset": 0
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val clients = ClientsJson.parse("trojan", settings)
+
+        assertEquals(1, clients.size)
+        val client = clients[0] as ClientConfig.Trojan
+        assertEquals("trojanpass123", client.password)
+        assertEquals("xtls-rprx-vision", client.flow)
+        assertEquals("trojan-user", client.email)
+        assertEquals(2, client.limitIp)
+        assertEquals(5368709120L, client.totalGB)
+        assertEquals(1780000000000L, client.expiryTime)
+        assertTrue(client.enable)
+        assertEquals("trojansubid12345", client.subId)
+        assertEquals("trojan test", client.comment)
+    }
+
+    @Test
+    fun `parse_hysteria_clients parses auth field`() {
+        val settings = """
+            {
+              "clients": [
+                {
+                  "auth": "hysteriaauth456",
+                  "email": "hysteria-user",
+                  "limitIp": 0,
+                  "totalGB": 0,
+                  "expiryTime": 0,
+                  "enable": true,
+                  "tgId": "tg123",
+                  "subId": "hysteriasubid123",
+                  "comment": "",
+                  "reset": 0
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val clients = ClientsJson.parse("hysteria", settings)
+
+        assertEquals(1, clients.size)
+        val client = clients[0] as ClientConfig.Hysteria
+        assertEquals("hysteriaauth456", client.auth)
+        assertEquals("hysteria-user", client.email)
+        assertEquals(0, client.limitIp)
+        assertEquals(0L, client.totalGB)
+        assertEquals(0L, client.expiryTime)
+        assertTrue(client.enable)
+        assertEquals("tg123", client.tgId)
+        assertEquals("hysteriasubid123", client.subId)
+    }
+
+    @Test
+    fun `encode_trojan_client_round_trip`() {
+        val original = ClientConfig.Trojan(
+            password = "trojanpass123",
+            flow = "xtls-rprx-vision",
+            email = "trojan-user",
+            enable = true,
+            totalGB = 5368709120L,
+            expiryTime = 1780000000000L,
+            limitIp = 2,
+            subId = "trojansubid12345",
+            comment = "trojan test",
+            tgId = "",
+            reset = 0,
+            createdAt = null,
+            updatedAt = null,
+        )
+
+        val encoded = ClientsJson.encodeSettingsBody(original)
+        val parsed = ClientsJson.parse("trojan", encoded)
+
+        assertEquals(1, parsed.size)
+        assertEquals(original, parsed[0])
+    }
+
+    @Test
+    fun `encode_hysteria_client_round_trip`() {
+        val original = ClientConfig.Hysteria(
+            auth = "hysteriaauth456",
+            email = "hysteria-user",
+            enable = false,
+            totalGB = 0L,
+            expiryTime = 0L,
+            limitIp = 0,
+            subId = "hysteriasubid123",
+            comment = "",
+            tgId = "tg123",
+            reset = 0,
+            createdAt = 1777534536000L,
+            updatedAt = 1777534600000L,
+        )
+
+        val encoded = ClientsJson.encodeSettingsBody(original)
+        val parsed = ClientsJson.parse("hysteria", encoded)
+
+        assertEquals(1, parsed.size)
+        assertEquals(original, parsed[0])
+    }
+
+    @Test
+    fun `trojan flow defaults to empty string when absent`() {
+        val settings = """
+            {
+              "clients": [
+                {
+                  "password": "pass",
+                  "email": "user",
+                  "limitIp": 0,
+                  "totalGB": 0,
+                  "expiryTime": 0,
+                  "enable": true,
+                  "tgId": "",
+                  "subId": "",
+                  "comment": "",
+                  "reset": 0
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val client = ClientsJson.parse("trojan", settings)[0] as ClientConfig.Trojan
+        assertEquals("", client.flow)
+    }
+
+    @Test
     fun `extra unknown top-level keys do not throw`() {
         val settingsWithExtras = """
             {

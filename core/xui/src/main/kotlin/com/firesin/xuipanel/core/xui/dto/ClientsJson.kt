@@ -115,6 +115,35 @@ object ClientsJson {
                 createdAt = createdAt,
                 updatedAt = updatedAt,
             )
+            "trojan" -> ClientConfig.Trojan(
+                password = obj["password"]?.jsonPrimitive?.content.orEmpty(),
+                flow = obj["flow"]?.jsonPrimitive?.content.orEmpty(),
+                email = email,
+                enable = enable,
+                totalGB = totalGB,
+                expiryTime = expiryTime,
+                limitIp = limitIp,
+                subId = subId,
+                comment = comment,
+                tgId = tgId,
+                reset = reset,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+            )
+            "hysteria" -> ClientConfig.Hysteria(
+                auth = obj["auth"]?.jsonPrimitive?.content.orEmpty(),
+                email = email,
+                enable = enable,
+                totalGB = totalGB,
+                expiryTime = expiryTime,
+                limitIp = limitIp,
+                subId = subId,
+                comment = comment,
+                tgId = tgId,
+                reset = reset,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+            )
             else -> error("Unsupported protocol for client parsing: $protocol")
         }
     }
@@ -131,6 +160,13 @@ object ClientsJson {
             is ClientConfig.Shadowsocks -> {
                 put("password", JsonPrimitive(client.password))
                 put("method", JsonPrimitive(client.method))
+            }
+            is ClientConfig.Trojan -> {
+                put("password", JsonPrimitive(client.password))
+                put("flow", JsonPrimitive(client.flow))
+            }
+            is ClientConfig.Hysteria -> {
+                put("auth", JsonPrimitive(client.auth))
             }
         }
         put("email", JsonPrimitive(client.email))
