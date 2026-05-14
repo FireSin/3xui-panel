@@ -92,6 +92,7 @@ dependencies {
     implementation(project(":feature:stats"))
     implementation(project(":feature:lock"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:nodes"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

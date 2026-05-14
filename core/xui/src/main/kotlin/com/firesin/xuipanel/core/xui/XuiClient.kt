@@ -10,6 +10,7 @@ import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
+import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoResourceDto
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
@@ -17,10 +18,13 @@ import com.firesin.xuipanel.core.xui.dto.ClientsJson
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
+import com.firesin.xuipanel.core.xui.dto.NodeDto
+import com.firesin.xuipanel.core.xui.dto.NodeStatusProbeDto
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.X25519KeyPairDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogEntryDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -974,6 +978,211 @@ class XuiClient @Inject constructor(
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
                 api.updateAllCustomGeo()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    // ---- Nodes ----
+
+    suspend fun fetchNodes(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<List<NodeDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.listNodes()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun fetchNode(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: Int,
+    ): Result<NodeDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getNode(id)
+            }
+        }.fold(
+            onSuccess = { response ->
+                val obj = response.obj
+                if (response.success && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun addNode(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        body: AddNodeRequestDto,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.addNode(body)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun updateNode(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: Int,
+        body: AddNodeRequestDto,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.updateNode(id, body)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    suspend fun deleteNode(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: Int,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.deleteNode(id)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Toggles a node's enabled state. Mirrors [setInboundEnabled] — applies the same
+     * EOFException-tolerance pattern for setEnable endpoints.
+     */
+    suspend fun setNodeEnabled(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: Int,
+        enable: Boolean,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.setNodeEnable(id, SetNodeEnableRequestDto(enable = enable))
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                val rootEof = generateSequence(cause as Throwable?) { it.cause }
+                    .any { it is EOFException }
+                if (rootEof) {
+                    return@fold Result.Success(Unit)
+                }
+                cause.toDomainError(panelId)
+            },
+        )
+    }
+
+    /**
+     * Tests connectivity to a node configuration without saving it.
+     * Returns [NodeStatusProbeDto] on success if the server provides it,
+     * or [Unit] if the body is absent (older server).
+     */
+    suspend fun testNode(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        body: AddNodeRequestDto,
+    ): Result<NodeStatusProbeDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.testNode(body)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj ?: NodeStatusProbeDto())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Triggers a live probe of an existing node, updating its cached status server-side. */
+    suspend fun probeNode(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: Int,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.probeNode(id)
             }
         }.fold(
             onSuccess = { response ->

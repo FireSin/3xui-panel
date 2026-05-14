@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -52,6 +53,8 @@ import com.firesin.xuipanel.feature.dashboard.navigation.dashboardGraph
 import com.firesin.xuipanel.feature.inbounds.navigation.InboundsRoute
 import com.firesin.xuipanel.feature.inbounds.navigation.inboundsGraph
 import com.firesin.xuipanel.feature.inbounds.navigation.navigateToManageClients
+import com.firesin.xuipanel.feature.nodes.navigation.NodesListRoute
+import com.firesin.xuipanel.feature.nodes.navigation.nodesGraph
 import com.firesin.xuipanel.feature.panels.navigation.PanelAddRoute
 import com.firesin.xuipanel.feature.panels.navigation.PanelsListRoute
 import com.firesin.xuipanel.feature.panels.navigation.PanelsRoute
@@ -142,6 +145,17 @@ fun XuiNavHost(
                     },
                 )
                 NavigationDrawerItem(
+                    label = { Text("Ноды") },
+                    icon = { Icon(Icons.Default.Cloud, contentDescription = null) },
+                    selected = currentRoute == NodesListRoute,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(NodesListRoute) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+                NavigationDrawerItem(
                     label = { Text("Панели") },
                     icon = { Icon(Icons.Default.Dns, contentDescription = null) },
                     selected = currentRoute == PanelsListRoute,
@@ -193,6 +207,7 @@ fun XuiNavHost(
             statsGraph(navController)
             clientStatsGraph(navController)
             settingsGraph(onMenuClick = onMenuClick, navController = navController)
+            nodesGraph(navController = navController, onMenuClick = onMenuClick)
         }
     }
 }

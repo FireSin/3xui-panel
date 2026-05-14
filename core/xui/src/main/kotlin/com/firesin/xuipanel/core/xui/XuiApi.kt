@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
+import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
@@ -13,11 +14,15 @@ import com.firesin.xuipanel.core.xui.dto.LoginResponseDto
 import com.firesin.xuipanel.core.xui.dto.LogsResponseDto
 import com.firesin.xuipanel.core.xui.dto.NewUuidResponseDto
 import com.firesin.xuipanel.core.xui.dto.NewX25519ResponseDto
+import com.firesin.xuipanel.core.xui.dto.NodeListResponseDto
+import com.firesin.xuipanel.core.xui.dto.NodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.SubLinksResponseDto
+import com.firesin.xuipanel.core.xui.dto.TestNodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogsResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
@@ -184,4 +189,36 @@ interface XuiApi {
 
     @POST("panel/api/custom-geo/update-all")
     suspend fun updateAllCustomGeo(): Response<LoginResponseDto>
+
+    // ---- Nodes ----
+
+    @GET("panel/api/nodes/list")
+    suspend fun listNodes(): Response<NodeListResponseDto>
+
+    @GET("panel/api/nodes/get/{id}")
+    suspend fun getNode(@Path("id") id: Int): Response<NodeResponseDto>
+
+    @POST("panel/api/nodes/add")
+    suspend fun addNode(@Body body: AddNodeRequestDto): Response<NodeResponseDto>
+
+    @POST("panel/api/nodes/update/{id}")
+    suspend fun updateNode(
+        @Path("id") id: Int,
+        @Body body: AddNodeRequestDto,
+    ): Response<LoginResponseDto>
+
+    @POST("panel/api/nodes/del/{id}")
+    suspend fun deleteNode(@Path("id") id: Int): Response<LoginResponseDto>
+
+    @POST("panel/api/nodes/setEnable/{id}")
+    suspend fun setNodeEnable(
+        @Path("id") id: Int,
+        @Body body: SetNodeEnableRequestDto,
+    ): Response<LoginResponseDto>
+
+    @POST("panel/api/nodes/test")
+    suspend fun testNode(@Body body: AddNodeRequestDto): Response<TestNodeResponseDto>
+
+    @POST("panel/api/nodes/probe/{id}")
+    suspend fun probeNode(@Path("id") id: Int): Response<LoginResponseDto>
 }

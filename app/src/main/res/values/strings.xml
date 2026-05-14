@@ -13,4 +13,5 @@
     <string name="label_clients">Clients</string>
     <string name="label_share">Share</string>
     <string name="label_stats">Stats</string>
+    <string name="drawer_nodes">Ноды</string>
 </resources>
