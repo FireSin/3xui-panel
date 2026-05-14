@@ -37,6 +37,7 @@ object InboundEncoder {
         settings = encodeSettings(draft.protocol),
         streamSettings = encodeStreamSettings(draft.stream),
         sniffing = encodeSniffing(draft.sniffing),
+        nodeId = draft.nodeId,
     )
 
     // ---- settings ----

@@ -299,4 +299,28 @@ class InboundEncoderTest {
             request["headers"]!!.jsonObject["Host"]!!.jsonArray[0].jsonPrimitive.content,
         )
     }
+
+    @Test
+    fun `nodeId null produces dto with null nodeId`() {
+        val draft = InboundDraft(
+            remark = "local",
+            port = 443,
+            protocol = ProtocolSettings.Vless(clients = emptyList()),
+            nodeId = null,
+        )
+        val req = InboundEncoder.encode(draft)
+        assertEquals(null, req.nodeId)
+    }
+
+    @Test
+    fun `nodeId non-null is forwarded to dto`() {
+        val draft = InboundDraft(
+            remark = "node-inbound",
+            port = 8080,
+            protocol = ProtocolSettings.Vless(clients = emptyList()),
+            nodeId = 2,
+        )
+        val req = InboundEncoder.encode(draft)
+        assertEquals(2, req.nodeId)
+    }
 }

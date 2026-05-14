@@ -13,6 +13,7 @@ import com.firesin.xuipanel.core.xui.dto.InboundDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -41,18 +42,39 @@ class InboundsViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<DomainError?>(null)
     val errorMessage: StateFlow<DomainError?> = _errorMessage
 
+    private val _nodeNames = MutableStateFlow<Map<Int, String>>(emptyMap())
+    /** Maps nodeId → node name for inbound cards. Loaded once on panel activation. */
+    val nodeNames: StateFlow<Map<Int, String>> = _nodeNames.asStateFlow()
+
     init {
         repository.observeActive()
             .distinctUntilChanged { a, b -> a?.id == b?.id }
             .onEach { panel ->
                 if (panel == null) {
                     _uiState.value = InboundsUiState.NoActivePanel
+                    _nodeNames.value = emptyMap()
                 } else {
                     _uiState.value = InboundsUiState.Loading(panel)
                     fetchInbounds(panel)
+                    fetchNodeNames(panel)
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    private fun fetchNodeNames(panel: Panel) {
+        viewModelScope.launch {
+            val result = xuiClient.fetchNodes(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+            )
+            _nodeNames.value = when (result) {
+                is Result.Success -> result.data.associate { it.id to it.name }
+                is Result.Failure -> emptyMap()
+            }
+        }
     }
 
     fun refresh() {

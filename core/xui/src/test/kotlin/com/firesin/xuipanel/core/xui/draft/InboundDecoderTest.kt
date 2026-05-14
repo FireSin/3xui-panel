@@ -32,7 +32,32 @@ class InboundDecoderTest {
             streamSettings = req.streamSettings,
             tag = "inbound-${draft.port}",
             sniffing = req.sniffing,
+            nodeId = draft.nodeId,
         )
+    }
+
+    @Test
+    fun `nodeId null is decoded to null in draft`() {
+        val dto = InboundDto(
+            id = 10, up = 0L, down = 0L, total = 0L, remark = "local",
+            enable = true, expiryTime = 0L, clientStats = null, listen = "",
+            port = 443, protocol = "vless", settings = "{}", streamSettings = "{}",
+            tag = "inbound-443", sniffing = "{}", nodeId = null,
+        )
+        val draft = InboundDecoder.decode(dto)
+        assertEquals(null, draft.nodeId)
+    }
+
+    @Test
+    fun `nodeId non-null is decoded into draft`() {
+        val dto = InboundDto(
+            id = 11, up = 0L, down = 0L, total = 0L, remark = "node-inbound",
+            enable = true, expiryTime = 0L, clientStats = null, listen = "",
+            port = 8080, protocol = "vmess", settings = "{}", streamSettings = "{}",
+            tag = "inbound-8080", sniffing = "{}", nodeId = 3,
+        )
+        val draft = InboundDecoder.decode(dto)
+        assertEquals(3, draft.nodeId)
     }
 
     // ---- VLESS + Reality + TCP ----

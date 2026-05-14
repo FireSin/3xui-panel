@@ -12,10 +12,12 @@ import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.draft.InboundDecoder
 import com.firesin.xuipanel.core.xui.draft.InboundEncoder
+import com.firesin.xuipanel.core.xui.dto.NodeDto
 import com.firesin.xuipanel.core.xui.util.randomUuid
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
@@ -33,17 +35,39 @@ class AddInboundViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AddInboundUiState>(AddInboundUiState.Editing())
     val uiState: StateFlow<AddInboundUiState> = _uiState
 
+    private val _availableNodes = MutableStateFlow<List<NodeDto>>(emptyList())
+    /** Enabled nodes available as deploy targets. Empty list → only «Local panel» option shown. */
+    val availableNodes: StateFlow<List<NodeDto>> = _availableNodes.asStateFlow()
+
     private var activePanel: Panel? = null
 
     init {
         repository.observeActive()
             .distinctUntilChanged { a, b -> a?.id == b?.id }
-            .onEach { panel -> activePanel = panel }
+            .onEach { panel ->
+                activePanel = panel
+                if (panel != null) loadNodes(panel)
+            }
             .launchIn(viewModelScope)
 
         val inboundId = savedStateHandle.get<Int>("inboundId")
         if (inboundId != null) {
             loadForEdit(inboundId)
+        }
+    }
+
+    private fun loadNodes(panel: Panel) {
+        viewModelScope.launch {
+            val result = xuiClient.fetchNodes(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+            )
+            _availableNodes.value = when (result) {
+                is Result.Success -> result.data.filter { it.enable }
+                is Result.Failure -> emptyList()
+            }
         }
     }
 
@@ -101,6 +125,7 @@ class AddInboundViewModel @Inject constructor(
 
     fun updateRemark(v: String) = updateForm { copy(remark = v) }
     fun updatePort(v: String) = updateForm { copy(port = v) }
+    fun updateNodeId(v: Int?) = updateForm { copy(nodeId = v) }
     fun updateListen(v: String) = updateForm { copy(listen = v) }
     fun updateEnable(v: Boolean) = updateForm { copy(enable = v) }
     fun updateExpiryTime(v: Long) = updateForm { copy(expiryTime = v) }

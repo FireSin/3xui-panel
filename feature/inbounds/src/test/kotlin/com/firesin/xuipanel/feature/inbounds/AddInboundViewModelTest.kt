@@ -8,6 +8,7 @@ import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
+import com.firesin.xuipanel.core.xui.dto.NodeDto
 import com.firesin.xuipanel.core.xui.dto.X25519KeyPairDto
 import com.firesin.xuipanel.feature.inbounds.add.ui.AddInboundUiState
 import com.firesin.xuipanel.feature.inbounds.add.ui.AddInboundViewModel
@@ -45,6 +46,8 @@ class AddInboundViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        // Default: nodes fetch returns empty list (most tests don't care about nodes)
+        coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns Result.Success(emptyList())
     }
 
     @AfterEach
@@ -163,6 +166,44 @@ class AddInboundViewModelTest {
         assertEquals(keyBefore, keyAfter)
     }
 
+    @Test
+    fun `availableNodes is populated with enabled nodes on init`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns
+            Result.Success(listOf(fakeNode(id = 1, enable = true), fakeNode(id = 2, enable = false)))
+
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val nodes = vm.availableNodes.value
+        assertEquals(1, nodes.size)
+        assertEquals(1, nodes[0].id)
+    }
+
+    @Test
+    fun `availableNodes is empty when fetchNodes fails`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns
+            Result.Failure(DomainError.Network(RuntimeException("timeout")))
+
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(emptyList<NodeDto>(), vm.availableNodes.value)
+    }
+
+    @Test
+    fun `availableNodes is empty when no active panel`() = runTest {
+        every { repository.observeActive() } returns flowOf(null)
+
+        val vm = AddInboundViewModel(repository, xuiClient, SavedStateHandle())
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(emptyList<NodeDto>(), vm.availableNodes.value)
+    }
+
     // --- Helpers ---
 
     private fun fakePanel() = Panel(
@@ -177,5 +218,14 @@ class AddInboundViewModelTest {
         isActive = true,
         createdAt = Instant.now(),
         lastLoginAt = null,
+    )
+
+    private fun fakeNode(id: Int, enable: Boolean) = NodeDto(
+        id = id,
+        name = "node-$id",
+        scheme = "https",
+        address = "node$id.example.com",
+        port = 2053,
+        enable = enable,
     )
 }

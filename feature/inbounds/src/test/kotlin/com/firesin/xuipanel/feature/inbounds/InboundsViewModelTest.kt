@@ -10,6 +10,7 @@ import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.InboundDto
+import com.firesin.xuipanel.core.xui.dto.NodeDto
 import com.firesin.xuipanel.feature.inbounds.ui.InboundsUiState
 import com.firesin.xuipanel.feature.inbounds.ui.InboundsViewModel
 import io.mockk.coEvery
@@ -44,6 +45,8 @@ class InboundsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        // Default: nodes fetch returns empty list (most tests don't care about nodes)
+        coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns Result.Success(emptyList())
     }
 
     @AfterEach
@@ -348,6 +351,38 @@ class InboundsViewModelTest {
     }
 
     @Test
+    fun `nodeNames map is populated on panel activation`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
+        coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns
+            Result.Success(listOf(fakeNode(1, "de_nuxt"), fakeNode(2, "us_edge")))
+
+        val vm = InboundsViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val names = vm.nodeNames.value
+        assertEquals("de_nuxt", names[1])
+        assertEquals("us_edge", names[2])
+    }
+
+    @Test
+    fun `nodeNames is empty when fetchNodes fails`() = runTest {
+        val panel = fakePanel()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
+        coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns
+            Result.Failure(DomainError.Network(RuntimeException("timeout")))
+
+        val vm = InboundsViewModel(repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(emptyMap<Int, String>(), vm.nodeNames.value)
+    }
+
+    @Test
     fun `copyClients success calls xuiClient then refetches`() = runTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
@@ -480,5 +515,13 @@ class InboundsViewModelTest {
         streamSettings = "{}",
         tag = "inbound-443",
         sniffing = "{}",
+    )
+
+    private fun fakeNode(id: Int, name: String) = NodeDto(
+        id = id,
+        name = name,
+        scheme = "https",
+        address = "node$id.example.com",
+        port = 2053,
     )
 }

@@ -24,6 +24,8 @@ data class InboundDraft(
     /** Stream settings — only meaningful for vmess/vless/trojan/shadowsocks. Null for socks/http/wg/dokodemo. */
     val stream: StreamConfig? = null,
     val sniffing: SniffingConfig = SniffingConfig.Default,
+    /** Null = local (main) panel. Non-null = deploy to the node with this id. */
+    val nodeId: Int? = null,
 )
 
 // ----- Protocol-specific settings (drives the `settings` JSON) -----

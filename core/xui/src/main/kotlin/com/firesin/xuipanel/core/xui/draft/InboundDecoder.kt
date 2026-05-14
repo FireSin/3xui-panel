@@ -49,6 +49,7 @@ object InboundDecoder {
             protocol = protocol,
             stream = stream,
             sniffing = sniffing,
+            nodeId = dto.nodeId,
         )
     }
 

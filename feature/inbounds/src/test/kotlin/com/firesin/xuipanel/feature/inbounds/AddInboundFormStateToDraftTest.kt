@@ -196,4 +196,18 @@ class AddInboundFormStateToDraftTest {
         val draft = state.toInboundDraft()
         assertEquals(false, draft.sniffing.enabled)
     }
+
+    @Test
+    fun `nodeId null in form state produces draft with null nodeId`() {
+        val state = AddInboundFormState(selectedProtocol = ProtocolType.VLESS, nodeId = null)
+        val draft = state.toInboundDraft()
+        assertNull(draft.nodeId)
+    }
+
+    @Test
+    fun `nodeId non-null is forwarded to draft`() {
+        val state = AddInboundFormState(selectedProtocol = ProtocolType.VLESS, nodeId = 5)
+        val draft = state.toInboundDraft()
+        assertEquals(5, draft.nodeId)
+    }
 }

@@ -95,6 +95,7 @@ fun InboundsListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val nodeNames by viewModel.nodeNames.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
@@ -136,6 +137,7 @@ fun InboundsListScreen(
     InboundsContent(
         uiState = uiState,
         isRefreshing = isRefreshing,
+        nodeNames = nodeNames,
         snackbarHostState = snackbarHostState,
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
@@ -198,6 +200,7 @@ fun InboundsListScreen(
 private fun InboundsContent(
     uiState: InboundsUiState,
     isRefreshing: Boolean,
+    nodeNames: Map<Int, String> = emptyMap(),
     snackbarHostState: SnackbarHostState,
     onRefresh: () -> Unit,
     onAddPanel: () -> Unit,
@@ -330,6 +333,9 @@ private fun InboundsContent(
                             items(uiState.inbounds, key = { it.id }) { inbound ->
                                 InboundCard(
                                     inbound = inbound,
+                                    nodeName = inbound.nodeId?.let { id ->
+                                        nodeNames[id] ?: "node #$id"
+                                    },
                                     onManageClients = { onManageClients(inbound.id) },
                                     onToggleEnabled = { newValue ->
                                         onToggleEnabled(inbound.id, newValue)
@@ -353,6 +359,7 @@ private fun InboundsContent(
 @Composable
 private fun InboundCard(
     inbound: InboundDto,
+    nodeName: String? = null,
     onManageClients: () -> Unit = {},
     onToggleEnabled: (Boolean) -> Unit = {},
     onEditInbound: () -> Unit = {},
@@ -468,6 +475,20 @@ private fun InboundCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
             )
+
+            // Node badge — only for inbounds deployed on a specific node
+            if (nodeName != null) {
+                androidx.compose.material3.AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = nodeName,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        )
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
 
             // Hairline divider
             HorizontalDivider(

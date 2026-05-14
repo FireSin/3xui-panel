@@ -107,6 +107,8 @@ data class AddInboundFormState(
     // Common
     val remark: String = "",
     val port: String = "443",
+    /** Null = local (main) panel; non-null = deploy to node with this id. */
+    val nodeId: Int? = null,
     val listen: String = "",
     val enable: Boolean = true,
     val expiryTime: Long = 0L,
@@ -267,6 +269,7 @@ fun AddInboundFormState.toInboundDraft(): InboundDraft {
         protocol = protocol,
         stream = stream,
         sniffing = sniffing,
+        nodeId = nodeId,
     )
 }
 
@@ -408,6 +411,7 @@ fun AddInboundFormState.Companion.fromInboundDraft(draft: InboundDraft): AddInbo
         expiryTime = draft.expiryTime,
         totalGb = if (draft.total <= 0L) "0" else (draft.total / BYTES_PER_GB).toString(),
         selectedProtocol = protocolType,
+        nodeId = draft.nodeId,
         // sniffing
         sniffingEnabled = draft.sniffing.enabled,
         sniffingDestOverride = draft.sniffing.destOverride.toSet(),

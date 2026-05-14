@@ -178,4 +178,6 @@
     <string name="inbounds_error_response">Ответ панели: %s</string>
     <string name="inbounds_error_unexpected">Неожиданная ошибка</string>
     <string name="inbounds_error_pin_mismatch">Сертификат панели изменился</string>
+    <string name="add_inbound_deploy_to">Развернуть на</string>
+    <string name="add_inbound_deploy_to_local">Локальная панель</string>
 </resources>

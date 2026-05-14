@@ -51,6 +51,7 @@ import com.firesin.xuipanel.feature.inbounds.add.form.TrojanForm
 import com.firesin.xuipanel.feature.inbounds.add.form.VlessForm
 import com.firesin.xuipanel.feature.inbounds.add.form.VmessForm
 import com.firesin.xuipanel.feature.inbounds.add.form.WireguardForm
+import com.firesin.xuipanel.core.xui.dto.NodeDto
 import com.firesin.xuipanel.feature.inbounds.add.ui.AddInboundFormState
 import com.firesin.xuipanel.feature.inbounds.add.ui.AddInboundUiState
 import com.firesin.xuipanel.feature.inbounds.add.ui.AddInboundViewModel
@@ -67,6 +68,7 @@ fun AddInboundScreen(
     viewModel: AddInboundViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val availableNodes by viewModel.availableNodes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
@@ -84,6 +86,7 @@ fun AddInboundScreen(
 
     AddInboundContent(
         formState = editing?.formState ?: AddInboundFormState(),
+        availableNodes = availableNodes,
         isSaving = editing?.isSaving ?: false,
         isLoading = editing?.isLoading ?: false,
         isEditing = editing?.editingInboundId != null,
@@ -91,6 +94,7 @@ fun AddInboundScreen(
         onClose = onClose,
         onSave = viewModel::save,
         onRemarkChange = viewModel::updateRemark,
+        onNodeIdChange = viewModel::updateNodeId,
         onPortChange = viewModel::updatePort,
         onListenChange = viewModel::updateListen,
         onEnableChange = viewModel::updateEnable,
@@ -206,6 +210,7 @@ fun AddInboundScreen(
 @Composable
 private fun AddInboundContent(
     formState: AddInboundFormState,
+    availableNodes: List<NodeDto> = emptyList(),
     isSaving: Boolean,
     isLoading: Boolean = false,
     isEditing: Boolean = false,
@@ -213,6 +218,7 @@ private fun AddInboundContent(
     onClose: () -> Unit,
     onSave: () -> Unit,
     onRemarkChange: (String) -> Unit,
+    onNodeIdChange: (Int?) -> Unit = {},
     onPortChange: (String) -> Unit,
     onListenChange: (String) -> Unit,
     onEnableChange: (Boolean) -> Unit,
@@ -390,6 +396,10 @@ private fun AddInboundContent(
                 onEnableChange = onEnableChange,
                 onExpiryTimeChange = onExpiryTimeChange,
                 onTotalGbChange = onTotalGbChange,
+                nodeId = formState.nodeId,
+                availableNodes = availableNodes,
+                onNodeIdChange = onNodeIdChange,
+                isEditing = isEditing,
             )
 
             Spacer(Modifier.height(12.dp))

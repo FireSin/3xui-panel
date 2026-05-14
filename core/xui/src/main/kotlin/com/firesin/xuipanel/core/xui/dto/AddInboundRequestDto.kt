@@ -1,5 +1,7 @@
 package com.firesin.xuipanel.core.xui.dto
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,6 +14,7 @@ import kotlinx.serialization.Serializable
  *
  * api.txt §/panel/api/inbounds/add.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AddInboundRequestDto(
     @SerialName("enable") val enable: Boolean = true,
@@ -26,4 +29,7 @@ data class AddInboundRequestDto(
     @SerialName("settings") val settings: String,
     @SerialName("streamSettings") val streamSettings: String,
     @SerialName("sniffing") val sniffing: String,
+    /** Present only for node inbounds; absent (not null) for local panel inbounds. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("nodeId") val nodeId: Int? = null,
 )

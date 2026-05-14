@@ -27,6 +27,7 @@ data class InboundDto(
     @SerialName("streamSettings") val streamSettings: String,
     @SerialName("tag") val tag: String,
     @SerialName("sniffing") val sniffing: String,
+    @SerialName("nodeId") val nodeId: Int? = null,
 )
 
 @Serializable

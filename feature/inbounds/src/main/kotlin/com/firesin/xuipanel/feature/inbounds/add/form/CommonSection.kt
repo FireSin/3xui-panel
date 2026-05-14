@@ -11,9 +11,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -33,6 +38,7 @@ import com.firesin.xuipanel.core.designsystem.component.FieldRow
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.IosToggle
 import com.firesin.xuipanel.core.designsystem.component.SectionHeader
+import com.firesin.xuipanel.core.xui.dto.NodeDto
 import com.firesin.xuipanel.feature.inbounds.R
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,11 +61,22 @@ fun CommonSection(
     onEnableChange: (Boolean) -> Unit,
     onExpiryTimeChange: (Long) -> Unit,
     onTotalGbChange: (String) -> Unit,
+    nodeId: Int? = null,
+    availableNodes: List<NodeDto> = emptyList(),
+    onNodeIdChange: (Int?) -> Unit = {},
+    isEditing: Boolean = false,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     SectionHeader(stringResource(R.string.add_inbound_section_common))
     GroupCard {
+        NodeDeployRow(
+            nodeId = nodeId,
+            availableNodes = availableNodes,
+            onNodeIdChange = onNodeIdChange,
+            enabled = !isEditing,
+            topDivider = false,
+        )
         FieldRow(
             label = stringResource(R.string.add_inbound_field_remark),
             value = remark,
@@ -146,6 +163,72 @@ private fun ExpiryFieldRow(expiryTime: Long, onPickDate: () -> Unit, onClear: ()
             } else {
                 TextButton(onClick = onPickDate) {
                     Text(stringResource(R.string.add_inbound_expiry_pick), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+    )
+}
+
+/**
+ * Dropdown row for selecting the deploy target (local panel or a specific node).
+ * Disabled in edit-mode — node migration is not supported by the API.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NodeDeployRow(
+    nodeId: Int?,
+    availableNodes: List<NodeDto>,
+    onNodeIdChange: (Int?) -> Unit,
+    enabled: Boolean,
+    topDivider: Boolean = true,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val localLabel = stringResource(R.string.add_inbound_deploy_to_local)
+    val selectedLabel = nodeId?.let { id -> availableNodes.find { it.id == id }?.name ?: "node #$id" }
+        ?: localLabel
+
+    FieldRow(
+        label = stringResource(R.string.add_inbound_deploy_to),
+        value = "",
+        onValueChange = {},
+        readOnly = true,
+        topDivider = topDivider,
+        trailing = {
+            ExposedDropdownMenuBox(
+                expanded = expanded && enabled,
+                onExpandedChange = { if (enabled) expanded = it },
+            ) {
+                OutlinedTextField(
+                    value = selectedLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = enabled,
+                    trailingIcon = {
+                        if (enabled) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                    singleLine = true,
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded && enabled,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(localLabel) },
+                        onClick = {
+                            onNodeIdChange(null)
+                            expanded = false
+                        },
+                    )
+                    availableNodes.forEach { node ->
+                        DropdownMenuItem(
+                            text = { Text(node.name) },
+                            onClick = {
+                                onNodeIdChange(node.id)
+                                expanded = false
+                            },
+                        )
+                    }
                 }
             }
         },
