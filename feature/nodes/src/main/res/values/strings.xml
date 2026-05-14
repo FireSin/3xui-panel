@@ -52,4 +52,21 @@
     <string name="nodes_error_response">Ответ панели: %1$s</string>
     <string name="nodes_error_unexpected">Неожиданная ошибка</string>
     <string name="nodes_error_pin_mismatch">Сертификат панели изменился</string>
+
+    <!-- NodeDetailScreen -->
+    <string name="nodes_detail_title">Детали ноды</string>
+    <string name="nodes_detail_cd_back">Назад</string>
+    <string name="nodes_detail_section_history">История (6ч)</string>
+    <string name="nodes_detail_no_data">Нет данных за период</string>
+    <string name="nodes_detail_metric_cpu">CPU</string>
+    <string name="nodes_detail_metric_mem">RAM</string>
+    <string name="nodes_detail_metric_net_in">Net In</string>
+    <string name="nodes_detail_metric_net_out">Net Out</string>
+    <string name="nodes_detail_metric_latency">Latency</string>
+    <string name="nodes_detail_metric_online">Online</string>
+    <!-- %1$s = min, %2$s = avg, %3$s = max -->
+    <string name="nodes_detail_history_summary">min %1$s · avg %2$s · max %3$s</string>
+    <!-- %1$d = latency ms, %2$.1f = cpu%%, %3$.1f = mem%% -->
+    <string name="nodes_detail_info_stats">%1$d ms · CPU %2$.1f%% · MEM %3$.1f%%</string>
+    <string name="nodes_detail_xray_version">Xray v%1$s</string>
 </resources>

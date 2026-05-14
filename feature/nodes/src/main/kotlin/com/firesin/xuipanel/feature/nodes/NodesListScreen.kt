@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.feature.nodes
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,6 +80,7 @@ fun NodesListScreen(
     onMenuClick: () -> Unit = {},
     onAddNode: () -> Unit = {},
     onEditNode: (nodeId: Int) -> Unit = {},
+    onViewDetail: (nodeId: Int) -> Unit = {},
     viewModel: NodesListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,6 +111,7 @@ fun NodesListScreen(
         onMenuClick = onMenuClick,
         onAddNode = onAddNode,
         onEditNode = onEditNode,
+        onViewDetail = onViewDetail,
         onSetEnable = viewModel::setEnable,
         onProbe = viewModel::probe,
         onDeleteNode = { id, name ->
@@ -139,6 +142,7 @@ private fun NodesContent(
     onMenuClick: () -> Unit = {},
     onAddNode: () -> Unit = {},
     onEditNode: (nodeId: Int) -> Unit = {},
+    onViewDetail: (nodeId: Int) -> Unit = {},
     onSetEnable: (nodeId: Int, enable: Boolean) -> Unit = { _, _ -> },
     onProbe: (nodeId: Int) -> Unit = {},
     onDeleteNode: (nodeId: Int, name: String) -> Unit = { _, _ -> },
@@ -231,6 +235,7 @@ private fun NodesContent(
                                 onProbe = { onProbe(node.id) },
                                 onEdit = { onEditNode(node.id) },
                                 onDelete = { onDeleteNode(node.id, node.displayName()) },
+                                onClick = { onViewDetail(node.id) },
                             )
                         }
                         item { Spacer(Modifier.height(80.dp)) }
@@ -248,12 +253,15 @@ private fun NodeCard(
     onProbe: () -> Unit = {},
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {},
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = CardShape,
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 0.dp,

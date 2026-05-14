@@ -221,4 +221,17 @@ interface XuiApi {
 
     @POST("panel/api/nodes/probe/{id}")
     suspend fun probeNode(@Path("id") id: Int): Response<LoginResponseDto>
+
+    /**
+     * Time-series for one node metric, ~6h window, aggregated to [bucketSecs]-second buckets.
+     * Metric: cpu | mem | netIn | netOut | latency | online.
+     * Bucket: 2, 30, 60, 120, 180, 300 (seconds).
+     * Same response shape as [serverHistory].
+     */
+    @GET("panel/api/nodes/history/{id}/{metric}/{bucket}")
+    suspend fun getNodeHistory(
+        @Path("id") nodeId: Int,
+        @Path("metric") metric: String,
+        @Path("bucket") bucketSecs: Int,
+    ): Response<ServerHistoryResponseDto>
 }

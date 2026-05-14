@@ -1172,6 +1172,38 @@ class XuiClient @Inject constructor(
         )
     }
 
+    /**
+     * Time-series for one node metric.
+     *
+     * @param nodeId    target node id
+     * @param metric    one of: cpu, mem, netIn, netOut, latency, online
+     * @param bucket    aggregation bucket in seconds (allowed: 2, 30, 60, 120, 180, 300)
+     */
+    suspend fun fetchNodeHistory(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        nodeId: Int,
+        metric: String,
+        bucket: Int,
+    ): Result<List<ServerHistoryPointDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getNodeHistory(nodeId, metric, bucket)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
     /** Triggers a live probe of an existing node, updating its cached status server-side. */
     suspend fun probeNode(
         panelId: String,
