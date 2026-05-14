@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -64,8 +67,13 @@ import com.firesin.xuipanel.core.xui.util.randomShadowsocksPassword
 import com.firesin.xuipanel.core.xui.util.randomSubId
 import com.firesin.xuipanel.core.xui.util.randomTrojanPassword
 import com.firesin.xuipanel.core.xui.util.randomUuid
+import com.firesin.xuipanel.core.common.util.classifyExpiry
+import com.firesin.xuipanel.core.common.util.ExpiryLabel
+import com.firesin.xuipanel.core.common.util.prettyBytes
+import com.firesin.xuipanel.core.xui.dto.ClientTrafficDto
 import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.ClientIpsState
 import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.SubLinksState
+import com.firesin.xuipanel.feature.clients.ui.ClientsViewModel.TrafficState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -103,6 +111,8 @@ fun ClientFormScreen(
     subLinksState: SubLinksState = SubLinksState.Idle,
     onLoadSubLinks: (subId: String) -> Unit = {},
     onDismissSubLinks: () -> Unit = {},
+    trafficState: TrafficState = TrafficState.Idle,
+    onRefreshTraffic: () -> Unit = {},
 ) {
     val isEdit = existingClient != null
     val title = if (isEdit) {
@@ -555,6 +565,15 @@ fun ClientFormScreen(
 
             if (isEdit) {
                 Spacer(Modifier.height(12.dp))
+                SectionHeader(stringResource(R.string.client_form_section_traffic))
+                TrafficSection(
+                    state = trafficState,
+                    onRefresh = onRefreshTraffic,
+                )
+            }
+
+            if (isEdit) {
+                Spacer(Modifier.height(12.dp))
                 SectionHeader(stringResource(R.string.client_form_section_ips))
                 ClientIpsSection(
                     state = clientIpsState,
@@ -702,6 +721,149 @@ private fun SubLinksDialog(state: SubLinksState, onDismiss: () -> Unit) {
                 Text(stringResource(R.string.client_form_sub_links_close))
             }
         },
+    )
+}
+
+// ── Traffic stats section (edit mode only) ───────────────────────────────────
+
+@Composable
+private fun TrafficSection(
+    state: TrafficState,
+    onRefresh: () -> Unit,
+) {
+    GroupCard(footer = stringResource(R.string.client_form_traffic_footer)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.client_form_section_traffic),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            when (state) {
+                TrafficState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+                else -> {
+                    IconButton(onClick = onRefresh) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.client_form_traffic_refresh_cd),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
+        when (state) {
+            TrafficState.Idle, TrafficState.Loading -> Unit
+            TrafficState.NoData -> {
+                TrafficInfoRow(text = stringResource(R.string.client_form_traffic_no_data))
+            }
+            is TrafficState.Loaded -> {
+                TrafficDataRows(traffic = state.traffic)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrafficDataRows(traffic: ClientTrafficDto) {
+    val expiryLabel = classifyExpiry(traffic.expiryTime)
+    val expiryText = when (expiryLabel) {
+        ExpiryLabel.Never -> stringResource(R.string.client_form_traffic_no_expiry)
+        is ExpiryLabel.ExpiresIn -> stringResource(
+            R.string.client_form_traffic_expires_in,
+            expiryLabel.days,
+        )
+        is ExpiryLabel.ExpiredAgo -> stringResource(
+            R.string.client_form_traffic_expired_ago,
+            expiryLabel.days,
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TrafficRow(
+            label = stringResource(R.string.client_form_traffic_upload),
+            value = prettyBytes(traffic.up),
+        )
+        TrafficRow(
+            label = stringResource(R.string.client_form_traffic_download),
+            value = prettyBytes(traffic.down),
+        )
+        TrafficRow(
+            label = stringResource(R.string.client_form_traffic_total_cap),
+            value = if (traffic.total == 0L) {
+                stringResource(R.string.client_form_traffic_unlimited)
+            } else {
+                prettyBytes(traffic.total)
+            },
+        )
+        TrafficRow(
+            label = stringResource(R.string.client_form_traffic_resets),
+            value = traffic.reset.toString(),
+        )
+        TrafficRow(
+            label = stringResource(R.string.client_form_traffic_expiry),
+            value = expiryText,
+        )
+    }
+}
+
+@Composable
+private fun TrafficRow(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrafficInfoRow(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(0.5.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant),
+    )
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     )
 }
 

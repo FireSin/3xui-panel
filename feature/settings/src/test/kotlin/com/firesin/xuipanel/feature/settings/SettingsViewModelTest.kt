@@ -247,6 +247,143 @@ class SettingsViewModelTest {
         }
     }
 
+    // ---- Bundle A tests ----
+
+    @Test
+    fun `loadXrayVersion - populates xrayVersion on success`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        coEvery {
+            xuiClient.fetchXrayVersion(any(), any(), any(), any())
+        } returns Result.Success("v25.5.16")
+        val vm = viewModel()
+
+        vm.loadXrayVersion()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.xrayVersion.test {
+            assertEquals("v25.5.16", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `loadXrayVersion - leaves xrayVersion null on failure`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        coEvery {
+            xuiClient.fetchXrayVersion(any(), any(), any(), any())
+        } returns Result.Failure(com.firesin.xuipanel.core.common.DomainError.Network(java.io.IOException("err")))
+        val vm = viewModel()
+
+        vm.loadXrayVersion()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(null, vm.xrayVersion.value)
+    }
+
+    @Test
+    fun `loadPanelUpdateInfo - sets Loaded state with update info`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        val info = com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoObj(
+            currentVersion = "2.3.12",
+            latestVersion = "2.3.14",
+            isUpdatable = true,
+        )
+        coEvery {
+            xuiClient.fetchPanelUpdateInfo(any(), any(), any(), any())
+        } returns Result.Success(info)
+        val vm = viewModel()
+
+        vm.loadPanelUpdateInfo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.panelUpdateInfo.value
+        assertTrue(state is PanelUpdateState.Loaded)
+        assertTrue((state as PanelUpdateState.Loaded).info.isUpdatable)
+        assertEquals("2.3.14", state.info.latestVersion)
+    }
+
+    @Test
+    fun `loadPanelUpdateInfo - stays Idle on failure`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        coEvery {
+            xuiClient.fetchPanelUpdateInfo(any(), any(), any(), any())
+        } returns Result.Failure(com.firesin.xuipanel.core.common.DomainError.Network(java.io.IOException("err")))
+        val vm = viewModel()
+
+        vm.loadPanelUpdateInfo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.panelUpdateInfo.value is PanelUpdateState.Idle)
+    }
+
+    // ---- Bundle B tests ----
+
+    @Test
+    fun `updateGeofile - emits success snackbar on Result_Success`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        coEvery {
+            xuiClient.updateBuiltinGeofile(any(), any(), any(), any())
+        } returns Result.Success(Unit)
+        val vm = viewModel()
+
+        vm.snackbarMessage.test {
+            vm.updateGeofile(successMsg = "Обновлено", errorPrefix = "Ошибка")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals("Обновлено", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `loadConfigJson - emits ConfigLoaded backupEvent on success`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        val prettyJson = """{"log":{"loglevel":"warning"}}"""
+        coEvery {
+            xuiClient.fetchConfigJson(any(), any(), any(), any())
+        } returns Result.Success(prettyJson)
+        val vm = viewModel()
+
+        vm.backupEvent.test {
+            vm.loadConfigJson()
+            testDispatcher.scheduler.advanceUntilIdle()
+            val event = awaitItem()
+            assertTrue(event is SettingsViewModel.BackupEvent.ConfigLoaded)
+            assertTrue((event as SettingsViewModel.BackupEvent.ConfigLoaded).json.contains("loglevel"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `loadConfigJson - emits Error backupEvent on failure`() = runTest {
+        biometricAvailable()
+        val panel = fakePanel()
+        every { panelRepository.observeActive() } returns flowOf(panel)
+        coEvery {
+            xuiClient.fetchConfigJson(any(), any(), any(), any())
+        } returns Result.Failure(com.firesin.xuipanel.core.common.DomainError.Network(java.io.IOException("err")))
+        val vm = viewModel()
+
+        vm.backupEvent.test {
+            vm.loadConfigJson()
+            testDispatcher.scheduler.advanceUntilIdle()
+            val event = awaitItem()
+            assertTrue(event is SettingsViewModel.BackupEvent.Error)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ---- Helpers ----
 
     private fun fakePanel() = Panel(

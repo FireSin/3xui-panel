@@ -11,6 +11,7 @@ import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
+import com.firesin.xuipanel.core.xui.dto.ClientTrafficDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoResourceDto
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
@@ -20,6 +21,7 @@ import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
 import com.firesin.xuipanel.core.xui.dto.NodeDto
 import com.firesin.xuipanel.core.xui.dto.NodeStatusProbeDto
+import com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoObj
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
@@ -28,6 +30,9 @@ import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.X25519KeyPairDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogEntryDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -854,6 +859,64 @@ class XuiClient @Inject constructor(
         )
     }
 
+    /**
+     * Traffic counters for a single client, looked up by email.
+     * Endpoint: GET /panel/api/inbounds/getClientTraffics/{email}
+     * Returns [DomainError.PanelResponse] when [success] is false (e.g. email not found).
+     */
+    suspend fun fetchClientTrafficsByEmail(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        email: String,
+    ): Result<ClientTrafficDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getClientTrafficsByEmail(email)
+            }
+        }.fold(
+            onSuccess = { response ->
+                val obj = response.obj
+                if (response.success && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Traffic counters for a single client, looked up by its numeric client-stats row id.
+     * Endpoint: GET /panel/api/inbounds/getClientTrafficsById/{id}
+     * The [id] is the string representation of the integer row id from [ClientTrafficDto.id].
+     */
+    suspend fun fetchClientTrafficsById(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        id: String,
+    ): Result<ClientTrafficDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getClientTrafficsById(id)
+            }
+        }.fold(
+            onSuccess = { response ->
+                val obj = response.obj
+                if (response.success && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
     suspend fun fetchCustomGeoList(
         panelId: String,
         baseUrl: String,
@@ -1492,6 +1555,195 @@ class XuiClient @Inject constructor(
             else -> DomainError.Unexpected(this)
         }
         return Result.Failure(error)
+    }
+
+    // ---- Bundle A: server info ----
+
+    /**
+     * Returns the currently-installed Xray binary version string (e.g. "v25.5.16").
+     * api.txt line 312–313: GET /panel/api/server/getXrayVersion.
+     */
+    suspend fun fetchXrayVersion(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<String, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getXrayVersion()
+            }
+        }.fold(
+            onSuccess = { response ->
+                val version = response.obj
+                if (response.success && !version.isNullOrBlank()) {
+                    Result.Success(version)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Checks if a newer 3x-ui panel release is available.
+     * api.txt line 316–317: GET /panel/api/server/getPanelUpdateInfo.
+     */
+    suspend fun fetchPanelUpdateInfo(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<PanelUpdateInfoObj, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getPanelUpdateInfo()
+            }
+        }.fold(
+            onSuccess = { response ->
+                val obj = response.obj
+                if (response.success && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    // ---- Bundle B: backup / config ----
+
+    /**
+     * Streams the panel SQLite backup into [sink], which is called on [Dispatchers.IO].
+     * The sink receives the raw [java.io.InputStream] — callers must NOT close it; this
+     * method closes both the stream and the [ResponseBody] when done.
+     * api.txt line 324–325: GET /panel/api/server/getDb.
+     */
+    suspend fun fetchDbInto(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        sink: suspend (java.io.InputStream) -> Unit,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getDb()
+            }
+        }.fold(
+            onSuccess = { body ->
+                try {
+                    sink(body.byteStream())
+                    Result.Success(Unit)
+                } finally {
+                    body.close()
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Uploads a SQLite backup file to restore the panel DB.
+     * api.txt line 397–399: POST /panel/api/server/importDB, multipart field "db".
+     * Panel restarts on success — applies EOF/IO tolerance pattern.
+     *
+     * @param fileBytes raw bytes of the DB file
+     * @param fileName  display name for the multipart part (e.g. "x-ui.db")
+     */
+    suspend fun importDb(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        fileBytes: ByteArray,
+        fileName: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        val requestBody = fileBytes.toRequestBody("application/octet-stream".toMediaType())
+        val part = MultipartBody.Part.createFormData("db", fileName, requestBody)
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.importDb(part)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                val isEofOrIo = generateSequence(cause as Throwable?) { it.cause }
+                    .any { it is EOFException || it is IOException }
+                if (isEofOrIo) {
+                    // Panel restarts after DB restore — treat connection drop as success.
+                    return@fold Result.Success(Unit)
+                }
+                cause.toDomainError(panelId)
+            },
+        )
+    }
+
+    /**
+     * Refreshes ALL built-in GeoIP/GeoSite data files.
+     * api.txt line 367–368: POST /panel/api/server/updateGeofile.
+     */
+    suspend fun updateBuiltinGeofile(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.updateGeofile()
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Returns the raw Xray config JSON currently running on this host, pretty-printed.
+     * api.txt line 319–320: GET /panel/api/server/getConfigJson.
+     */
+    suspend fun fetchConfigJson(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<String, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getConfigJson()
+            }
+        }.fold(
+            onSuccess = { response ->
+                val element = response.obj
+                if (response.success && element != null) {
+                    val prettyJson = Json { prettyPrint = true; ignoreUnknownKeys = true }
+                    Result.Success(
+                        prettyJson.encodeToString(
+                            kotlinx.serialization.json.JsonElement.serializer(),
+                            element,
+                        ),
+                    )
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
     }
 
     private companion object {

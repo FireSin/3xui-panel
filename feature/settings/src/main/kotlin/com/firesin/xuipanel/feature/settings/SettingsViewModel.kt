@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.feature.settings
 
 import android.content.Context
+import android.net.Uri
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -17,6 +18,7 @@ import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 sealed interface LockToggleState {
@@ -195,4 +198,183 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    // ---- Bundle A: server info ----
+
+    /** Installed Xray version string, null while loading or on error. */
+    private val _xrayVersion = MutableStateFlow<String?>(null)
+    val xrayVersion: StateFlow<String?> = _xrayVersion
+
+    /** Panel update info; null while not yet loaded. */
+    private val _panelUpdateInfo = MutableStateFlow<PanelUpdateState>(PanelUpdateState.Idle)
+    val panelUpdateInfo: StateFlow<PanelUpdateState> = _panelUpdateInfo
+
+    fun loadXrayVersion() {
+        viewModelScope.launch {
+            val panel = panelRepository.observeActive().first() ?: return@launch
+            val result = xuiClient.fetchXrayVersion(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+            )
+            _xrayVersion.value = (result as? Result.Success)?.data
+        }
+    }
+
+    fun loadPanelUpdateInfo() {
+        viewModelScope.launch {
+            val panel = panelRepository.observeActive().first() ?: return@launch
+            _panelUpdateInfo.value = PanelUpdateState.Loading
+            val result = xuiClient.fetchPanelUpdateInfo(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+            )
+            _panelUpdateInfo.value = when (result) {
+                is Result.Success -> PanelUpdateState.Loaded(result.data)
+                is Result.Failure -> PanelUpdateState.Idle
+            }
+        }
+    }
+
+    // ---- Bundle B: backup / config ----
+
+    /** Opaque one-shot events emitted by backup/config operations. */
+    sealed interface BackupEvent {
+        data object DbDownloaded : BackupEvent
+        data object DbRestored : BackupEvent
+        data object GeofileUpdated : BackupEvent
+        data class ConfigLoaded(val json: String) : BackupEvent
+        data class Error(val message: String) : BackupEvent
+    }
+
+    private val _backupEvent = MutableSharedFlow<BackupEvent>(extraBufferCapacity = 1)
+    val backupEvent: SharedFlow<BackupEvent> = _backupEvent.asSharedFlow()
+
+    /**
+     * Downloads the panel DB and writes it to the user-chosen SAF [uri].
+     * Streams bytes from the panel into the SAF output stream to avoid OOM.
+     */
+    fun downloadDb(uri: Uri) {
+        viewModelScope.launch {
+            val panel = panelRepository.observeActive().first() ?: run {
+                _snackbarMessage.tryEmit(context.getString(R.string.settings_system_no_active_panel))
+                return@launch
+            }
+            _isActionLoading.value = true
+            try {
+                val result = xuiClient.fetchDbInto(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    auth = panel.toAuth(),
+                    tls = panel.toPanelTls(),
+                ) { inputStream ->
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            inputStream.copyTo(out, bufferSize = DB_BUFFER_SIZE)
+                        }
+                    }
+                }
+                when (result) {
+                    is Result.Success -> _backupEvent.tryEmit(BackupEvent.DbDownloaded)
+                    is Result.Failure -> _backupEvent.tryEmit(BackupEvent.Error(result.error.toString()))
+                }
+            } finally {
+                _isActionLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Reads the SQLite file at [uri] and uploads it to restore the panel DB.
+     * Panel restarts on success.
+     */
+    fun importDb(uri: Uri) {
+        viewModelScope.launch {
+            val panel = panelRepository.observeActive().first() ?: run {
+                _snackbarMessage.tryEmit(context.getString(R.string.settings_system_no_active_panel))
+                return@launch
+            }
+            _isActionLoading.value = true
+            try {
+                val bytes = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+                if (bytes == null) {
+                    _backupEvent.tryEmit(BackupEvent.Error(context.getString(R.string.settings_backup_import_read_error)))
+                    return@launch
+                }
+                val fileName = uri.lastPathSegment ?: DB_DEFAULT_FILENAME
+                val result = xuiClient.importDb(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    auth = panel.toAuth(),
+                    tls = panel.toPanelTls(),
+                    fileBytes = bytes,
+                    fileName = fileName,
+                )
+                when (result) {
+                    is Result.Success -> _backupEvent.tryEmit(BackupEvent.DbRestored)
+                    is Result.Failure -> _backupEvent.tryEmit(BackupEvent.Error(result.error.toString()))
+                }
+            } finally {
+                _isActionLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Triggers a refresh of all built-in GeoIP/GeoSite data files.
+     */
+    fun updateGeofile(successMsg: String, errorPrefix: String) {
+        runSystemAction(showSpinner = true, successMsg = successMsg, errorPrefix = errorPrefix) { panel ->
+            xuiClient.updateBuiltinGeofile(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+            )
+        }
+    }
+
+    /**
+     * Fetches the Xray config JSON and emits it via [backupEvent] for display in a dialog.
+     */
+    fun loadConfigJson() {
+        viewModelScope.launch {
+            val panel = panelRepository.observeActive().first() ?: run {
+                _snackbarMessage.tryEmit(context.getString(R.string.settings_system_no_active_panel))
+                return@launch
+            }
+            _isActionLoading.value = true
+            try {
+                val result = xuiClient.fetchConfigJson(
+                    panelId = panel.id,
+                    baseUrl = panel.baseUrl,
+                    auth = panel.toAuth(),
+                    tls = panel.toPanelTls(),
+                )
+                when (result) {
+                    is Result.Success -> _backupEvent.tryEmit(BackupEvent.ConfigLoaded(result.data))
+                    is Result.Failure -> _backupEvent.tryEmit(BackupEvent.Error(result.error.toString()))
+                }
+            } finally {
+                _isActionLoading.value = false
+            }
+        }
+    }
+
+    private companion object {
+        const val DB_BUFFER_SIZE = 8 * 1024
+        const val DB_DEFAULT_FILENAME = "x-ui.db"
+    }
+}
+
+/** State for the panel update badge. */
+sealed interface PanelUpdateState {
+    data object Idle : PanelUpdateState
+    data object Loading : PanelUpdateState
+    data class Loaded(val info: com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoObj) : PanelUpdateState
 }

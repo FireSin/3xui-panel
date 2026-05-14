@@ -131,6 +131,23 @@
     <string name="client_form_ips_error">Не удалось загрузить</string>
     <string name="client_form_ips_footer">Последние IP, с которых подключался клиент. На панели хранится до нескольких записей.</string>
 
+    <!-- Traffic stats section (edit mode only) -->
+    <string name="client_form_section_traffic">Статистика трафика</string>
+    <string name="client_form_traffic_footer">Данные получены с панели через API. Нажмите кнопку обновления для загрузки актуальной статистики.</string>
+    <string name="client_form_traffic_refresh_cd">Обновить статистику</string>
+    <string name="client_form_traffic_no_data">Нет данных о трафике</string>
+    <string name="client_form_traffic_upload">Загружено (↑)</string>
+    <string name="client_form_traffic_download">Скачано (↓)</string>
+    <string name="client_form_traffic_total_cap">Лимит трафика</string>
+    <string name="client_form_traffic_unlimited">Без лимита</string>
+    <string name="client_form_traffic_resets">Сбросов счётчиков</string>
+    <string name="client_form_traffic_expiry">Срок действия</string>
+    <string name="client_form_traffic_no_expiry">Без ограничения</string>
+    <!-- %d = days remaining -->
+    <string name="client_form_traffic_expires_in">истекает через %d дн.</string>
+    <!-- %d = days since expiry -->
+    <string name="client_form_traffic_expired_ago">истёк %d дн. назад</string>
+
     <!-- Error messages -->
     <string name="clients_error_invalid_credentials">Неверный логин или пароль</string>
     <string name="clients_error_tls">Ошибка TLS: %s</string>

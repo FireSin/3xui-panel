@@ -2,11 +2,13 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
+import com.firesin.xuipanel.core.xui.dto.ClientTrafficResponseDto
 import com.firesin.xuipanel.core.xui.dto.TwoFactorResponseDto
 import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
+import com.firesin.xuipanel.core.xui.dto.ConfigJsonResponseDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoListResponseDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
@@ -18,6 +20,7 @@ import com.firesin.xuipanel.core.xui.dto.NewX25519ResponseDto
 import com.firesin.xuipanel.core.xui.dto.NodeListResponseDto
 import com.firesin.xuipanel.core.xui.dto.NodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
+import com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoDto
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
@@ -25,11 +28,17 @@ import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.SubLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.TestNodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogsResponseDto
+import com.firesin.xuipanel.core.xui.dto.XrayVersionResponseDto
+import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Streaming
 
 interface XuiApi {
 
@@ -177,6 +186,24 @@ interface XuiApi {
     @POST("panel/api/inbounds/clearClientIps/{email}")
     suspend fun clearClientIps(@Path("email") email: String): Response<LoginResponseDto>
 
+    /**
+     * Traffic counters for a client identified by email.
+     * api.txt line 85–91: GET /panel/api/inbounds/getClientTraffics/:email
+     */
+    @GET("panel/api/inbounds/getClientTraffics/{email}")
+    suspend fun getClientTrafficsByEmail(
+        @Path("email") email: String,
+    ): Response<ClientTrafficResponseDto>
+
+    /**
+     * Traffic counters for a client identified by its numeric client-stats row id.
+     * api.txt line 92–97: GET /panel/api/inbounds/getClientTrafficsById/:id
+     */
+    @GET("panel/api/inbounds/getClientTrafficsById/{id}")
+    suspend fun getClientTrafficsById(
+        @Path("id") id: String,
+    ): Response<ClientTrafficResponseDto>
+
     @GET("panel/api/custom-geo/list")
     suspend fun listCustomGeo(): Response<CustomGeoListResponseDto>
 
@@ -272,4 +299,62 @@ interface XuiApi {
      */
     @GET("panel/api/backuptotgbot")
     suspend fun backupToTgBot(): Response<LoginResponseDto>
+
+    // ---- Bundle A: server info ----
+
+    /**
+     * Currently installed Xray binary version string, e.g. "v25.5.16".
+     * api.txt line 312–313: GET /panel/api/server/getXrayVersion.
+     */
+    @GET("panel/api/server/getXrayVersion")
+    suspend fun getXrayVersion(): Response<XrayVersionResponseDto>
+
+    /**
+     * Check if a newer 3x-ui panel release is available on GitHub.
+     * api.txt line 316–317: GET /panel/api/server/getPanelUpdateInfo.
+     * Returns `{success, obj: {currentVersion, latestVersion, isUpdatable}}`.
+     */
+    @GET("panel/api/server/getPanelUpdateInfo")
+    suspend fun getPanelUpdateInfo(): Response<PanelUpdateInfoDto>
+
+    // ---- Bundle B: backup / config ----
+
+    /**
+     * Stream the SQLite database file as a binary attachment (manual backup).
+     * api.txt line 324–325: GET /panel/api/server/getDb.
+     * Must use @Streaming to avoid buffering the whole file in memory.
+     */
+    @Streaming
+    @GET("panel/api/server/getDb")
+    suspend fun getDb(): Response<ResponseBody>
+
+    /**
+     * Restore the panel DB from an uploaded SQLite file.
+     * api.txt line 397–399: POST /panel/api/server/importDB.
+     * Multipart form, field name "db". Panel restarts after restore. Destructive.
+     */
+    @Multipart
+    @POST("panel/api/server/importDB")
+    suspend fun importDb(@Part db: MultipartBody.Part): Response<LoginResponseDto>
+
+    /**
+     * Refresh ALL built-in GeoIP/GeoSite data files.
+     * api.txt line 367–368: POST /panel/api/server/updateGeofile.
+     */
+    @POST("panel/api/server/updateGeofile")
+    suspend fun updateGeofile(): Response<LoginResponseDto>
+
+    /**
+     * Refresh a single built-in Geo file by filename (e.g. "geoip.dat", "geosite.dat").
+     * api.txt line 371–372: POST /panel/api/server/updateGeofile/:fileName.
+     */
+    @POST("panel/api/server/updateGeofile/{fileName}")
+    suspend fun updateGeofileByName(@Path("fileName") fileName: String): Response<LoginResponseDto>
+
+    /**
+     * Return the raw Xray config JSON currently running on this host.
+     * api.txt line 319–320: GET /panel/api/server/getConfigJson.
+     */
+    @GET("panel/api/server/getConfigJson")
+    suspend fun getConfigJson(): Response<ConfigJsonResponseDto>
 }

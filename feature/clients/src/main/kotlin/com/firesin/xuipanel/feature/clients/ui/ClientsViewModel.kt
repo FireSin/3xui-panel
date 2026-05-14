@@ -11,6 +11,7 @@ import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.ClientStatDto
+import com.firesin.xuipanel.core.xui.dto.ClientTrafficDto
 import com.firesin.xuipanel.core.xui.dto.ClientsJson
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.dto.urlKey
@@ -300,6 +301,41 @@ class ClientsViewModel @Inject constructor(
 
     fun resetSubLinksState() {
         _subLinksState.value = SubLinksState.Idle
+    }
+
+    // ---- Client traffic ----
+
+    sealed class TrafficState {
+        data object Idle : TrafficState()
+        data object Loading : TrafficState()
+        data class Loaded(val traffic: ClientTrafficDto) : TrafficState()
+        data object NoData : TrafficState()
+    }
+
+    private val _trafficState = MutableStateFlow<TrafficState>(TrafficState.Idle)
+    val trafficState: StateFlow<TrafficState> = _trafficState
+
+    fun loadClientTraffic(email: String) {
+        val panel = activePanel() ?: return
+        if (email.isBlank()) return
+        viewModelScope.launch {
+            _trafficState.value = TrafficState.Loading
+            val result = xuiClient.fetchClientTrafficsByEmail(
+                panelId = panel.id,
+                baseUrl = panel.baseUrl,
+                auth = panel.toAuth(),
+                tls = panel.toPanelTls(),
+                email = email,
+            )
+            _trafficState.value = when (result) {
+                is Result.Success -> TrafficState.Loaded(result.data)
+                is Result.Failure -> TrafficState.NoData
+            }
+        }
+    }
+
+    fun resetTrafficState() {
+        _trafficState.value = TrafficState.Idle
     }
 
     fun errorShown() {

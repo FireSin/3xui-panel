@@ -82,4 +82,46 @@
 
     <string name="settings_system_no_active_panel">Нет активной панели</string>
     <string name="settings_system_cancel">Отмена</string>
+
+    <!-- Xray version badge (Bundle A) -->
+    <string name="settings_xray_version_label">Версия Xray</string>
+
+    <!-- Panel update badge (Bundle A) -->
+    <string name="settings_panel_update_available">Доступна новая версия %1$s</string>
+
+    <!-- Backup and config section (Bundle B) -->
+    <string name="settings_backup_section_header">Бэкап и конфигурация</string>
+
+    <string name="settings_backup_download_db_title">Скачать бэкап БД</string>
+    <string name="settings_backup_download_db_subtitle">Сохранить SQLite-файл базы данных на устройство</string>
+    <string name="settings_backup_download_db_success">Бэкап сохранён</string>
+    <string name="settings_backup_download_db_error">Ошибка сохранения бэкапа</string>
+
+    <string name="settings_backup_import_db_title">Восстановить из файла</string>
+    <string name="settings_backup_import_db_subtitle">Загрузить SQLite-файл для восстановления БД</string>
+    <string name="settings_backup_import_db_dialog_title">Восстановить базу данных?</string>
+    <string name="settings_backup_import_db_dialog_msg">Текущая БД будет заменена выбранным файлом, после чего панель перезапустится. Это действие необратимо.</string>
+    <string name="settings_backup_import_db_confirm">Восстановить</string>
+    <string name="settings_backup_import_read_error">Не удалось прочитать файл</string>
+    <string name="settings_backup_import_success">База восстановлена — панель перезапускается</string>
+    <string name="settings_backup_import_error">Ошибка восстановления</string>
+
+    <string name="settings_backup_update_geofile_title">Обновить геофайлы</string>
+    <string name="settings_backup_update_geofile_subtitle">Скачать актуальные GeoIP/GeoSite файлы</string>
+    <string name="settings_backup_update_geofile_dialog_title">Обновить геофайлы?</string>
+    <string name="settings_backup_update_geofile_dialog_msg">Встроенные файлы geoip.dat и geosite.dat будут заново скачаны с серверов 3x-ui.</string>
+    <string name="settings_backup_update_geofile_confirm">Обновить</string>
+    <string name="settings_backup_update_geofile_success">Геофайлы обновлены</string>
+    <string name="settings_backup_update_geofile_error">Ошибка обновления геофайлов</string>
+
+    <string name="settings_backup_view_config_title">Просмотр xray-конфига</string>
+    <string name="settings_backup_view_config_subtitle">Текущая конфигурация Xray (только чтение)</string>
+    <string name="settings_backup_view_config_dialog_title">Xray-конфиг</string>
+    <string name="settings_backup_view_config_copy">Копировать</string>
+    <string name="settings_backup_view_config_close">Закрыть</string>
+    <string name="settings_backup_view_config_copied">Конфиг скопирован</string>
+    <string name="settings_backup_view_config_error">Ошибка загрузки конфига</string>
+
+    <!-- SAF filename hint for DB download -->
+    <string name="settings_backup_db_filename">x-ui.db</string>
 </resources>

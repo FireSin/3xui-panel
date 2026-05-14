@@ -125,11 +125,14 @@ fun NavGraphBuilder.clientsGraph(
         if (inbound != null && existing != null) {
             val ipsState by viewModel.clientIpsState.collectAsStateWithLifecycle()
             val subLinksState by viewModel.subLinksState.collectAsStateWithLifecycle()
+            val trafficState by viewModel.trafficState.collectAsStateWithLifecycle()
             LaunchedEffect(existing.email) {
                 viewModel.resetClientIpsState()
                 viewModel.resetSubLinksState()
+                viewModel.resetTrafficState()
                 if (existing.email.isNotBlank()) {
                     viewModel.loadClientIps(existing.email)
+                    viewModel.loadClientTraffic(existing.email)
                 }
             }
             ClientFormScreen(
@@ -152,6 +155,8 @@ fun NavGraphBuilder.clientsGraph(
                 subLinksState = subLinksState,
                 onLoadSubLinks = { subId -> viewModel.loadSubLinks(subId) },
                 onDismissSubLinks = { viewModel.resetSubLinksState() },
+                trafficState = trafficState,
+                onRefreshTraffic = { viewModel.loadClientTraffic(existing.email) },
             )
         }
     }

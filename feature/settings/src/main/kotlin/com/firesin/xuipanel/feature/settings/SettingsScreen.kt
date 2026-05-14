@@ -1,7 +1,10 @@
 package com.firesin.xuipanel.feature.settings
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +35,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +54,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -67,12 +76,59 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val installId by viewModel.installId.collectAsStateWithLifecycle()
     val isActionLoading by viewModel.isActionLoading.collectAsStateWithLifecycle()
+    val xrayVersion by viewModel.xrayVersion.collectAsStateWithLifecycle()
+    val panelUpdateInfo by viewModel.panelUpdateInfo.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    var configJsonDialog by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val dbDownloadSuccess = stringResource(R.string.settings_backup_download_db_success)
+    val dbDownloadError = stringResource(R.string.settings_backup_download_db_error)
+    val dbImportSuccess = stringResource(R.string.settings_backup_import_success)
+    val dbImportError = stringResource(R.string.settings_backup_import_error)
+    val configError = stringResource(R.string.settings_backup_view_config_error)
+
+    // SAF launcher: user picks destination for DB download
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        if (uri != null) viewModel.downloadDb(uri)
+    }
+
+    // SAF launcher: user picks existing DB file for import
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.importDb(uri)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.snackbarMessage.collect { msg ->
             snackbarHostState.showSnackbar(msg)
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.backupEvent.collect { event ->
+            when (event) {
+                is SettingsViewModel.BackupEvent.DbDownloaded ->
+                    snackbarHostState.showSnackbar(dbDownloadSuccess)
+                is SettingsViewModel.BackupEvent.DbRestored ->
+                    snackbarHostState.showSnackbar(dbImportSuccess)
+                is SettingsViewModel.BackupEvent.GeofileUpdated -> Unit // handled by snackbarMessage
+                is SettingsViewModel.BackupEvent.ConfigLoaded ->
+                    configJsonDialog = event.json
+                is SettingsViewModel.BackupEvent.Error ->
+                    snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
+
+    // Load server info on first composition
+    LaunchedEffect(Unit) {
+        viewModel.loadXrayVersion()
+        viewModel.loadPanelUpdateInfo()
     }
 
     Scaffold(
@@ -117,14 +173,41 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             SystemActionsSection(
                 isLoading = isActionLoading,
+                xrayVersion = xrayVersion,
+                panelUpdateInfo = panelUpdateInfo,
                 onResetAllTraffics = { viewModel.resetAllTraffics(it.first, it.second) },
                 onUpdatePanel = { viewModel.updatePanel(it.first, it.second) },
                 onInstallXray = { version, msgs -> viewModel.installXray(version, msgs.first, msgs.second) },
                 onBackupToTgBot = { viewModel.backupToTgBot(it.first, it.second) },
             )
             Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            BackupSection(
+                isLoading = isActionLoading,
+                onDownloadDb = {
+                    createDocumentLauncher.launch(context.getString(R.string.settings_backup_db_filename))
+                },
+                onImportDb = { openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) },
+                onUpdateGeofile = {
+                    viewModel.updateGeofile(
+                        successMsg = context.getString(R.string.settings_backup_update_geofile_success),
+                        errorPrefix = context.getString(R.string.settings_backup_update_geofile_error),
+                    )
+                },
+                onViewConfig = { viewModel.loadConfigJson() },
+            )
+            Spacer(Modifier.height(8.dp))
             AboutCard(installId = installId)
         }
+    }
+
+    // Config JSON read-only dialog
+    configJsonDialog?.let { json ->
+        ConfigJsonDialog(
+            json = json,
+            onDismiss = { configJsonDialog = null },
+        )
     }
 }
 
@@ -133,6 +216,8 @@ fun SettingsScreen(
 @Composable
 private fun SystemActionsSection(
     isLoading: Boolean,
+    xrayVersion: String?,
+    panelUpdateInfo: PanelUpdateState,
     onResetAllTraffics: (Pair<String, String>) -> Unit,
     onUpdatePanel: (Pair<String, String>) -> Unit,
     onInstallXray: (String, Pair<String, String>) -> Unit,
@@ -152,6 +237,9 @@ private fun SystemActionsSection(
     var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
     var showInstallDialog by rememberSaveable { mutableStateOf(false) }
     var showBackupDialog by rememberSaveable { mutableStateOf(false) }
+
+    val updateAvailable = (panelUpdateInfo as? PanelUpdateState.Loaded)?.info?.isUpdatable == true
+    val latestVersion = (panelUpdateInfo as? PanelUpdateState.Loaded)?.info?.latestVersion
 
     Column(modifier = modifier) {
         Text(
@@ -180,19 +268,49 @@ private fun SystemActionsSection(
             onClick = { showResetDialog = true },
         )
         Spacer(Modifier.height(8.dp))
-        SystemActionCard(
-            title = stringResource(R.string.settings_update_panel_title),
-            subtitle = stringResource(R.string.settings_update_panel_subtitle),
-            enabled = !isLoading,
-            onClick = { showUpdateDialog = true },
-        )
+        // "Обновить панель" — shows red badge dot and latest version label when update available
+        BadgedBox(
+            badge = {
+                if (updateAvailable) {
+                    Badge()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            SystemActionCard(
+                title = stringResource(R.string.settings_update_panel_title),
+                subtitle = if (updateAvailable && latestVersion != null) {
+                    stringResource(R.string.settings_panel_update_available, latestVersion)
+                } else {
+                    stringResource(R.string.settings_update_panel_subtitle)
+                },
+                enabled = !isLoading,
+                onClick = { showUpdateDialog = true },
+            )
+        }
         Spacer(Modifier.height(8.dp))
+        // "Установить Xray" — shows current version as a chip below the card
         SystemActionCard(
             title = stringResource(R.string.settings_install_xray_title),
             subtitle = stringResource(R.string.settings_install_xray_subtitle),
             enabled = !isLoading,
             onClick = { showInstallDialog = true },
         )
+        if (xrayVersion != null) {
+            Spacer(Modifier.height(4.dp))
+            SuggestionChip(
+                onClick = {},
+                label = {
+                    Text(
+                        text = "${stringResource(R.string.settings_xray_version_label)}: $xrayVersion",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
+                    )
+                },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
+            )
+        }
         Spacer(Modifier.height(8.dp))
         SystemActionCard(
             title = stringResource(R.string.settings_backup_tg_title),
@@ -413,6 +531,176 @@ private fun InstallXrayDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.settings_system_cancel))
+            }
+        },
+    )
+}
+
+// ---- Backup and config section (Bundle B) ----
+
+@Composable
+private fun BackupSection(
+    isLoading: Boolean,
+    onDownloadDb: () -> Unit,
+    onImportDb: () -> Unit,
+    onUpdateGeofile: () -> Unit,
+    onViewConfig: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showImportDialog by rememberSaveable { mutableStateOf(false) }
+    var showGeofileDialog by rememberSaveable { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.settings_backup_section_header),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+
+        BackupActionCard(
+            title = stringResource(R.string.settings_backup_download_db_title),
+            subtitle = stringResource(R.string.settings_backup_download_db_subtitle),
+            enabled = !isLoading,
+            onClick = onDownloadDb,
+        )
+        Spacer(Modifier.height(8.dp))
+        BackupActionCard(
+            title = stringResource(R.string.settings_backup_import_db_title),
+            subtitle = stringResource(R.string.settings_backup_import_db_subtitle),
+            enabled = !isLoading,
+            onClick = { showImportDialog = true },
+        )
+        Spacer(Modifier.height(8.dp))
+        BackupActionCard(
+            title = stringResource(R.string.settings_backup_update_geofile_title),
+            subtitle = stringResource(R.string.settings_backup_update_geofile_subtitle),
+            enabled = !isLoading,
+            onClick = { showGeofileDialog = true },
+        )
+        Spacer(Modifier.height(8.dp))
+        BackupActionCard(
+            title = stringResource(R.string.settings_backup_view_config_title),
+            subtitle = stringResource(R.string.settings_backup_view_config_subtitle),
+            enabled = !isLoading,
+            onClick = onViewConfig,
+        )
+    }
+
+    if (showImportDialog) {
+        ConfirmActionDialog(
+            title = stringResource(R.string.settings_backup_import_db_dialog_title),
+            message = stringResource(R.string.settings_backup_import_db_dialog_msg),
+            confirmLabel = stringResource(R.string.settings_backup_import_db_confirm),
+            onConfirm = {
+                showImportDialog = false
+                onImportDb()
+            },
+            onDismiss = { showImportDialog = false },
+        )
+    }
+
+    if (showGeofileDialog) {
+        ConfirmActionDialog(
+            title = stringResource(R.string.settings_backup_update_geofile_dialog_title),
+            message = stringResource(R.string.settings_backup_update_geofile_dialog_msg),
+            confirmLabel = stringResource(R.string.settings_backup_update_geofile_confirm),
+            onConfirm = {
+                showGeofileDialog = false
+                onUpdateGeofile()
+            },
+            onDismiss = { showGeofileDialog = false },
+        )
+    }
+}
+
+/** Card style for backup actions — uses surfaceVariant instead of errorContainer. */
+@Composable
+private fun BackupActionCard(
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = if (enabled) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            },
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                },
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = if (enabled) 0.7f else 0.4f,
+                ),
+            )
+        }
+    }
+}
+
+/** Scrollable read-only dialog showing the raw Xray config JSON. */
+@Composable
+private fun ConfigJsonDialog(
+    json: String,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val copiedMsg = stringResource(R.string.settings_backup_view_config_copied)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_backup_view_config_dialog_title)) },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = json,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    clipboard.setText(AnnotatedString(json))
+                    Toast.makeText(context, copiedMsg, Toast.LENGTH_SHORT).show()
+                },
+            ) {
+                Text(stringResource(R.string.settings_backup_view_config_copy))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_backup_view_config_close))
             }
         },
     )
@@ -665,6 +953,28 @@ private fun LockCardUnavailablePreview() {
 private fun SystemActionsSectionPreview() {
     SystemActionsSection(
         isLoading = false,
+        xrayVersion = "v25.5.16",
+        panelUpdateInfo = PanelUpdateState.Idle,
+        onResetAllTraffics = {},
+        onUpdatePanel = {},
+        onInstallXray = { _, _ -> },
+        onBackupToTgBot = {},
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SystemActionsSectionUpdateAvailablePreview() {
+    SystemActionsSection(
+        isLoading = false,
+        xrayVersion = "v25.5.16",
+        panelUpdateInfo = PanelUpdateState.Loaded(
+            com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoObj(
+                currentVersion = "2.3.12",
+                latestVersion = "2.3.14",
+                isUpdatable = true,
+            ),
+        ),
         onResetAllTraffics = {},
         onUpdatePanel = {},
         onInstallXray = { _, _ -> },
@@ -677,9 +987,23 @@ private fun SystemActionsSectionPreview() {
 private fun SystemActionsSectionLoadingPreview() {
     SystemActionsSection(
         isLoading = true,
+        xrayVersion = null,
+        panelUpdateInfo = PanelUpdateState.Idle,
         onResetAllTraffics = {},
         onUpdatePanel = {},
         onInstallXray = { _, _ -> },
         onBackupToTgBot = {},
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun BackupSectionPreview() {
+    BackupSection(
+        isLoading = false,
+        onDownloadDb = {},
+        onImportDb = {},
+        onUpdateGeofile = {},
+        onViewConfig = {},
     )
 }
