@@ -11,6 +11,8 @@ data class ProbeCredentials(
     val pinnedSpkiSha256: String? = null,
     /** When non-blank, probe uses Bearer auth instead of form login. */
     val apiToken: String? = null,
+    /** OTP code for 2FA-enabled panels. Ignored when [apiToken] is set. */
+    val twoFactorCode: String? = null,
 )
 
 /** Outcome of a successful [XuiClient.probeLogin]. */

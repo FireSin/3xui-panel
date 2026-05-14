@@ -15,7 +15,7 @@ import com.firesin.xuipanel.core.data.db.entity.TrafficStateEntity
 
 @Database(
     entities = [PanelEntity::class, AuditLogEntity::class, TrafficStateEntity::class, TrafficDailyEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +37,12 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_3_4: Migration = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE panels ADD COLUMN api_token TEXT")
+            }
+        }
+
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE panels ADD COLUMN two_factor_enabled INTEGER NOT NULL DEFAULT 0")
             }
         }
 

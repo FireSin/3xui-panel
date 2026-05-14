@@ -1354,6 +1354,44 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Checks whether the panel at [baseUrl] has TOTP 2FA enabled.
+     * Uses a one-shot transient client (no auth, no session).
+     * Returns [Result.Success]`(true)` when 2FA is enabled, `(false)` when disabled,
+     * or a [DomainError] on network/TLS failure.
+     */
+    suspend fun probeTwoFactorEnabled(
+        baseUrl: String,
+        tlsMode: com.firesin.xuipanel.core.common.TlsMode,
+        pinnedSpkiSha256: String?,
+    ): Result<Boolean, DomainError> = withContext(Dispatchers.IO) {
+        val tls = PanelTls(mode = tlsMode, pinnedSpkiSha256 = pinnedSpkiSha256)
+        val (client, _) = clientFactory.buildTransient(tls)
+        val api = Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
+            .client(client)
+            .build()
+            .create(XuiApi::class.java)
+        runCatching {
+            api.getTwoFactorEnable()
+        }.fold(
+            onSuccess = { response ->
+                when {
+                    response.isSuccessful && response.body()?.success == true ->
+                        Result.Success(response.body()?.obj == true)
+
+                    response.isSuccessful ->
+                        Result.Success(false)
+
+                    else ->
+                        Result.Failure(DomainError.PanelUnreachable(response.code()))
+                }
+            },
+            onFailure = { cause -> cause.toProbeDomainError() },
+        )
+    }
+
+    /**
      * Attempts a one-off login against [credentials] without persisting the session.
      * Returns [Result.Success] with [ProbeOutcome] (containing captured SPKI) if login succeeds,
      * or a typed [DomainError] otherwise.
@@ -1404,7 +1442,13 @@ class XuiClient @Inject constructor(
             } else {
                 val api = apiBase.client(client).build().create(XuiApi::class.java)
                 runCatching {
-                    api.login(LoginRequestDto(username = credentials.login, password = credentials.password))
+                    api.login(
+                        LoginRequestDto(
+                            username = credentials.login,
+                            password = credentials.password,
+                            twoFactorCode = credentials.twoFactorCode?.takeIf { it.isNotBlank() },
+                        ),
+                    )
                 }.fold(
                     onSuccess = { response ->
                         when {

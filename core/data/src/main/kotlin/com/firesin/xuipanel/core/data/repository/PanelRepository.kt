@@ -14,6 +14,13 @@ interface PanelRepository {
 
     suspend fun get(id: String): Panel?
 
+    /**
+     * Probes whether the panel described by [draft] has 2FA enabled.
+     * Uses a transient no-auth connection. Skipped automatically for Bearer-token panels.
+     * Returns [Result.Success]`(false)` for Bearer panels without making a network call.
+     */
+    suspend fun probeTwoFactor(draft: PanelDraft): Result<Boolean, DomainError>
+
     suspend fun add(draft: PanelDraft): Result<Panel, DomainError>
 
     suspend fun update(id: String, draft: PanelDraft): Result<Panel, DomainError>

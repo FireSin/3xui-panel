@@ -93,6 +93,7 @@ fun PanelAddEditScreen(
         onTlsModeChange = viewModel::updateTlsMode,
         onAuthModeChange = viewModel::updateAuthMode,
         onApiTokenChange = viewModel::updateApiToken,
+        onTwoFactorCodeChange = viewModel::updateTwoFactorCode,
         onSubmit = viewModel::submit,
         onConfirmRePin = viewModel::confirmRePin,
         onDismissPinMismatch = viewModel::dismissPinMismatchDialog,
@@ -113,6 +114,7 @@ private fun PanelAddEditContent(
     onTlsModeChange: (TlsMode) -> Unit,
     onAuthModeChange: (AuthMode) -> Unit,
     onApiTokenChange: (String) -> Unit,
+    onTwoFactorCodeChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onConfirmRePin: () -> Unit,
     onDismissPinMismatch: () -> Unit,
@@ -343,6 +345,22 @@ private fun PanelAddEditContent(
                             isError = errors?.password != null,
                             enabled = !isSaving,
                         )
+                        if (form.twoFactorRequired) {
+                            FieldRow(
+                                label = stringResource(R.string.panel_field_otp_label),
+                                value = form.twoFactorCode,
+                                onValueChange = onTwoFactorCodeChange,
+                                placeholder = stringResource(R.string.panel_field_otp_placeholder),
+                                isError = false,
+                                enabled = !isSaving,
+                                topDivider = true,
+                                monoValue = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.NumberPassword,
+                                    imeAction = ImeAction.Done,
+                                ),
+                            )
+                        }
                     }
                     AuthMode.TOKEN -> {
                         FieldRow(
@@ -361,6 +379,16 @@ private fun PanelAddEditContent(
                         )
                     }
                 }
+            }
+
+            if (form.authMode == AuthMode.LOGIN && form.twoFactorRequired) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.panel_two_factor_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             }
 
             val credentialErrors = when (form.authMode) {
@@ -670,6 +698,7 @@ private fun PanelAddEditContentPreview() {
             onTlsModeChange = {},
             onAuthModeChange = {},
             onApiTokenChange = {},
+            onTwoFactorCodeChange = {},
             onSubmit = {},
             onConfirmRePin = {},
             onDismissPinMismatch = {},
@@ -698,6 +727,42 @@ private fun PanelAddContentPreview() {
             onTlsModeChange = {},
             onAuthModeChange = {},
             onApiTokenChange = {},
+            onTwoFactorCodeChange = {},
+            onSubmit = {},
+            onConfirmRePin = {},
+            onDismissPinMismatch = {},
+            onRePinVerifiedChange = {},
+            onRequestRePin = {},
+            onDeletePanel = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PanelAddContentTwoFactorPreview() {
+    XuiPanelTheme {
+        PanelAddEditContent(
+            uiState = PanelAddEditUiState.Editing(
+                form = PanelFormState(
+                    name = "Stockholm Edge",
+                    baseUrl = "https://panel.northwind.io:2053",
+                    login = "admin",
+                    password = "secret",
+                    twoFactorRequired = true,
+                ),
+                errors = PanelFormErrors(),
+                isEditMode = false,
+            ),
+            onNavigateUp = {},
+            onNameChange = {},
+            onBaseUrlChange = {},
+            onLoginChange = {},
+            onPasswordChange = {},
+            onTlsModeChange = {},
+            onAuthModeChange = {},
+            onApiTokenChange = {},
+            onTwoFactorCodeChange = {},
             onSubmit = {},
             onConfirmRePin = {},
             onDismissPinMismatch = {},

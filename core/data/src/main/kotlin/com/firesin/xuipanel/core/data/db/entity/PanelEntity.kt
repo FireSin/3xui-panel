@@ -51,4 +51,8 @@ data class PanelEntity(
     /** Bearer API token for the panel. When non-null, used instead of login/password. */
     @ColumnInfo(name = "api_token")
     val apiToken: String?,
+
+    /** Whether this panel has 2FA (TOTP) enabled — set at add/edit time. */
+    @ColumnInfo(name = "two_factor_enabled", defaultValue = "0")
+    val twoFactorEnabled: Boolean = false,
 )

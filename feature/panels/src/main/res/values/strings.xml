@@ -112,6 +112,11 @@
     <!-- Backup import errors -->
     <string name="panels_backup_file_too_large">Файл слишком большой</string>
 
+    <!-- 2FA section -->
+    <string name="panel_two_factor_hint">На панели включён 2FA — введите код из приложения-аутентификатора</string>
+    <string name="panel_field_otp_label">OTP код</string>
+    <string name="panel_field_otp_placeholder">6-значный код из вашего authenticator</string>
+
     <!-- Error messages -->
     <string name="error_invalid_credentials">Неверный логин или пароль</string>
     <string name="error_tls">Ошибка TLS: %s</string>

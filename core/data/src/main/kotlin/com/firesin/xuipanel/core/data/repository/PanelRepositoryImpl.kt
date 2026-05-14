@@ -40,6 +40,15 @@ class PanelRepositoryImpl @Inject constructor(
     override suspend fun get(id: String): Panel? =
         dao.getById(id)?.toPanel()
 
+    override suspend fun probeTwoFactor(draft: PanelDraft): Result<Boolean, DomainError> {
+        if (!draft.apiToken.isNullOrBlank()) return Result.Success(false)
+        return xuiClient.probeTwoFactorEnabled(
+            baseUrl = draft.baseUrl,
+            tlsMode = draft.tlsMode,
+            pinnedSpkiSha256 = null,
+        )
+    }
+
     override suspend fun add(draft: PanelDraft): Result<Panel, DomainError> {
         val probeResult = xuiClient.probeLogin(draft.toProbeCredentials())
         if (probeResult is Result.Failure) return probeResult
@@ -67,6 +76,7 @@ class PanelRepositoryImpl @Inject constructor(
             createdAt = now,
             lastLoginAt = now,
             apiToken = draft.apiToken,
+            twoFactorEnabled = draft.twoFactorEnabled,
         )
         dao.insert(panel.toEntity())
         return Result.Success(panel)
@@ -123,6 +133,7 @@ class PanelRepositoryImpl @Inject constructor(
             createdAt = Instant.ofEpochMilli(existing.createdAt),
             lastLoginAt = now,
             apiToken = draft.apiToken,
+            twoFactorEnabled = draft.twoFactorEnabled,
         )
         dao.insert(updated.toEntity())
         return Result.Success(updated)
@@ -215,5 +226,6 @@ class PanelRepositoryImpl @Inject constructor(
         tlsMode = tlsMode,
         pinnedSpkiSha256 = if (tlsMode == TlsMode.PINNED) existing?.pinnedSpkiSha256 else null,
         apiToken = apiToken,
+        twoFactorCode = twoFactorCode,
     )
 }

@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
+import com.firesin.xuipanel.core.xui.dto.TwoFactorResponseDto
 import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
@@ -38,6 +39,13 @@ interface XuiApi {
      */
     @POST("login")
     suspend fun login(@Body body: LoginRequestDto): Response<LoginResponseDto>
+
+    /**
+     * Open endpoint — no auth required. Returns whether the panel has 2FA (TOTP) enabled.
+     * Call before login to decide whether to ask the user for an OTP.
+     */
+    @POST("panel/api/getTwoFactorEnable")
+    suspend fun getTwoFactorEnable(): Response<TwoFactorResponseDto>
 
     @GET("panel/api/inbounds/list")
     suspend fun listInbounds(): Response<InboundListResponseDto>

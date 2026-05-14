@@ -18,6 +18,7 @@ internal fun PanelEntity.toPanel(): Panel = Panel(
     createdAt = Instant.ofEpochMilli(createdAt),
     lastLoginAt = lastLoginAt?.let { Instant.ofEpochMilli(it) },
     apiToken = apiToken,
+    twoFactorEnabled = twoFactorEnabled,
 )
 
 internal fun Panel.toEntity(): PanelEntity = PanelEntity(
@@ -34,6 +35,7 @@ internal fun Panel.toEntity(): PanelEntity = PanelEntity(
     pinnedSpkiSha256 = pinnedSpkiSha256,
     pinnedAt = pinnedAt?.toEpochMilli(),
     apiToken = apiToken,
+    twoFactorEnabled = twoFactorEnabled,
 )
 
 fun Panel.toAuth(): PanelAuth =

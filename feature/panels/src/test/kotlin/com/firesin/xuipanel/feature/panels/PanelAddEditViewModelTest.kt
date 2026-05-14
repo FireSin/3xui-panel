@@ -8,6 +8,7 @@ import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.PanelDraft
 import com.firesin.xuipanel.core.data.repository.PanelRepository
+import com.firesin.xuipanel.feature.panels.ui.AuthMode
 import com.firesin.xuipanel.feature.panels.ui.PanelAddEditUiState
 import com.firesin.xuipanel.feature.panels.ui.PanelAddEditViewModel
 import io.mockk.coEvery
@@ -53,6 +54,7 @@ class PanelAddEditViewModelTest {
 
     @Test
     fun `submit with valid form calls add and transitions to Saved`() = runTest {
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(false)
         coEvery { repository.add(any()) } returns Result.Success(fakePanel("new-id"))
 
         val vm = createViewModel()
@@ -81,6 +83,7 @@ class PanelAddEditViewModelTest {
 
     @Test
     fun `submit with invalid credentials probe returns Editing with submitError`() = runTest {
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(false)
         coEvery { repository.add(any()) } returns Result.Failure(DomainError.InvalidCredentials)
 
         val vm = createViewModel()
@@ -170,6 +173,7 @@ class PanelAddEditViewModelTest {
     fun `submit in edit mode calls update`() = runTest {
         val panel = fakePanel("edit-id")
         coEvery { repository.get("edit-id") } returns panel
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(false)
         coEvery { repository.update(any(), any()) } returns Result.Success(panel)
 
         val vm = createViewModel(panelId = "edit-id")
@@ -195,6 +199,7 @@ class PanelAddEditViewModelTest {
 
     @Test
     fun `PinMismatch error shows dialog instead of submitError`() = runTest {
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(false)
         coEvery { repository.add(any()) } returns Result.Failure(
             DomainError.PinMismatch(panelId = "", observedSpki = "newSpki==")
         )
@@ -216,6 +221,142 @@ class PanelAddEditViewModelTest {
             val editing = awaitItem() as PanelAddEditUiState.Editing
             assertNull(editing.submitError)
             assertNotNull(editing.pinMismatchDialog)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── 2FA tests ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `submit cookie panel - 2FA required and no OTP entered - shows OTP field`() = runTest {
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(true)
+
+        val vm = createViewModel()
+        vm.updateName("My Panel")
+        vm.updateBaseUrl("https://panel.example.com:2053")
+        vm.updateLogin("admin")
+        vm.updatePassword("secret")
+
+        vm.uiState.test {
+            skipItems(1) // initial Editing
+
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val saving = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saving::class.java, saving)
+
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assert(editing.form.twoFactorRequired) { "Expected twoFactorRequired=true" }
+            assertNull(editing.submitError)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // probeLogin must NOT have been called yet
+        coVerify(exactly = 0) { repository.add(any()) }
+    }
+
+    @Test
+    fun `submit cookie panel - 2FA required with valid OTP - saves panel`() = runTest {
+        // First submit: probeTwoFactor returns true → sets twoFactorRequired
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(true)
+        coEvery { repository.add(any()) } returns Result.Success(fakePanel("new-id"))
+
+        val vm = createViewModel()
+        vm.updateName("My Panel")
+        vm.updateBaseUrl("https://panel.example.com:2053")
+        vm.updateLogin("admin")
+        vm.updatePassword("secret")
+
+        // First submit — triggers probe, OTP field appears
+        vm.uiState.test {
+            skipItems(1)
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+            skipItems(1) // Saving
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assert(editing.form.twoFactorRequired)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // User enters OTP and re-submits
+        vm.updateTwoFactorCode("123456")
+
+        vm.uiState.test {
+            skipItems(1)
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val saving = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saving::class.java, saving)
+
+            val saved = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saved::class.java, saved)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            repository.add(
+                match { draft: PanelDraft ->
+                    draft.twoFactorCode == "123456" && draft.twoFactorEnabled
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `submit Bearer-token panel - no 2FA probe called`() = runTest {
+        coEvery { repository.add(any()) } returns Result.Success(fakePanel("token-id"))
+
+        val vm = createViewModel()
+        vm.updateName("My Panel")
+        vm.updateBaseUrl("https://panel.example.com:2053")
+        vm.updateAuthMode(AuthMode.TOKEN)
+        vm.updateApiToken("mytoken123")
+
+        vm.uiState.test {
+            skipItems(1)
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            skipItems(1) // Saving
+            val saved = awaitItem()
+            assertInstanceOf(PanelAddEditUiState.Saved::class.java, saved)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // probeTwoFactor must not be called for Bearer auth
+        coVerify(exactly = 0) { repository.probeTwoFactor(any()) }
+        coVerify { repository.add(any()) }
+    }
+
+    @Test
+    fun `submit cookie panel - 2FA probe network failure - shows error`() = runTest {
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Failure(
+            DomainError.Network(Exception("timeout"))
+        )
+
+        val vm = createViewModel()
+        vm.updateName("My Panel")
+        vm.updateBaseUrl("https://panel.example.com:2053")
+        vm.updateLogin("admin")
+        vm.updatePassword("secret")
+
+        vm.uiState.test {
+            skipItems(1)
+            vm.submit()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            skipItems(1) // Saving
+
+            val editing = awaitItem() as PanelAddEditUiState.Editing
+            assertNotNull(editing.submitError)
+            assertInstanceOf(DomainError.Network::class.java, editing.submitError)
+            assert(!editing.form.twoFactorRequired)
 
             cancelAndIgnoreRemainingEvents()
         }

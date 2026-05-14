@@ -30,6 +30,10 @@ data class PanelFormState(
     val pinnedAt: Instant? = null,
     val authMode: AuthMode = AuthMode.LOGIN,
     val apiToken: String = "",
+    /** OTP entered by the user. Relevant only when [twoFactorRequired] is true. */
+    val twoFactorCode: String = "",
+    /** True after a probeTwoFactor call confirms the panel requires TOTP. */
+    val twoFactorRequired: Boolean = false,
 )
 
 data class PanelFormErrors(
@@ -121,12 +125,13 @@ class PanelAddEditViewModel @Inject constructor(
     }
 
     fun updateName(value: String) = updateForm { copy(name = value) }
-    fun updateBaseUrl(value: String) = updateForm { copy(baseUrl = value) }
-    fun updateLogin(value: String) = updateForm { copy(login = value) }
-    fun updatePassword(value: String) = updateForm { copy(password = value) }
+    fun updateBaseUrl(value: String) = updateForm { copy(baseUrl = value, twoFactorRequired = false, twoFactorCode = "") }
+    fun updateLogin(value: String) = updateForm { copy(login = value, twoFactorRequired = false, twoFactorCode = "") }
+    fun updatePassword(value: String) = updateForm { copy(password = value, twoFactorRequired = false, twoFactorCode = "") }
     fun updateTlsMode(value: TlsMode) = updateForm { copy(tlsMode = value) }
-    fun updateAuthMode(value: AuthMode) = updateForm { copy(authMode = value) }
+    fun updateAuthMode(value: AuthMode) = updateForm { copy(authMode = value, twoFactorRequired = false, twoFactorCode = "") }
     fun updateApiToken(value: String) = updateForm { copy(apiToken = value) }
+    fun updateTwoFactorCode(value: String) = updateForm { copy(twoFactorCode = value) }
 
     fun submit() {
         val editing = _uiState.value as? PanelAddEditUiState.Editing ?: return
@@ -140,13 +145,50 @@ class PanelAddEditViewModel @Inject constructor(
         _uiState.value = PanelAddEditUiState.Saving(form)
 
         viewModelScope.launch {
+            val isTokenAuth = form.authMode == AuthMode.TOKEN
+
+            // For login/password auth: probe 2FA before attempting login.
+            // If the panel requires 2FA and no OTP entered yet — show the OTP field.
+            if (!isTokenAuth && !form.twoFactorRequired) {
+                val probeDraft = PanelDraft(
+                    name = form.name.trim(),
+                    baseUrl = form.baseUrl.trim(),
+                    login = form.login.trim(),
+                    password = form.password,
+                    tlsMode = form.tlsMode,
+                )
+                when (val probeResult = repository.probeTwoFactor(probeDraft)) {
+                    is Result.Failure -> {
+                        _uiState.value = PanelAddEditUiState.Editing(
+                            form = form,
+                            isEditMode = panelId != null,
+                            submitError = probeResult.error,
+                        )
+                        return@launch
+                    }
+                    is Result.Success -> {
+                        if (probeResult.data) {
+                            // Panel has 2FA — ask user for OTP, stay on screen.
+                            _uiState.value = PanelAddEditUiState.Editing(
+                                form = form.copy(twoFactorRequired = true),
+                                isEditMode = panelId != null,
+                            )
+                            return@launch
+                        }
+                        // No 2FA — fall through to probeLogin+save.
+                    }
+                }
+            }
+
             val draft = PanelDraft(
                 name = form.name.trim(),
                 baseUrl = form.baseUrl.trim(),
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = form.tlsMode,
-                apiToken = if (form.authMode == AuthMode.TOKEN) form.apiToken.trim() else null,
+                apiToken = if (isTokenAuth) form.apiToken.trim() else null,
+                twoFactorCode = if (!isTokenAuth && form.twoFactorRequired) form.twoFactorCode.trim() else null,
+                twoFactorEnabled = !isTokenAuth && form.twoFactorRequired,
             )
             val result = if (panelId == null) {
                 repository.add(draft)
