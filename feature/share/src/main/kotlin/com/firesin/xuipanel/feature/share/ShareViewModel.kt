@@ -104,14 +104,38 @@ class ShareViewModel @Inject constructor(
                     // un-mocked Android stub. Falls back to the raw baseUrl on parse failure.
                     val host = runCatching { java.net.URI(panel.baseUrl).host }
                         .getOrNull() ?: panel.baseUrl
-                    val uriResult = ClientUri.build(client, inbound, host)
-                    _uiState.value = when (uriResult) {
-                        is Result.Success -> ShareUiState.Content(
-                            uri = uriResult.data,
+
+                    // Server-first: try canonical URL from panel, fallback to local builder.
+                    val serverUrl: String? = if (client.email.isNotBlank()) {
+                        val linksResult = xuiClient.fetchClientLinks(
+                            panelId = panel.id,
+                            baseUrl = panel.baseUrl,
+                            auth = panel.toAuth(),
+                            tls = panel.toPanelTls(),
+                            inboundId = inboundId,
+                            email = client.email,
+                        )
+                        (linksResult as? Result.Success)?.data?.firstOrNull()
+                    } else {
+                        null
+                    }
+
+                    if (serverUrl != null) {
+                        _uiState.value = ShareUiState.Content(
+                            uri = serverUrl,
                             client = client,
                             inbound = inbound,
                         )
-                        is Result.Failure -> ShareUiState.Error(shareError = uriResult.error)
+                    } else {
+                        val uriResult = ClientUri.build(client, inbound, host)
+                        _uiState.value = when (uriResult) {
+                            is Result.Success -> ShareUiState.Content(
+                                uri = uriResult.data,
+                                client = client,
+                                inbound = inbound,
+                            )
+                            is Result.Failure -> ShareUiState.Error(shareError = uriResult.error)
+                        }
                     }
                 }
             }

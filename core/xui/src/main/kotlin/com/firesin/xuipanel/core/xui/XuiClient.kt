@@ -295,6 +295,35 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Returns server-rendered share URLs for one client on one inbound.
+     * Empty list for protocols that have no URL form (socks/http/mixed/wireguard/dokodemo/tunnel).
+     * Falls back to empty on success=false rather than failing — server might be older.
+     */
+    suspend fun fetchClientLinks(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        inboundId: Int,
+        email: String,
+    ): Result<List<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getClientLinks(inboundId, email)
+            }
+        }.fold(
+            onSuccess = { response ->
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
      * Returns every protocol URL for clients matching [subId]. Empty list when nothing matches.
      */
     suspend fun fetchSubLinks(

@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
+import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
@@ -117,6 +118,18 @@ interface XuiApi {
     /** All protocol URLs (vless://, vmess://, …) for clients sharing the subscription id. */
     @GET("panel/api/inbounds/getSubLinks/{subId}")
     suspend fun getSubLinks(@Path("subId") subId: String): Response<SubLinksResponseDto>
+
+    /**
+     * Server-rendered share URLs for one client on one inbound.
+     * Empty [ClientLinksResponseDto.obj] for protocols without a URL form
+     * (socks/http/mixed/wireguard/dokodemo/tunnel).
+     * Multiple entries when `streamSettings.externalProxy` is configured.
+     */
+    @GET("panel/api/inbounds/getClientLinks/{id}/{email}")
+    suspend fun getClientLinks(
+        @Path("id") inboundId: Int,
+        @Path("email") email: String,
+    ): Response<ClientLinksResponseDto>
 
     /** Add client(s) to an inbound. JSON body `{"id":<inboundId>,"settings":"<json>"}`. */
     @POST("panel/api/inbounds/addClient")

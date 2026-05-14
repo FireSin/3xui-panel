@@ -40,6 +40,9 @@ class ShareViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        // Default stub: server returns empty list → existing tests fall through to local builder.
+        coEvery { xuiClient.fetchClientLinks(any(), any(), any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
     }
 
     @AfterEach
@@ -294,6 +297,109 @@ class ShareViewModelTest {
 
         val state = vm.uiState.value
         assertInstanceOf(ShareUiState.Content::class.java, state)
+    }
+
+    // ── getClientLinks server-first tests ─────────────────────────────────────
+
+    @Test
+    fun `server returns URL — Content uses server URL, local builder not called`() = runTest {
+        val serverUrl = "vless://server-canonical-url@host:443?security=reality#remark"
+        val panel = fakePanel()
+        val inbound = fakeInbound()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(inbound))
+        coEvery { xuiClient.fetchClientLinks(any(), any(), any(), any(), eq(1), eq("user@test.com")) } returns
+            Result.Success(listOf(serverUrl))
+
+        val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertInstanceOf(ShareUiState.Content::class.java, state)
+        assertEquals(serverUrl, (state as ShareUiState.Content).uri)
+    }
+
+    @Test
+    fun `server returns empty obj — Content uses local builder URL`() = runTest {
+        val panel = fakePanel()
+        val inbound = fakeInbound()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(inbound))
+        coEvery { xuiClient.fetchClientLinks(any(), any(), any(), any(), any(), any()) } returns
+            Result.Success(emptyList())
+
+        val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertInstanceOf(ShareUiState.Content::class.java, state)
+        assert((state as ShareUiState.Content).uri.startsWith("vless://")) {
+            "Expected local vless URI, got: ${state.uri}"
+        }
+    }
+
+    @Test
+    fun `server returns failure — Content uses local builder URL`() = runTest {
+        val panel = fakePanel()
+        val inbound = fakeInbound()
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(inbound))
+        coEvery { xuiClient.fetchClientLinks(any(), any(), any(), any(), any(), any()) } returns
+            Result.Failure(DomainError.Network(RuntimeException("timeout")))
+
+        val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertInstanceOf(ShareUiState.Content::class.java, state)
+        assert((state as ShareUiState.Content).uri.startsWith("vless://")) {
+            "Expected local vless URI, got: ${state.uri}"
+        }
+    }
+
+    @Test
+    fun `client has no email — server not called, Content uses local builder URL`() = runTest {
+        val settingsNoEmail = """
+            {
+              "clients": [
+                {
+                  "id": "$TEST_UUID",
+                  "flow": "",
+                  "email": "",
+                  "enable": true,
+                  "totalGB": 0,
+                  "expiryTime": 0,
+                  "limitIp": 0,
+                  "subId": "",
+                  "comment": "",
+                  "tgId": "",
+                  "reset": 0
+                }
+              ],
+              "decryption": "none"
+            }
+        """.trimIndent()
+        val panel = fakePanel()
+        val inbound = fakeInbound(settings = settingsNoEmail)
+        every { repository.observeActive() } returns flowOf(panel)
+        coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
+            Result.Success(listOf(inbound))
+
+        val vm = ShareViewModel(savedState(1, TEST_UUID), repository, xuiClient)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertInstanceOf(ShareUiState.Content::class.java, state)
+        assert((state as ShareUiState.Content).uri.startsWith("vless://")) {
+            "Expected local vless URI, got: ${state.uri}"
+        }
+        // Verify server was NOT called with a blank email
+        io.mockk.coVerify(exactly = 0) {
+            xuiClient.fetchClientLinks(any(), any(), any(), any(), any(), eq(""))
+        }
     }
 
     private companion object {
