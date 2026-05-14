@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +45,7 @@ import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 @Composable
 fun SettingsScreen(
     onMenuClick: () -> Unit,
+    onNavigateToGeoSources: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val lockToggleState by viewModel.lockToggleState.collectAsStateWithLifecycle()
@@ -86,7 +88,46 @@ fun SettingsScreen(
                 onSelect = viewModel::setThemeMode,
             )
             Spacer(Modifier.height(8.dp))
+            GeoSourcesCard(onClick = onNavigateToGeoSources)
+            Spacer(Modifier.height(8.dp))
             AboutCard(installId = installId)
+        }
+    }
+}
+
+@Composable
+private fun GeoSourcesCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_geo_sources_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_geo_sources_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

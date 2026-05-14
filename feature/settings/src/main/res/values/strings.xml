@@ -14,4 +14,32 @@
     <string name="settings_about_version">Версия</string>
     <string name="settings_about_install_id">ID установки</string>
     <string name="settings_about_install_id_copied">ID скопирован</string>
+
+    <string name="settings_geo_sources_title">Geo источники</string>
+    <string name="settings_geo_sources_subtitle">Кастомные GeoIP/GeoSite файлы</string>
+
+    <string name="geo_sources_title">Geo источники</string>
+    <string name="geo_sources_action_update_all">Обновить все</string>
+    <string name="geo_sources_action_add">Добавить источник</string>
+    <string name="geo_sources_action_download">Скачать сейчас</string>
+    <string name="geo_sources_action_edit">Изменить</string>
+    <string name="geo_sources_action_delete">Удалить</string>
+    <string name="geo_sources_empty_title">Нет источников</string>
+    <string name="geo_sources_empty_description">Добавь первый источник по URL</string>
+    <string name="geo_sources_type_geoip">GeoIP</string>
+    <string name="geo_sources_type_geosite">GeoSite</string>
+    <string name="geo_sources_field_alias">Алиас</string>
+    <string name="geo_sources_field_url">URL</string>
+    <string name="geo_sources_field_type">Тип</string>
+    <string name="geo_sources_last_updated">Обновлено: %1$s</string>
+    <string name="geo_sources_never_updated">не загружен</string>
+    <string name="geo_sources_delete_title">Удалить источник?</string>
+    <string name="geo_sources_delete_message">Источник «%1$s» будет удалён вместе с локальным файлом.</string>
+    <string name="geo_sources_snackbar_deleted">Удалено</string>
+    <string name="geo_sources_snackbar_downloaded">Скачано</string>
+    <string name="geo_sources_snackbar_update_all_done">Все источники обновлены</string>
+    <string name="geo_sources_dialog_title_add">Добавить источник</string>
+    <string name="geo_sources_dialog_title_edit">Изменить источник</string>
+    <string name="geo_sources_dialog_save">Сохранить</string>
+    <string name="geo_sources_dialog_cancel">Отмена</string>
 </resources>

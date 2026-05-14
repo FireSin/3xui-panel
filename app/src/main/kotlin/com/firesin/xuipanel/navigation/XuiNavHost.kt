@@ -192,7 +192,7 @@ fun XuiNavHost(
             shareGraph(navController)
             statsGraph(navController)
             clientStatsGraph(navController)
-            settingsGraph(onMenuClick = onMenuClick)
+            settingsGraph(onMenuClick = onMenuClick, navController = navController)
         }
     }
 }

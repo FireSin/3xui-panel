@@ -1,9 +1,11 @@
 package com.firesin.xuipanel.core.xui
 
+import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.ClientIpsResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
+import com.firesin.xuipanel.core.xui.dto.CustomGeoListResponseDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
 import com.firesin.xuipanel.core.xui.dto.LoginRequestDto
@@ -161,4 +163,25 @@ interface XuiApi {
     /** Clears the recorded IP list for the client. */
     @POST("panel/api/inbounds/clearClientIps/{email}")
     suspend fun clearClientIps(@Path("email") email: String): Response<LoginResponseDto>
+
+    @GET("panel/api/custom-geo/list")
+    suspend fun listCustomGeo(): Response<CustomGeoListResponseDto>
+
+    @POST("panel/api/custom-geo/add")
+    suspend fun addCustomGeo(@Body body: AddCustomGeoRequestDto): Response<LoginResponseDto>
+
+    @POST("panel/api/custom-geo/update/{id}")
+    suspend fun updateCustomGeo(
+        @Path("id") id: Int,
+        @Body body: AddCustomGeoRequestDto,
+    ): Response<LoginResponseDto>
+
+    @POST("panel/api/custom-geo/delete/{id}")
+    suspend fun deleteCustomGeo(@Path("id") id: Int): Response<LoginResponseDto>
+
+    @POST("panel/api/custom-geo/download/{id}")
+    suspend fun downloadCustomGeo(@Path("id") id: Int): Response<LoginResponseDto>
+
+    @POST("panel/api/custom-geo/update-all")
+    suspend fun updateAllCustomGeo(): Response<LoginResponseDto>
 }
