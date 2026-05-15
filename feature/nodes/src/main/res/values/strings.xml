@@ -15,7 +15,13 @@
     <string name="nodes_stat_latency">%1$d ms</string>
     <string name="nodes_stat_cpu">CPU %1$.1f%%</string>
     <string name="nodes_stat_mem">MEM %1$.1f%%</string>
-    <string name="nodes_stat_uptime">Uptime %1$s</string>
+    <string name="nodes_stat_uptime">аптайм %1$s</string>
+    <string name="nodes_stat_label_latency">ЛАТ.</string>
+    <string name="nodes_stat_label_cpu">CPU</string>
+    <string name="nodes_stat_label_mem">RAM</string>
+    <string name="nodes_stat_label_xray">XRAY</string>
+    <string name="nodes_stat_unit_ms">мс</string>
+    <string name="nodes_unreachable">Нода недоступна</string>
     <string name="nodes_empty_title">Нет нод</string>
     <string name="nodes_empty_description">Добавь первую ноду</string>
     <string name="nodes_delete_title">Удалить ноду?</string>

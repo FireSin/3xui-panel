@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -391,53 +393,140 @@ private fun NodeCard(
                 modifier = Modifier.padding(top = 4.dp),
             )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
+            val isError = node.status.equals("error", ignoreCase = true) ||
+                (node.lastError.isNotBlank() && !node.status.equals("online", ignoreCase = true))
 
-            // Stats row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.nodes_stat_latency, node.latencyMs),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = MonoFontFamily,
-                        fontSize = 11.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (isError) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(10.dp),
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = node.lastError.ifBlank { stringResource(R.string.nodes_unreachable) },
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            } else {
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                Text(
-                    text = stringResource(R.string.nodes_stat_cpu, node.cpuPct),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(R.string.nodes_stat_mem, node.memPct),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    NodeStatCell(
+                        caption = stringResource(R.string.nodes_stat_label_latency),
+                        value = "${node.latencyMs} ${stringResource(R.string.nodes_stat_unit_ms)}",
+                        modifier = Modifier.weight(1f),
+                    )
+                    NodeStatCell(
+                        caption = stringResource(R.string.nodes_stat_label_cpu),
+                        value = "%.1f%%".format(node.cpuPct),
+                        progress = (node.cpuPct / 100f).toFloat(),
+                        warn = node.cpuPct > 60.0,
+                        modifier = Modifier.weight(1f),
+                    )
+                    NodeStatCell(
+                        caption = stringResource(R.string.nodes_stat_label_mem),
+                        value = "%.0f%%".format(node.memPct),
+                        progress = (node.memPct / 100f).toFloat(),
+                        warn = node.memPct > 60.0,
+                        modifier = Modifier.weight(1f),
+                    )
+                    NodeStatCell(
+                        caption = stringResource(R.string.nodes_stat_label_xray),
+                        value = if (node.xrayVersion.isNotBlank()) "v${node.xrayVersion}" else "—",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 if (node.uptimeSecs > 0L) {
                     Text(
                         text = stringResource(R.string.nodes_stat_uptime, secondsToCompact(node.uptimeSecs)),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = MonoFontFamily,
+                            fontSize = 11.sp,
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
             }
+        }
+    }
+}
 
-            // Last error (if any)
-            if (node.lastError.isNotBlank()) {
-                Text(
-                    text = node.lastError,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 6.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+@Composable
+private fun NodeStatCell(
+    caption: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    progress: Float? = null,
+    warn: Boolean = false,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = caption,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.4.sp,
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontFamily = MonoFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+            ),
+            color = if (warn) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        if (progress != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+                    .height(3.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(2.dp),
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .background(
+                            color = if (warn) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(2.dp),
+                        ),
                 )
             }
         }
