@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon background: dark squircle gradient.
+    Per design tokens (3xui Финальный дизайн) — bgFrom #16191b, bgTo #0a0c0d.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <gradient
         android:type="linear"
-        android:startColor="#5FE5B0"
-        android:endColor="#2DBC85"
+        android:startColor="#16191b"
+        android:endColor="#0a0c0d"
         android:angle="270" />
 </shape>

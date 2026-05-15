@@ -10,8 +10,8 @@ import com.firesin.xuipanel.feature.settings.geo.navigation.geoSourcesGraph
 const val SettingsRoute = "settings"
 
 fun NavGraphBuilder.settingsGraph(
-    onMenuClick: () -> Unit,
     navController: NavController,
+    onMenuClick: () -> Unit = {},
 ) {
     composable(route = SettingsRoute) {
         SettingsScreen(

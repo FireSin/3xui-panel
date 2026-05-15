@@ -154,14 +154,6 @@ private fun NodesContent(
         topBar = {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.nodes_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = stringResource(R.string.nodes_cd_menu_open),
-                        )
-                    }
-                },
                 actions = {
                     IconButton(onClick = onRefresh) {
                         Icon(

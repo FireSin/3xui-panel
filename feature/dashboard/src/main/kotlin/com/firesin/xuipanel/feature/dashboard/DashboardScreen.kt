@@ -196,14 +196,6 @@ private fun DashboardContent(
                             overflow = TextOverflow.Ellipsis,
                         )
                     },
-                    navigationIcon = {
-                        IconButton(onClick = onMenuClick) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = stringResource(R.string.dashboard_cd_menu),
-                            )
-                        }
-                    },
                     actions = {
                         IconButton(onClick = onRefresh) {
                             Icon(

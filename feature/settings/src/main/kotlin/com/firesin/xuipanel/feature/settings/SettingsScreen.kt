@@ -160,11 +160,6 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Default.Menu, contentDescription = null)
-                    }
-                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

@@ -247,14 +247,6 @@ private fun InboundsContent(
         topBar = {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.inbounds_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = stringResource(R.string.inbounds_cd_menu_open),
-                        )
-                    }
-                },
                 actions = {
                     var topBarMenuExpanded by remember { mutableStateOf(false) }
                     Box {

@@ -275,14 +275,6 @@ private fun PanelsListContent(
         topBar = {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.panels_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = stringResource(R.string.panels_cd_menu),
-                        )
-                    }
-                },
                 actions = {
                     IconButton(onClick = onAddPanel) {
                         Icon(

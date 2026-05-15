@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Adaptive icon foreground: heraldic shield + crack.
-    Viewport 108×108. Safe zone: 21,21 → 87,87 (66dp square).
-    Shield is centered in the safe zone, ~52dp wide × 58dp tall.
-    Crack is a 3-segment zigzag in dark mint #0C3D26.
+    Adaptive icon foreground: «3xui» monogram — three skewed bars + accent dot.
+    Source design: bugs/design/3xui/project/components/shared.jsx AppIcon().
+    Viewport 108×108 (Android), safe zone 21,21..87,87 → 66×66 dp.
+
+    Design coordinates were 96×96 with bars at translate(20,26):
+        bar1: M0,0 L46,0 L52,8 L8,8 Z          (opacity 1.0)
+        bar2: M8,16 L54,16 L48,24 L2,24 Z      (opacity 0.85)
+        bar3: M0,32 L46,32 L52,40 L8,40 Z      (opacity 0.7)
+        dot:  cx=75 cy=22 r=4
+    Mapped to 108×108 with origin shifted to center inside safe zone:
+    scale factor = 108/96 ≈ 1.125; final translate ≈ (25, 30).
+
+    Accent: oklch(0.85 0.18 145) — bright mint, sRGB ≈ #71E5A8.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -11,22 +20,26 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Shield body (heraldic shape):
-         Top edge: 32,28 → 76,28 (flat top)
-         Sides curve down to a pointed bottom at 54,82
-         Path: M32,28 H76 V58 Q76,72 54,82 Q32,72 32,58 Z
-    -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M32,28 L76,28 L76,58 Q76,74 54,83 Q32,74 32,58 Z" />
+    <group android:translateX="25" android:translateY="30">
+        <!-- bar 1 (top) -->
+        <path
+            android:fillColor="#71E5A8"
+            android:pathData="M0,0 L46,0 L52,8 L8,8 Z" />
+        <!-- bar 2 (middle, 85% opacity) -->
+        <path
+            android:fillColor="#71E5A8"
+            android:fillAlpha="0.85"
+            android:pathData="M8,16 L54,16 L48,24 L2,24 Z" />
+        <!-- bar 3 (bottom, 70% opacity) -->
+        <path
+            android:fillColor="#71E5A8"
+            android:fillAlpha="0.7"
+            android:pathData="M0,32 L46,32 L52,40 L8,40 Z" />
+    </group>
 
-    <!-- Crack / zigzag through shield — dark mint, 3dp stroke -->
+    <!-- accent dot — upper-right of monogram -->
     <path
-        android:strokeColor="#0C3D26"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M48,28 L56,44 L46,54 L58,72" />
+        android:fillColor="#71E5A8"
+        android:pathData="M80,26 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
 
 </vector>
