@@ -48,8 +48,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
-    implementation(libs.zxing.core)
-
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit5.api)

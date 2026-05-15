@@ -34,7 +34,7 @@ class XuiClientProbeTwoFactorTest {
     fun setUp() {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()))
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher())
     }
 
     @Test

@@ -8,7 +8,6 @@ import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoDto
 import com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoObj
-import com.firesin.xuipanel.core.xui.dto.XrayVersionResponseDto
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.every
@@ -52,29 +51,37 @@ class XuiClientServerInfoTest {
     fun setUp() {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()))
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher())
         coEvery { sessionCache.get(any()) } returns XuiSession("p1")
     }
 
-    // ---- fetchXrayVersion ----
+    // ---- fetchXrayVersion (now reads serverStatus.obj.xray.version) ----
+
+    private val serverStatusBody = """
+        {"success":true,"obj":{"cpu":1.0,"cpuCores":1,"logicalPro":1,"cpuSpeedMhz":3000.0,
+        "mem":{"current":100,"total":200},"swap":{"current":0,"total":0},
+        "disk":{"current":0,"total":0},
+        "xray":{"state":"running","errorMsg":"","version":"26.4.25"},
+        "uptime":1,"loads":[0,0,0],"tcpCount":0,"udpCount":0,
+        "netIO":{"up":0,"down":0},"netTraffic":{"sent":0,"recv":0},
+        "publicIP":{"ipv4":"1.1.1.1","ipv6":"N/A"},
+        "appStats":{"threads":1,"mem":1,"uptime":1}}}
+    """.trimIndent()
 
     @Test
-    fun `fetchXrayVersion - success returns version string`() = runTest {
-        mockResponse(
-            url = "/panel/api/server/getXrayVersion",
-            body = """{"success":true,"obj":"v25.5.16"}""",
-        )
+    fun `fetchXrayVersion - success returns version from serverStatus`() = runTest {
+        mockResponse(url = "/panel/api/server/status", body = serverStatusBody)
 
         val result = xuiClient.fetchXrayVersion("p1", BASE_URL, auth, tls)
 
         assertInstanceOf(Result.Success::class.java, result)
-        assertEquals("v25.5.16", (result as Result.Success).data)
+        assertEquals("26.4.25", (result as Result.Success).data)
     }
 
     @Test
     fun `fetchXrayVersion - success=false returns PanelResponse error`() = runTest {
         mockResponse(
-            url = "/panel/api/server/getXrayVersion",
+            url = "/panel/api/server/status",
             body = """{"success":false,"msg":"not supported"}""",
         )
 
@@ -92,6 +99,34 @@ class XuiClientServerInfoTest {
 
         assertInstanceOf(Result.Failure::class.java, result)
         assertTrue((result as Result.Failure).error is DomainError.Network)
+    }
+
+    // ---- fetchAvailableXrayVersions ----
+
+    @Test
+    fun `fetchAvailableXrayVersions - success returns list`() = runTest {
+        mockResponse(
+            url = "/panel/api/server/getXrayVersion",
+            body = """{"success":true,"obj":["v26.5.9","v26.4.25"]}""",
+        )
+
+        val result = xuiClient.fetchAvailableXrayVersions("p1", BASE_URL, auth, tls)
+
+        assertInstanceOf(Result.Success::class.java, result)
+        assertEquals(listOf("v26.5.9", "v26.4.25"), (result as Result.Success).data)
+    }
+
+    @Test
+    fun `fetchAvailableXrayVersions - null obj treated as empty list`() = runTest {
+        mockResponse(
+            url = "/panel/api/server/getXrayVersion",
+            body = """{"success":true}""",
+        )
+
+        val result = xuiClient.fetchAvailableXrayVersions("p1", BASE_URL, auth, tls)
+
+        assertInstanceOf(Result.Success::class.java, result)
+        assertTrue((result as Result.Success).data.isEmpty())
     }
 
     // ---- fetchPanelUpdateInfo ----

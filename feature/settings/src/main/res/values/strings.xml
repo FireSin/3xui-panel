@@ -141,4 +141,143 @@
     <string name="settings_autobackup_last_run">Последний бэкап: %1$s</string>
     <string name="settings_autobackup_trigger_now">Сделать сейчас</string>
     <string name="settings_autobackup_no_folder">Выберите папку для бэкапов</string>
+
+    <!-- API Tokens screen -->
+    <string name="settings_api_tokens_entry">API-токены панели</string>
+    <string name="settings_api_tokens_entry_description">Управление Bearer-токенами этой панели</string>
+    <string name="api_tokens_title">API-токены</string>
+    <string name="api_tokens_refresh">Обновить</string>
+    <string name="api_tokens_create">Создать</string>
+    <string name="api_tokens_create_title">Новый API-токен</string>
+    <string name="api_tokens_create_name_label">Имя токена</string>
+    <string name="api_tokens_delete">Удалить</string>
+    <string name="api_tokens_delete_title">Удалить токен?</string>
+    <string name="api_tokens_delete_message">Токен «%1$s» будет удалён без возможности восстановления.</string>
+    <string name="api_tokens_delete_app_warning">Этим токеном пользуется приложение. После удаления вход будет идти по логину/паролю.</string>
+    <string name="api_tokens_delete_confirm">Удалить</string>
+    <string name="api_tokens_delete_cancel">Отмена</string>
+    <string name="api_tokens_deleted">Токен удалён</string>
+    <string name="api_tokens_empty">На панели ещё нет API-токенов.\nНажмите «+», чтобы создать первый.</string>
+    <string name="api_tokens_no_active_panel">Сначала выберите активную панель.</string>
+    <string name="api_tokens_app_token_chip">Используется приложением</string>
+
+    <!-- Panel setup screen -->
+    <string name="settings_panel_setup_entry">Параметры панели</string>
+    <string name="settings_panel_setup_entry_description">Подписки, смена пароля, рестарт</string>
+    <string name="panel_setup_title">Параметры панели</string>
+    <string name="panel_setup_no_active_panel">Сначала выберите активную панель.</string>
+    <string name="panel_setup_section_sub">Подписки</string>
+    <string name="panel_setup_section_admin">Администрирование</string>
+    <string name="panel_setup_sub_enable">Стандартная подписка</string>
+    <string name="panel_setup_sub_uri">URL префикс (subURI)</string>
+    <string name="panel_setup_sub_json_enable">JSON-подписка</string>
+    <string name="panel_setup_sub_json_uri">URL префикс JSON (subJsonURI)</string>
+    <string name="panel_setup_sub_clash_enable">Clash-подписка</string>
+    <string name="panel_setup_sub_clash_uri">URL префикс Clash (subClashURI)</string>
+    <string name="panel_setup_save">Сохранить</string>
+    <string name="panel_setup_saved">Настройки сохранены</string>
+    <string name="panel_setup_cancel">Отмена</string>
+    <string name="panel_setup_change_creds">Сменить логин/пароль</string>
+    <string name="panel_setup_change_creds_title">Сменить логин/пароль</string>
+    <string name="panel_setup_change_creds_hint">Будут заменены и в панели, и в приложении. Текущие креды берутся из этой панели.</string>
+    <string name="panel_setup_change_creds_confirm">Сменить</string>
+    <string name="panel_setup_new_username">Новый логин</string>
+    <string name="panel_setup_new_password">Новый пароль</string>
+    <string name="panel_setup_creds_changed">Логин и пароль обновлены</string>
+    <string name="panel_setup_restart">Рестарт панели</string>
+    <string name="panel_setup_restart_title">Перезапустить панель?</string>
+    <string name="panel_setup_restart_message">Панель будет недоступна примерно 5-10 секунд. Подключения и API-вызовы прервутся.</string>
+    <string name="panel_setup_restart_confirm">Перезапустить</string>
+    <string name="panel_setup_restart_started">Команда отправлена. Панель перезапускается.</string>
+
+    <!-- Crypto generators screen -->
+    <string name="settings_crypto_gen_entry">Криптогенераторы</string>
+    <string name="settings_crypto_gen_entry_description">X25519, ECH, ML-DSA, ML-KEM, VLESS Encryption</string>
+    <string name="crypto_gen_title">Криптогенераторы</string>
+    <string name="crypto_gen_hint">Нажми, чтобы сгенерировать ключ. Результат можно скопировать в буфер обмена.</string>
+    <string name="crypto_gen_x25519">X25519 (Reality)</string>
+    <string name="crypto_gen_vless_enc">VLESS Encryption</string>
+    <string name="crypto_gen_mldsa">ML-DSA-65 (post-quantum signature)</string>
+    <string name="crypto_gen_mlkem">ML-KEM-768 (post-quantum KEM)</string>
+    <string name="crypto_gen_ech">ECH cert (Encrypted Client Hello)</string>
+    <string name="crypto_gen_ech_dialog_title">Сгенерить ECH</string>
+    <string name="crypto_gen_ech_sni">SNI</string>
+    <string name="crypto_gen_generate">Сгенерить</string>
+    <string name="crypto_gen_cancel">Отмена</string>
+    <string name="crypto_gen_close">Закрыть</string>
+
+    <!-- Outbounds screen -->
+    <string name="settings_outbounds_entry">Outbounds</string>
+    <string name="settings_outbounds_entry_description">Трафик исходящих, сброс счётчиков, вывод Xray</string>
+    <string name="outbounds_title">Outbounds</string>
+    <string name="outbounds_refresh">Обновить</string>
+    <string name="outbounds_xray_output">Вывод Xray</string>
+    <string name="outbounds_no_active_panel">Сначала выберите активную панель.</string>
+    <string name="outbounds_empty">На панели нет outbound\'ов.</string>
+    <string name="outbounds_up">Up</string>
+    <string name="outbounds_down">Down</string>
+    <string name="outbounds_total">Total</string>
+    <string name="outbounds_reset">Сбросить</string>
+    <string name="outbounds_reset_title">Сбросить счётчики?</string>
+    <string name="outbounds_reset_message">Счётчики трафика для «%1$s» будут обнулены без возможности восстановления.</string>
+    <string name="outbounds_reset_confirm">Сбросить</string>
+    <string name="outbounds_reset_done">Счётчики сброшены</string>
+    <string name="outbounds_cancel">Отмена</string>
+    <string name="outbounds_close">Закрыть</string>
+    <string name="outbounds_test">Тест</string>
+    <string name="outbounds_test_title">Тест «%1$s»</string>
+    <string name="outbounds_test_ok">Успех · задержка %1$d мс</string>
+    <string name="outbounds_test_fail">Не удалось</string>
+    <string name="outbounds_test_mode">Режим: %1$s</string>
+
+    <!-- Xray metrics screen -->
+    <string name="settings_xray_metrics_entry">Xray метрики и observatory</string>
+    <string name="settings_xray_metrics_entry_description">Состояние xray.metrics + outbound observatory</string>
+    <string name="xray_metrics_title">Xray метрики</string>
+    <string name="xray_metrics_no_active_panel">Сначала выберите активную панель.</string>
+    <string name="xray_metrics_section_state">Состояние</string>
+    <string name="xray_metrics_section_observatory">Observatory</string>
+    <string name="xray_metrics_unknown">Не удалось получить статус.</string>
+    <string name="xray_metrics_enabled">Метрики активны — можно подключить графики и алерты.</string>
+    <string name="xray_metrics_disabled">Метрики не настроены.</string>
+    <string name="xray_metrics_disabled_hint">Добавьте блок `metrics` в Xray template, перезапустите Xray — после этого появятся графики.</string>
+    <string name="xray_metrics_listen">Listen: %1$s</string>
+    <string name="xray_metrics_history_hint">История доступна через API, графики добавлю когда настроите.</string>
+    <string name="xray_metrics_observatory_empty">Observatory не настроен в xray-template — нет данных о latency outbound\'ов.</string>
+    <string name="xray_metrics_observatory_alive">Жив · задержка %1$d мс</string>
+    <string name="xray_metrics_observatory_dead">Недоступен</string>
+
+    <!-- WARP / NordVPN screen -->
+    <string name="settings_warp_nord_entry">WARP и NordVPN</string>
+    <string name="settings_warp_nord_entry_description">Outbound-провайдеры (Cloudflare WARP, NordVPN)</string>
+    <string name="warp_nord_title">WARP / NordVPN</string>
+    <string name="warp_nord_no_active_panel">Сначала выберите активную панель.</string>
+    <string name="warp_nord_warp_title">Cloudflare WARP</string>
+    <string name="warp_nord_warp_set_license">Указать WARP+ license</string>
+    <string name="warp_nord_warp_license_label">License key</string>
+    <string name="warp_nord_warp_license_done">License применена</string>
+    <string name="warp_nord_warp_delete">Удалить WARP</string>
+    <string name="warp_nord_warp_delete_confirm">WARP-аккаунт и ключи будут удалены с панели.</string>
+    <string name="warp_nord_warp_deleted">WARP удалён</string>
+    <string name="warp_nord_warp_empty_hint">WARP не настроен. Регистрация выполняется через веб-панель (нужны X25519 ключи + Cloudflare API).</string>
+    <string name="warp_nord_nord_title">NordVPN</string>
+    <string name="warp_nord_nord_set_key">Указать NordVPN API key</string>
+    <string name="warp_nord_nord_key_label">API key</string>
+    <string name="warp_nord_nord_key_done">Ключ применён</string>
+    <string name="warp_nord_nord_delete">Удалить NordVPN</string>
+    <string name="warp_nord_nord_delete_confirm">Данные подключения NordVPN будут удалены с панели.</string>
+    <string name="warp_nord_nord_deleted">NordVPN удалён</string>
+    <string name="warp_nord_nord_empty_hint">NordVPN не настроен. После ввода API key можно будет выбрать страну и сервер.</string>
+    <string name="warp_nord_apply">Применить</string>
+    <string name="warp_nord_cancel">Отмена</string>
+    <string name="warp_nord_confirm">Удалить</string>
+
+    <!-- Xray template viewer -->
+    <string name="settings_xray_template_entry">Xray template</string>
+    <string name="settings_xray_template_entry_description">Просмотр текущего шаблона xray-config (read-only)</string>
+    <string name="xray_template_title">Xray template</string>
+    <string name="xray_template_no_active_panel">Сначала выберите активную панель.</string>
+    <string name="xray_template_copied">Скопировано в буфер обмена</string>
+    <string name="xray_template_outbound_test_url">Outbound test URL: %1$s</string>
+    <string name="xray_template_warning">Только просмотр. Редактирование такого большого JSON в мобильном приложении слишком рискованно — делайте это через веб-панель.</string>
 </resources>

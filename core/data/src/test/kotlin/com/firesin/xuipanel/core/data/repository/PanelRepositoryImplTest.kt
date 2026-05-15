@@ -47,6 +47,10 @@ class PanelRepositoryImplTest {
         xuiClient = mockk()
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
+        // Default: token auto-creation fails — keeps Panel.apiToken null, matching pre-existing assertions.
+        coEvery {
+            xuiClient.createApiToken(any(), any(), any(), any(), any(), any())
+        } returns Result.Failure(DomainError.PanelResponse(0, "no answer"))
         repository = PanelRepositoryImpl(db, dao, xuiClient, clientFactory, sessionCache)
     }
 

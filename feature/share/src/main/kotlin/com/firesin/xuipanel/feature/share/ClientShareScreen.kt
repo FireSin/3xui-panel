@@ -6,8 +6,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,21 +39,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -71,16 +61,8 @@ import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
 import com.firesin.xuipanel.core.xui.dto.InboundDto
 import com.firesin.xuipanel.core.xui.share.ShareError
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.MultiFormatWriter
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-private val QR_SIZE_DP = 240.dp
-private val QrCardShape = RoundedCornerShape(22.dp)
 private val LinkCardShape = RoundedCornerShape(14.dp)
 
 @Composable
@@ -172,24 +154,6 @@ private fun ContentBody(
     state: ShareUiState.Content,
     onCopied: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    val qrSizePx = with(density) { QR_SIZE_DP.toPx() }.toInt()
-
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val surfaceColor = MaterialTheme.colorScheme.surface
-
-    // QR always shows the direct protocol URL — that's what client apps (v2rayNG,
-    // Karing, Streisand, …) actually consume by scanning. Subscription / Clash
-    // URLs are shown below as separate cards with copy/send buttons.
-    var qrBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(state.uri, onSurfaceColor, surfaceColor) {
-        qrBitmap = withContext(Dispatchers.Default) {
-            generateQrBitmap(state.uri, qrSizePx, onSurfaceColor, surfaceColor)
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -218,47 +182,6 @@ private fun ContentBody(
                 ),
                 textAlign = TextAlign.Center,
             )
-        }
-
-        // QR card
-        Surface(
-            shape = QrCardShape,
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = QrCardShape,
-                ),
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                val bitmap = qrBitmap
-                if (bitmap != null) {
-                    Image(
-                        painter = remember(bitmap) { BitmapPainter(bitmap) },
-                        contentDescription = stringResource(R.string.share_cd_qr),
-                        modifier = Modifier.size(QR_SIZE_DP),
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier.size(QR_SIZE_DP),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = stringResource(R.string.share_qr_hint),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
         }
 
         // All available link formats — stacked. Direct is always shown; Subscription
@@ -416,36 +339,6 @@ private fun ShareError.toUserMessage(): String = when (this) {
         stringResource(R.string.share_error_missing_inbound_password)
     is ShareError.UnsupportedProtocol ->
         stringResource(R.string.share_error_unsupported_protocol, protocol)
-}
-
-/**
- * Generates a QR bitmap using ZXing core.
- *
- * [foreground] and [background] should be the current theme colors (onSurface / surface)
- * so the QR respects dark/light mode. Called on [Dispatchers.Default].
- *
- * Design: docs/architecture/share-config.md §6
- */
-fun generateQrBitmap(
-    text: String,
-    sizePx: Int,
-    foreground: Color,
-    background: Color,
-): ImageBitmap {
-    val hints = mapOf(
-        EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L,
-        EncodeHintType.MARGIN to 1,
-    )
-    val bitMatrix = MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
-    val fgArgb = foreground.toArgb()
-    val bgArgb = background.toArgb()
-    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-    for (x in 0 until sizePx) {
-        for (y in 0 until sizePx) {
-            bitmap.setPixel(x, y, if (bitMatrix.get(x, y)) fgArgb else bgArgb)
-        }
-    }
-    return bitmap.asImageBitmap()
 }
 
 @Preview(showBackground = true)

@@ -7,14 +7,12 @@
     <string name="share_send">Отправить</string>
     <string name="share_copied">Скопировано</string>
     <string name="share_retry">Повторить</string>
-    <string name="share_cd_qr">QR-код конфигурации</string>
 
     <!-- Protocol/inbound header: "VLESS · 443 · panel.example.com" -->
     <string name="share_header_format">%1$s · %2$d · %3$s</string>
 
     <!-- New strings for direction-A redesign -->
     <string name="share_caption_for">Конфигурация для</string>
-    <string name="share_qr_hint">Сканируйте в v2rayNG, Streisand, Karing…</string>
     <string name="share_link_section">Прямая ссылка</string>
     <string name="share_section_sub">Подписка (subscription)</string>
     <string name="share_section_clash">Clash</string>

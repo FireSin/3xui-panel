@@ -4,7 +4,11 @@ import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.WsNotification
+import com.firesin.xuipanel.core.common.WsUiEventBus
 import com.firesin.xuipanel.core.data.model.Panel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.ClientTrafficDto
@@ -34,6 +38,10 @@ class ClientTrafficViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: PanelRepository
     private lateinit var xuiClient: XuiClient
+    private val wsBus: WsUiEventBus = object : WsUiEventBus {
+        override val notifications = MutableSharedFlow<WsNotification>().asSharedFlow()
+        override val invalidations = MutableSharedFlow<String>().asSharedFlow()
+    }
 
     @BeforeEach
     fun setUp() {
@@ -60,7 +68,7 @@ class ClientTrafficViewModelTest {
             xuiClient.fetchClientTrafficsByEmail(any(), any(), any(), any(), any())
         } returns Result.Success(fakeTrafficDto("alice@test.com"))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.trafficState.test {
@@ -89,7 +97,7 @@ class ClientTrafficViewModelTest {
             xuiClient.fetchClientTrafficsByEmail(any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.PanelResponse(0, "email not found"))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.trafficState.test {
@@ -110,7 +118,7 @@ class ClientTrafficViewModelTest {
         val panel = fakePanel()
         every { repository.observeActive() } returns flowOf(panel)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.loadClientTraffic("")
@@ -130,7 +138,7 @@ class ClientTrafficViewModelTest {
             xuiClient.fetchClientTrafficsByEmail(any(), any(), any(), any(), any())
         } returns Result.Success(fakeTrafficDto("alice@test.com"))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.loadClientTraffic("alice@test.com")
@@ -146,7 +154,7 @@ class ClientTrafficViewModelTest {
     fun `loadClientTraffic does nothing when no active panel`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertInstanceOf(ClientsUiState.NoActivePanel::class.java, vm.uiState.value)

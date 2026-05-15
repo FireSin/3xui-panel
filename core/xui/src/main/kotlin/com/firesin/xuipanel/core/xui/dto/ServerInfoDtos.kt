@@ -5,12 +5,15 @@ import kotlinx.serialization.Serializable
 
 /**
  * GET /panel/api/server/getXrayVersion
- * Returns the currently-installed Xray binary version string, e.g. "v25.5.16".
+ *
+ * Since 3x-ui v26+ this returns the **list of Xray versions available for install**
+ * (e.g. `["v26.5.9","v26.4.25"]`), NOT the currently-installed one. The installed
+ * version lives in `serverStatus().obj.xray.version` (XrayStatusDto.version).
  */
 @Serializable
 data class XrayVersionResponseDto(
     @SerialName("success") val success: Boolean,
-    @SerialName("obj") val obj: String? = null,
+    @SerialName("obj") val obj: List<String>? = null,
     @SerialName("msg") val msg: String? = null,
 )
 

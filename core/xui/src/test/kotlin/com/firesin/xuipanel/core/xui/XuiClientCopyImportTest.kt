@@ -45,7 +45,7 @@ class XuiClientCopyImportTest {
     fun setUp() {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()))
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher())
         coEvery { sessionCache.get(any()) } returns XuiSession("p1")
     }
 

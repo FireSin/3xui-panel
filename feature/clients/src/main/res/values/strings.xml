@@ -17,6 +17,8 @@
     <string name="clients_summary_expiring">Истекает &lt; 7д</string>
     <!-- QR / share quick-action on each client row -->
     <string name="clients_share_cd">Поделиться · QR / ссылка / подписка</string>
+    <!-- Pencil / edit quick-action on each client row -->
+    <string name="clients_edit_cd">Редактировать клиента</string>
     <!-- Inbound-level actions in TopAppBar -->
     <string name="clients_inbound_cd_delete">Удалить инбаунд</string>
     <string name="clients_inbound_cd_more">Действия с инбаундом</string>

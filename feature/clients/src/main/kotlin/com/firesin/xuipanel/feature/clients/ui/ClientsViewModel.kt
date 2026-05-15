@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.WsUiEventBus
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
@@ -50,6 +51,7 @@ sealed class ClientsUiState {
 class ClientsViewModel @Inject constructor(
     private val repository: PanelRepository,
     private val xuiClient: XuiClient,
+    private val wsUiEvents: WsUiEventBus,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ClientsUiState>(ClientsUiState.NoActivePanel)
@@ -70,6 +72,20 @@ class ClientsViewModel @Inject constructor(
                 } else {
                     _uiState.value = ClientsUiState.Loading(panel)
                     fetchInbounds(panel, selectedInboundId = null)
+                }
+            }
+            .launchIn(viewModelScope)
+
+        // Panel-pushed `invalidate { resource: "clients"|"inbounds" }` ⇒ refresh.
+        // The clients screen lives inside inbounds in the API model, so either resource applies.
+        wsUiEvents.invalidations
+            .onEach { resource ->
+                if (resource.equals("clients", ignoreCase = true) ||
+                    resource.equals("inbounds", ignoreCase = true)
+                ) {
+                    val panel = activePanel() ?: return@onEach
+                    val currentId = (_uiState.value as? ClientsUiState.Content)?.selectedInboundId
+                    fetchInbounds(panel, selectedInboundId = currentId)
                 }
             }
             .launchIn(viewModelScope)

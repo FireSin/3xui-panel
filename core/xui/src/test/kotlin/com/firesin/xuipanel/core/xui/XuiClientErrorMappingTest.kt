@@ -41,7 +41,7 @@ class XuiClientErrorMappingTest {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
         pinMismatchEvents = spyk(PinMismatchEventDispatcher())
-        xuiClient = XuiClient(clientFactory, sessionCache, pinMismatchEvents)
+        xuiClient = XuiClient(clientFactory, sessionCache, pinMismatchEvents, WsUiEventDispatcher())
     }
 
     @Test

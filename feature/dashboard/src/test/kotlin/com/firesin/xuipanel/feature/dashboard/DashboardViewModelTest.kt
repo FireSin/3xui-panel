@@ -49,6 +49,8 @@ class DashboardViewModelTest {
         xuiClient = mockk()
         coEvery { xuiClient.fetchServerHistory(any(), any(), any(), any(), any(), any()) } returns
             com.firesin.xuipanel.core.common.Result.Success(emptyList())
+        // WS subscription — keep silent; tests don't assert on live updates.
+        every { xuiClient.observeWs(any(), any(), any(), any(), any()) } returns kotlinx.coroutines.flow.emptyFlow()
         every { repository.observeAll() } returns flowOf(emptyList())
     }
 

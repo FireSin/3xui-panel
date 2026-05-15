@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.WsUiEventBus
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
@@ -33,6 +34,7 @@ sealed class InboundsUiState {
 class InboundsViewModel @Inject constructor(
     private val repository: PanelRepository,
     private val xuiClient: XuiClient,
+    private val wsUiEvents: WsUiEventBus,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<InboundsUiState>(InboundsUiState.NoActivePanel)
@@ -67,6 +69,16 @@ class InboundsViewModel @Inject constructor(
                     _uiState.value = InboundsUiState.Loading(panel)
                     fetchInbounds(panel)
                     fetchNodeNames(panel)
+                }
+            }
+            .launchIn(viewModelScope)
+
+        // Panel-pushed `invalidate { resource: "inbounds" }` ⇒ silent re-fetch of the list,
+        // so an edit from the web UI shows up without a manual pull-to-refresh.
+        wsUiEvents.invalidations
+            .onEach { resource ->
+                if (resource.equals("inbounds", ignoreCase = true)) {
+                    activePanel()?.let { fetchInbounds(it) }
                 }
             }
             .launchIn(viewModelScope)

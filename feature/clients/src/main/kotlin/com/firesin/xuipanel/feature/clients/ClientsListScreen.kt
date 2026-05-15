@@ -2,7 +2,6 @@ package com.firesin.xuipanel.feature.clients
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +21,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PeopleOutline
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.PeopleOutline
 import androidx.compose.material.icons.filled.Search
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
@@ -637,15 +637,7 @@ private fun ClientRow(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    val clickModifier = if (isSupported) {
-        modifier
-            .fillMaxWidth()
-            .clickable { onEdit(inboundId, client.urlKey) }
-    } else {
-        modifier.fillMaxWidth()
-    }
-
-    Column(modifier = clickModifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
         if (showTopDivider) {
             HorizontalDivider(
                 thickness = 0.5.dp,
@@ -682,6 +674,17 @@ private fun ClientRow(
                 }
                 ExpiryText(expiry = expiry)
                 if (isSupported) {
+                    IconButton(
+                        onClick = { onEdit(inboundId, client.urlKey) },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.clients_edit_cd),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                     IconButton(
                         onClick = { onShare(inboundId, client.urlKey) },
                         modifier = Modifier.size(32.dp),

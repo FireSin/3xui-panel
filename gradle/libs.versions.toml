@@ -56,7 +56,6 @@ junitAndroid = "1.2.1"
 espressoCore = "3.6.1"
 mockk = "1.13.16"
 turbine = "1.2.0"
-zxing = "3.5.3"
 
 [libraries]
 # Core
@@ -118,7 +117,6 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
-zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Biometric
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }

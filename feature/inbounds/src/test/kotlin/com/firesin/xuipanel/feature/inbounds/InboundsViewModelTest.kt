@@ -4,7 +4,11 @@ import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.WsNotification
+import com.firesin.xuipanel.core.common.WsUiEventBus
 import com.firesin.xuipanel.core.data.model.Panel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
 import com.firesin.xuipanel.core.data.repository.PanelRepository
@@ -39,6 +43,10 @@ class InboundsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: PanelRepository
     private lateinit var xuiClient: XuiClient
+    private val wsBus: WsUiEventBus = object : WsUiEventBus {
+        override val notifications = MutableSharedFlow<WsNotification>().asSharedFlow()
+        override val invalidations = MutableSharedFlow<String>().asSharedFlow()
+    }
 
     @BeforeEach
     fun setUp() {
@@ -60,7 +68,7 @@ class InboundsViewModelTest {
     fun `no active panel produces NoActivePanel state`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertInstanceOf(InboundsUiState.NoActivePanel::class.java, vm.uiState.value)
@@ -73,7 +81,7 @@ class InboundsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
 
         vm.uiState.test {
             skipItems(1) // initial NoActivePanel
@@ -98,7 +106,7 @@ class InboundsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value
@@ -116,7 +124,7 @@ class InboundsViewModelTest {
             xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         } returns Result.Success(Unit)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.toggle(id = 1, enable = false)
@@ -148,7 +156,7 @@ class InboundsViewModelTest {
             xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -175,7 +183,7 @@ class InboundsViewModelTest {
             xuiClient.deleteInbound(any(), any(), any(), any(), any())
         } returns Result.Success(Unit)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.delete(id = 1)
@@ -202,7 +210,7 @@ class InboundsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.refresh()
@@ -217,7 +225,7 @@ class InboundsViewModelTest {
     fun `toggle with no active panel is no-op`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.toggle(id = 1, enable = false)
@@ -232,7 +240,7 @@ class InboundsViewModelTest {
     fun `delete with no active panel is no-op`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.delete(id = 1)
@@ -253,7 +261,7 @@ class InboundsViewModelTest {
             xuiClient.deleteInbound(any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -276,7 +284,7 @@ class InboundsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeInbound()))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.isRefreshing.test {
@@ -292,7 +300,7 @@ class InboundsViewModelTest {
     fun `refresh with no active panel is no-op`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.refresh()
@@ -313,7 +321,7 @@ class InboundsViewModelTest {
         val activePanel = MutableStateFlow<Panel?>(panel1)
         every { repository.observeActive() } returns activePanel
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Verify first panel was fetched
@@ -341,7 +349,7 @@ class InboundsViewModelTest {
             xuiClient.setInboundEnabled(any(), any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.InvalidCredentials)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.toggle(id = 1, enable = false)
@@ -361,7 +369,7 @@ class InboundsViewModelTest {
         coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns
             Result.Success(listOf(fakeNode(1, "de_nuxt"), fakeNode(2, "us_edge")))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val names = vm.nodeNames.value
@@ -378,7 +386,7 @@ class InboundsViewModelTest {
         coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(emptyMap<Int, String>(), vm.nodeNames.value)
@@ -394,7 +402,7 @@ class InboundsViewModelTest {
             xuiClient.copyClients(any(), any(), any(), any(), any(), any(), any(), any())
         } returns Result.Success(Unit)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.copyClients(targetInboundId = 1, sourceInboundId = 2, clientEmails = emptyList(), flow = null)
@@ -426,7 +434,7 @@ class InboundsViewModelTest {
             xuiClient.copyClients(any(), any(), any(), any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -448,7 +456,7 @@ class InboundsViewModelTest {
             xuiClient.importInbounds(any(), any(), any(), any(), any())
         } returns Result.Success(Unit)
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.importInbounds("""{"remark":"test","port":443}""")
@@ -476,7 +484,7 @@ class InboundsViewModelTest {
             xuiClient.importInbounds(any(), any(), any(), any(), any())
         } returns Result.Failure(DomainError.PanelResponse(0, "invalid json"))
 
-        val vm = InboundsViewModel(repository, xuiClient)
+        val vm = InboundsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {

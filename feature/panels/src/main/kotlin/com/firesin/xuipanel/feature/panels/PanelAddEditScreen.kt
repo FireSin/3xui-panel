@@ -349,20 +349,6 @@ private fun PanelAddEditContent(
                         ),
                     )
                 }
-                FieldRow(
-                    label = stringResource(R.string.panel_field_api_token_label),
-                    value = form.apiToken,
-                    onValueChange = onApiTokenChange,
-                    placeholder = stringResource(R.string.panel_field_api_token_placeholder),
-                    isError = false,
-                    enabled = !isSaving,
-                    topDivider = true,
-                    monoValue = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
-                )
             }
 
             if (form.twoFactorRequired) {
@@ -375,38 +361,23 @@ private fun PanelAddEditContent(
                 )
             }
 
-            val credentialErrors = errors?.login != null || errors?.password != null
-            if (credentialErrors) {
+            if (errors?.login != null || errors?.password != null) {
                 Spacer(Modifier.height(4.dp))
-                when (form.authMode) {
-                    AuthMode.LOGIN -> {
-                        if (errors?.login != null) {
-                            Text(
-                                text = stringResource(R.string.panel_error_login_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(horizontal = 4.dp),
-                            )
-                        }
-                        if (errors?.password != null) {
-                            Text(
-                                text = stringResource(R.string.panel_error_password_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(horizontal = 4.dp),
-                            )
-                        }
-                    }
-                    AuthMode.TOKEN -> {
-                        if (errors?.apiToken != null) {
-                            Text(
-                                text = stringResource(R.string.panel_error_api_token_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(horizontal = 4.dp),
-                            )
-                        }
-                    }
+                if (errors.login != null) {
+                    Text(
+                        text = stringResource(R.string.panel_error_login_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+                if (errors.password != null) {
+                    Text(
+                        text = stringResource(R.string.panel_error_password_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
                 }
             }
 

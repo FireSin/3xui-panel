@@ -11,10 +11,13 @@ import com.firesin.xuipanel.core.data.repository.PanelRepository
 import com.firesin.xuipanel.core.xui.XuiClient
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
+import com.firesin.xuipanel.core.xui.ws.WsEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -79,10 +82,14 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch { repository.setActive(id) }
     }
 
+    /** Live status push via WS (replaces polling). Cancelled when active panel changes. */
+    private var wsJob: Job? = null
+
     init {
         repository.observeActive()
             .distinctUntilChanged { a, b -> a?.id == b?.id }
             .onEach { panel ->
+                wsJob?.cancel()
                 if (panel == null) {
                     _uiState.value = DashboardUiState.NoActivePanel
                     _history.value = emptyList()
@@ -90,9 +97,31 @@ class DashboardViewModel @Inject constructor(
                     _uiState.value = DashboardUiState.Loading(panel)
                     fetchStatus(panel)
                     fetchHistory(panel, _selectedMetric.value)
+                    wsJob = subscribeLiveStatus(panel)
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    /**
+     * Connects to `<base>/ws` and pushes incoming `status` events into [_uiState].
+     * Failures stop the stream silently — initial HTTP fetch already populated the UI,
+     * so the user just sees a static snapshot in that case (the next `refresh()` works as before).
+     */
+    private fun subscribeLiveStatus(panel: Panel): Job = viewModelScope.launch {
+        xuiClient.observeWs(
+            panelId = panel.id,
+            baseUrl = panel.baseUrl,
+            username = panel.login,
+            password = panel.password,
+            tls = panel.toPanelTls(),
+        )
+            .catch { /* ignore — WS auth might fail; the static fetch above is enough */ }
+            .collect { event ->
+                if (event is WsEvent.Status) {
+                    _uiState.value = DashboardUiState.Content(panel, event.server)
+                }
+            }
     }
 
     fun selectMetric(metric: HistoryMetric) {

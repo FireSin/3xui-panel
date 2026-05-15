@@ -8,6 +8,9 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
+import com.firesin.xuipanel.core.xui.dto.ApiTokenDto
+import com.firesin.xuipanel.core.xui.dto.CreateApiTokenRequestDto
+import com.firesin.xuipanel.core.xui.dto.SetApiTokenEnabledRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoAliasesResponseDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
@@ -29,18 +32,39 @@ import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
 import com.firesin.xuipanel.core.xui.dto.SetEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
+import com.firesin.xuipanel.core.xui.dto.EchCertDto
+import com.firesin.xuipanel.core.xui.dto.Mldsa65KeypairDto
+import com.firesin.xuipanel.core.xui.dto.Mlkem768KeypairDto
+import com.firesin.xuipanel.core.xui.dto.OutboundTrafficDto
+import com.firesin.xuipanel.core.xui.dto.VlessEncAuthDto
+import com.firesin.xuipanel.core.xui.dto.XrayMetricsStateDto
 import com.firesin.xuipanel.core.xui.dto.X25519KeyPairDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogEntryDto
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.firesin.xuipanel.core.xui.ws.ClientTrafficSnapshot
+import com.firesin.xuipanel.core.xui.ws.WsEvent
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import com.firesin.xuipanel.core.xui.dto.UpdateUserRequestDto
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -64,6 +88,7 @@ class XuiClient @Inject constructor(
     private val clientFactory: OkHttpClientFactory,
     private val sessionCache: XuiSessionCache,
     private val pinMismatchEvents: PinMismatchEventDispatcher,
+    private val wsUiEvents: WsUiEventDispatcher,
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -370,15 +395,7 @@ class XuiClient @Inject constructor(
             }
             runCatching {
                 val api = apiFor(baseUrl, panelId, tls)
-                // Force a fresh login so the cookie jar holds the session under which
-                // the upcoming CSRF token is valid. Skipping this and reusing a
-                // possibly-stale cached session may yield 403s.
-                login(api, panelId, username, password)
-                val csrfResponse = api.csrfToken()
-                val csrf = csrfResponse.body()?.obj.orEmpty()
-                if (!csrfResponse.isSuccessful || csrf.isBlank()) {
-                    error("csrf token unavailable for panel $panelId")
-                }
+                val csrf = cookieSessionCsrf(api, panelId, username, password)
                 api.panelSettings(csrf)
             }.fold(
                 onSuccess = { response ->
@@ -588,6 +605,164 @@ class XuiClient @Inject constructor(
                 }
             },
             onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Generate a new ML-DSA-65 keypair (post-quantum signature). */
+    suspend fun fetchNewMldsa65(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<Mldsa65KeypairDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api -> api.getNewMldsa65() }
+        }.fold(
+            onSuccess = { r ->
+                val obj = r.obj
+                if (r.success && obj != null) Result.Success(obj)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Generate a new ML-KEM-768 keypair (post-quantum KEM). */
+    suspend fun fetchNewMlkem768(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<Mlkem768KeypairDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api -> api.getNewMlkem768() }
+        }.fold(
+            onSuccess = { r ->
+                val obj = r.obj
+                if (r.success && obj != null) Result.Success(obj)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Fetch the list of VLESS Encryption presets. */
+    suspend fun fetchVlessEncAuths(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<List<VlessEncAuthDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api -> api.getNewVlessEnc() }
+        }.fold(
+            onSuccess = { r ->
+                val auths = r.obj?.auths
+                if (r.success && auths != null) Result.Success(auths)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Fetch Xray runtime metrics state (enabled/disabled + reason or snapshot). */
+    suspend fun fetchXrayMetricsState(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<XrayMetricsStateDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api -> api.getXrayMetricsState() }
+        }.fold(
+            onSuccess = { r ->
+                val obj = r.obj
+                if (r.success && obj != null) Result.Success(obj)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Time-series history for one Xray runtime metric (xrAlloc/xrSys/xrHeapObjects/xrNumGC/xrPauseNs). */
+    suspend fun fetchXrayMetricsHistory(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        metric: String,
+        bucketSecs: Int,
+    ): Result<List<com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getXrayMetricsHistory(metric, bucketSecs)
+            }
+        }.fold(
+            onSuccess = { r ->
+                if (r.success) Result.Success(r.obj.orEmpty())
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Latest observatory snapshot — empty list when observatory isn't configured. */
+    suspend fun fetchXrayObservatory(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<List<com.firesin.xuipanel.core.xui.dto.XrayObservatoryEntryDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api -> api.getXrayObservatory() }
+        }.fold(
+            onSuccess = { r ->
+                if (r.success) Result.Success(r.obj.orEmpty())
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Observatory probe history for one outbound tag. */
+    suspend fun fetchXrayObservatoryHistory(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        tag: String,
+        bucketSecs: Int,
+    ): Result<List<com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.getXrayObservatoryHistory(tag, bucketSecs)
+            }
+        }.fold(
+            onSuccess = { r ->
+                if (r.success) Result.Success(r.obj.orEmpty())
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Generate an ECH (Encrypted Client Hello) keypair for the given SNI. */
+    suspend fun fetchNewEchCert(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        sni: String,
+    ): Result<EchCertDto, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api -> api.getNewEchCert(sni) }
+        }.fold(
+            onSuccess = { r ->
+                val obj = r.obj
+                if (r.success && obj != null) Result.Success(obj)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
         )
     }
 
@@ -839,6 +1014,54 @@ class XuiClient @Inject constructor(
                 }
             },
             onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Delete a client by email (alternative to [deleteClient] which uses the client UUID). */
+    suspend fun deleteClientByEmail(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        inboundId: Int,
+        email: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.deleteClientByEmail(inboundId, email)
+            }
+        }.fold(
+            onSuccess = { r ->
+                if (r.success) Result.Success(Unit)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Manually set client upload/download counters (bytes). Useful for migrations. */
+    suspend fun updateClientTraffic(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+        email: String,
+        upload: Long,
+        download: Long,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
+                api.updateClientTraffic(
+                    email,
+                    com.firesin.xuipanel.core.xui.dto.UpdateClientTrafficRequestDto(upload, download),
+                )
+            }
+        }.fold(
+            onSuccess = { r ->
+                if (r.success) Result.Success(Unit)
+                else Result.Failure(DomainError.PanelResponse(0, r.msg.orEmpty()))
+            },
+            onFailure = { it.toDomainError(panelId) },
         )
     }
 
@@ -1745,8 +1968,11 @@ class XuiClient @Inject constructor(
     // ---- Bundle A: server info ----
 
     /**
-     * Returns the currently-installed Xray binary version string (e.g. "v25.5.16").
-     * api.txt line 312–313: GET /panel/api/server/getXrayVersion.
+     * Returns the **currently installed** Xray binary version (e.g. "26.4.25").
+     *
+     * 3x-ui v26 changed `/getXrayVersion` to return a *list of available versions*,
+     * so the installed one now lives in `serverStatus().obj.xray.version`. This
+     * helper hides that and keeps the old call-site shape (`Result<String>`).
      */
     suspend fun fetchXrayVersion(
         panelId: String,
@@ -1756,13 +1982,40 @@ class XuiClient @Inject constructor(
     ): Result<String, DomainError> = withContext(Dispatchers.IO) {
         runCatching {
             withSession(panelId, baseUrl, auth, tls) { api ->
+                api.serverStatus()
+            }
+        }.fold(
+            onSuccess = { response ->
+                val version = response.obj?.xray?.version
+                if (response.success && !version.isNullOrBlank()) {
+                    Result.Success(version)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Lists Xray versions available for install on this host (newest first).
+     * api.txt: GET /panel/api/server/getXrayVersion — semantics flipped in v26+.
+     * Used by the "Install Xray" picker; empty list means panel couldn't enumerate.
+     */
+    suspend fun fetchAvailableXrayVersions(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<List<String>, DomainError> = withContext(Dispatchers.IO) {
+        runCatching {
+            withSession(panelId, baseUrl, auth, tls) { api ->
                 api.getXrayVersion()
             }
         }.fold(
             onSuccess = { response ->
-                val version = response.obj
-                if (response.success && !version.isNullOrBlank()) {
-                    Result.Success(version)
+                if (response.success) {
+                    Result.Success(response.obj.orEmpty())
                 } else {
                     Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
                 }
@@ -1929,6 +2182,659 @@ class XuiClient @Inject constructor(
             },
             onFailure = { cause -> cause.toDomainError(panelId) },
         )
+    }
+
+    // ---- API Tokens (cookie+CSRF, under /panel/setting/) ----
+
+    /**
+     * Lists all API tokens on the panel. Uses a fresh cookie session (login → csrf → call)
+     * because `/panel/setting/` is not covered by Bearer middleware.
+     */
+    suspend fun listApiTokens(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<List<ApiTokenDto>, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.listApiTokens(csrf)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(body.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Creates a new API token on the panel. On name collision returns
+     * `DomainError.PanelResponse(409, "a token with that name already exists")`.
+     */
+    suspend fun createApiToken(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        name: String,
+    ): Result<ApiTokenDto, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.createApiToken(csrf, CreateApiTokenRequestDto(name = name))
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                val obj = body?.obj
+                if (response.isSuccessful && body?.success == true && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    val msg = body?.msg.orEmpty()
+                    val code = if (msg.contains("already exists", ignoreCase = true)) 409 else response.code()
+                    Result.Failure(DomainError.PanelResponse(code, msg))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Deletes an API token by id. */
+    suspend fun deleteApiToken(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        id: Int,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.deleteApiToken(csrf, id)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Enables or disables an API token by id. */
+    suspend fun setApiTokenEnabled(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        id: Int,
+        enabled: Boolean,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.setApiTokenEnabled(csrf, id, SetApiTokenEnabledRequestDto(enabled = enabled))
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    // ---- Panel settings (cookie+CSRF, under /panel/setting/) ----
+
+    /** Returns the full panel settings blob (~70 fields) as a raw JsonObject. */
+    suspend fun fetchAllSettings(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<JsonObject, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.getAllSettings(csrf)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                val obj = body?.obj
+                if (response.isSuccessful && body?.success == true && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Persists the full settings blob — callers should fetch via [fetchAllSettings] first,
+     * then override only the fields they want to change to avoid clobbering unknown keys.
+     */
+    suspend fun updateAllSettings(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        settings: JsonObject,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.updateAllSettings(csrf, settings)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Rotates panel admin login/password. The current pair (from the stored Panel) authenticates
+     * the request; the new pair is what the panel will accept going forward. Caller must update
+     * `Panel.login`/`Panel.password` on success.
+     */
+    suspend fun updatePanelUser(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        newUsername: String,
+        newPassword: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.updateUser(
+                csrf,
+                UpdateUserRequestDto(
+                    oldUsername = username,
+                    oldPassword = password,
+                    newUsername = newUsername,
+                    newPassword = newPassword,
+                ),
+            )
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Restarts the 3x-ui process (~5-10s downtime). The connection drops before the panel
+     * writes a response — [IOException]/[EOFException] are treated as success.
+     */
+    suspend fun restartPanel(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.restartPanel(csrf)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause ->
+                // Panel drops the connection mid-restart — that's the expected success path.
+                if (cause is java.io.IOException) Result.Success(Unit)
+                else cause.toDomainError(panelId)
+            },
+        )
+    }
+
+    // ---- Outbounds (cookie+CSRF, under /panel/xray/) ----
+
+    /** Per-outbound traffic stats. Order/count matches the Xray config's outbounds array. */
+    suspend fun fetchOutboundsTraffic(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<List<OutboundTrafficDto>, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.getOutboundsTraffic(csrf)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(body.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Last Xray stdout/stderr — empty string when Xray hasn't logged anything yet. */
+    suspend fun fetchXrayResult(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<String, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.getXrayResult(csrf)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(body.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /** Fetch the Xray config template + tag lists + outboundTestUrl. */
+    suspend fun fetchXrayTemplate(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Result<com.firesin.xuipanel.core.xui.dto.XrayTemplateObjDto, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.getXrayTemplate(csrf)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                val obj = body?.obj
+                if (response.isSuccessful && body?.success == true && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Test an outbound by tag. The outbound JSON is pulled from the panel's xraySetting
+     * template (the test endpoint requires the full outbound JSON, not just the tag).
+     *
+     * @return [TestOutboundResultDto.success] = whether the dial/HTTP probe succeeded;
+     *   `error` is empty on success, contains the failure reason otherwise.
+     */
+    suspend fun testOutboundByTag(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        tag: String,
+        useTcpMode: Boolean = true,
+    ): Result<com.firesin.xuipanel.core.xui.dto.TestOutboundResultDto, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            // Fetch template, parse xraySetting, find outbound by tag.
+            val tmplResp = api.getXrayTemplate(csrf)
+            val tmpl = tmplResp.body()?.obj ?: throw IllegalStateException("xray template unavailable")
+            val xraySetting = json.parseToJsonElement(tmpl.xraySetting).jsonObject
+            val outbounds = xraySetting["outbounds"]?.jsonArray
+                ?: throw IllegalStateException("no outbounds array in xraySetting")
+            val target = outbounds.firstOrNull {
+                it.jsonObject["tag"]?.jsonPrimitive?.contentOrNull == tag
+            } ?: throw IllegalStateException("outbound with tag '$tag' not found")
+            val outboundJson = json.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), target)
+            val allOutboundsJson = json.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), outbounds)
+            api.testOutbound(
+                csrfToken = csrf,
+                outbound = outboundJson,
+                allOutbounds = allOutboundsJson,
+                mode = if (useTcpMode) "tcp" else null,
+            )
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                val obj = body?.obj
+                if (response.isSuccessful && body?.success == true && obj != null) {
+                    Result.Success(obj)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Cloudflare WARP action helper. [action] ∈ `data | del | config | reg | license`.
+     * Returns the panel response `obj` string (escaped JSON for `data`/`config`, empty otherwise).
+     */
+    suspend fun warpAction(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        action: String,
+        privateKey: String? = null,
+        publicKey: String? = null,
+        license: String? = null,
+    ): Result<String, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.warpAction(csrf, action, privateKey, publicKey, license)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(body.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * NordVPN action helper. [action] ∈ `countries | servers | reg | setKey | data | del | config`.
+     * Mirrors [warpAction] envelope.
+     */
+    suspend fun nordAction(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        action: String,
+        countryId: String? = null,
+        token: String? = null,
+        key: String? = null,
+    ): Result<String, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.nordAction(csrf, action, countryId, token, key)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(body.obj.orEmpty())
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { it.toDomainError(panelId) },
+        )
+    }
+
+    /** Reset upload/download counters for a single outbound (by tag). Destructive. */
+    suspend fun resetOutboundTraffic(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        tag: String,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            api.resetOutboundsTraffic(csrf, tag)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    // ---- WebSocket (cookie auth — Bearer not supported on /ws) ----
+
+    /**
+     * Stream live events from `<baseUrl>/ws`. Establishes a cookie session first (login),
+     * then upgrades to WebSocket on the same OkHttp client (the cookie jar is shared).
+     *
+     * The flow completes when the panel closes the socket or the collector cancels.
+     * Failures emit [WsEvent.Unknown]-free — they bubble up as exceptions.
+     */
+    fun observeWs(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+    ): Flow<WsEvent> = channelFlow {
+        if (username.isBlank() || password.isBlank()) {
+            close(IllegalArgumentException("WebSocket requires login/password — Bearer is not supported by /ws"))
+            return@channelFlow
+        }
+
+        // Establish cookie session on the long-lived OkHttp client (shared cookie jar).
+        val api = apiFor(baseUrl, panelId, tls)
+        try {
+            login(api, panelId, username, password)
+        } catch (cause: Throwable) {
+            close(cause)
+            return@channelFlow
+        }
+
+        val httpClient = clientFactory.getClient(panelId, tls)
+        val wsUrl = baseUrl.ensureTrailingSlash() + "ws"
+        val request = Request.Builder().url(wsUrl).build()
+
+        val listener = object : WebSocketListener() {
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                val event = parseWsMessage(text) ?: return
+                // Fan out side-channel UI signals (toast + cache invalidation) so any screen
+                // can react without holding the WS itself.
+                when (event) {
+                    is WsEvent.Notification -> scope.launch {
+                        wsUiEvents.emitNotification(
+                            com.firesin.xuipanel.core.common.WsNotification(
+                                title = event.title,
+                                body = event.body,
+                                severity = event.severity,
+                            ),
+                        )
+                    }
+                    is WsEvent.Invalidate -> scope.launch {
+                        wsUiEvents.emitInvalidation(event.resource)
+                    }
+                    else -> Unit
+                }
+                trySend(event)
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                close()
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                close(t)
+            }
+        }
+
+        val ws = httpClient.newWebSocket(request, listener)
+        awaitClose { ws.cancel() }
+    }
+
+    private fun parseWsMessage(text: String): WsEvent? {
+        val root = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return null
+        val type = root["type"]?.jsonPrimitive?.contentOrNull ?: return null
+        val payload = root["payload"]
+        return runCatching {
+            when (type) {
+                "status" -> {
+                    val server = json.decodeFromJsonElement(
+                        com.firesin.xuipanel.core.xui.dto.ServerStatusDto.serializer(),
+                        payload ?: return@runCatching WsEvent.Unknown(type, text),
+                    )
+                    val timeMs = root["time"]?.jsonPrimitive?.longOrNull ?: 0L
+                    WsEvent.Status(server, timeMs)
+                }
+                "traffic" -> {
+                    val list = payload?.jsonObject?.get("clientTraffics")?.jsonArray
+                    val items = list?.map {
+                        json.decodeFromJsonElement(ClientTrafficSnapshot.serializer(), it)
+                    } ?: emptyList()
+                    WsEvent.Traffic(items)
+                }
+                "xrayState" -> {
+                    val state = payload?.jsonPrimitive?.contentOrNull
+                        ?: payload?.jsonObject?.get("state")?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                    WsEvent.XrayState(state)
+                }
+                "notification" -> {
+                    val obj = payload?.jsonObject ?: root
+                    WsEvent.Notification(
+                        title = obj["title"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                        body = obj["body"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                        severity = obj["severity"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    )
+                }
+                "invalidate" -> {
+                    val resource = payload?.jsonObject?.get("resource")?.jsonPrimitive?.contentOrNull
+                        ?: root["resource"]?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                    WsEvent.Invalidate(resource)
+                }
+                else -> WsEvent.Unknown(type, text)
+            }
+        }.getOrElse { WsEvent.Unknown(type, text) }
+    }
+
+    /**
+     * Login + CSRF flow for /panel/setting/ endpoints. Returns the csrf token string.
+     *
+     * Reuses the cached session when present — the cookie jar attached to the shared
+     * OkHttp client keeps the session cookie alive across calls, so we only need a
+     * fresh CSRF token, not a fresh login. Halves QR/share latency by skipping
+     * POST /login on every share/settings call.
+     */
+    private suspend fun cookieSessionCsrf(
+        api: XuiApi,
+        panelId: String,
+        username: String,
+        password: String,
+    ): String {
+        if (sessionCache.get(panelId) == null) {
+            login(api, panelId, username, password)
+        }
+        var csrfResponse = api.csrfToken()
+        if (csrfResponse.code() == HTTP_UNAUTHORIZED || csrfResponse.code() == HTTP_FORBIDDEN) {
+            // Cached session lost on the server side — re-login and retry once.
+            sessionCache.invalidate(panelId)
+            login(api, panelId, username, password)
+            csrfResponse = api.csrfToken()
+        }
+        val csrf = csrfResponse.body()?.obj.orEmpty()
+        if (!csrfResponse.isSuccessful || csrf.isBlank()) {
+            error("csrf token unavailable for panel $panelId")
+        }
+        return csrf
     }
 
     private companion object {

@@ -1,5 +1,12 @@
 package com.firesin.xuipanel.core.xui
 
+import com.firesin.xuipanel.core.xui.dto.ApiTokensListResponseDto
+import com.firesin.xuipanel.core.xui.dto.CreateApiTokenRequestDto
+import com.firesin.xuipanel.core.xui.dto.CreateApiTokenResponseDto
+import com.firesin.xuipanel.core.xui.dto.PanelAllSettingsResponseDto
+import com.firesin.xuipanel.core.xui.dto.SetApiTokenEnabledRequestDto
+import com.firesin.xuipanel.core.xui.dto.UpdateUserRequestDto
+import kotlinx.serialization.json.JsonObject
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.CopyClientsRequestDto
@@ -12,6 +19,10 @@ import com.firesin.xuipanel.core.xui.dto.ClientLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientSettingsBodyDto
 import com.firesin.xuipanel.core.xui.dto.ConfigJsonResponseDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoAliasesResponseDto
+import com.firesin.xuipanel.core.xui.dto.EchCertResponseDto
+import com.firesin.xuipanel.core.xui.dto.Mldsa65ResponseDto
+import com.firesin.xuipanel.core.xui.dto.Mlkem768ResponseDto
+import com.firesin.xuipanel.core.xui.dto.VlessEncResponseDto
 import com.firesin.xuipanel.core.xui.dto.CustomGeoListResponseDto
 import com.firesin.xuipanel.core.xui.dto.InboundListResponseDto
 import com.firesin.xuipanel.core.xui.dto.LastOnlineResponseDto
@@ -23,6 +34,8 @@ import com.firesin.xuipanel.core.xui.dto.NewX25519ResponseDto
 import com.firesin.xuipanel.core.xui.dto.NodeListResponseDto
 import com.firesin.xuipanel.core.xui.dto.NodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
+import com.firesin.xuipanel.core.xui.dto.OutboundsTrafficResponseDto
+import com.firesin.xuipanel.core.xui.dto.XrayResultResponseDto
 import com.firesin.xuipanel.core.xui.dto.PanelSettingsResponseDto
 import com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoDto
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryResponseDto
@@ -32,6 +45,7 @@ import com.firesin.xuipanel.core.xui.dto.SetNodeEnableRequestDto
 import com.firesin.xuipanel.core.xui.dto.SubLinksResponseDto
 import com.firesin.xuipanel.core.xui.dto.TestNodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayLogsResponseDto
+import com.firesin.xuipanel.core.xui.dto.XrayMetricsStateResponseDto
 import com.firesin.xuipanel.core.xui.dto.XrayVersionResponseDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -105,6 +119,56 @@ interface XuiApi {
     /** Fresh X25519 keypair for Reality settings. */
     @GET("panel/api/server/getNewX25519Cert")
     suspend fun getNewX25519Cert(): Response<NewX25519ResponseDto>
+
+    /** ML-DSA-65 keypair (post-quantum signature). Returns `{seed, verify}`. */
+    @GET("panel/api/server/getNewmldsa65")
+    suspend fun getNewMldsa65(): Response<Mldsa65ResponseDto>
+
+    /** ML-KEM-768 keypair (post-quantum KEM). Returns `{client, server}`. */
+    @GET("panel/api/server/getNewmlkem768")
+    suspend fun getNewMlkem768(): Response<Mlkem768ResponseDto>
+
+    /** VLESS Encryption presets (X25519 / mlkem768x25519plus.native.{0rtt,600s}). */
+    @GET("panel/api/server/getNewVlessEnc")
+    suspend fun getNewVlessEnc(): Response<VlessEncResponseDto>
+
+    /**
+     * ECH (Encrypted Client Hello) keypair for the given SNI. Form body `sni=…`.
+     * Returns `{echConfigList, echServerKeys}`.
+     */
+    @retrofit2.http.FormUrlEncoded
+    @POST("panel/api/server/getNewEchCert")
+    suspend fun getNewEchCert(
+        @retrofit2.http.Field("sni") sni: String,
+    ): Response<EchCertResponseDto>
+
+    /**
+     * Xray metrics state. When `enabled=false`, `reason` explains why (e.g. "metrics block
+     * not configured in xray template"); when `enabled=true`, `snapshot` carries expvar values.
+     */
+    @GET("panel/api/server/xrayMetricsState")
+    suspend fun getXrayMetricsState(): Response<XrayMetricsStateResponseDto>
+
+    /**
+     * Time-series history for one Xray metric. Metrics: xrAlloc, xrSys, xrHeapObjects,
+     * xrNumGC, xrPauseNs. Bucket sizes: 2, 30, 60, 120, 180, 300 seconds.
+     */
+    @GET("panel/api/server/xrayMetricsHistory/{metric}/{bucket}")
+    suspend fun getXrayMetricsHistory(
+        @Path("metric") metric: String,
+        @Path("bucket") bucket: Int,
+    ): Response<ServerHistoryResponseDto>
+
+    /** Observatory snapshot — list of per-outbound latency/health/lastProbe entries. */
+    @GET("panel/api/server/xrayObservatory")
+    suspend fun getXrayObservatory(): Response<com.firesin.xuipanel.core.xui.dto.XrayObservatoryResponseDto>
+
+    /** Observatory history for a single outbound tag. Same {t,v} shape as serverHistory. */
+    @GET("panel/api/server/xrayObservatoryHistory/{tag}/{bucket}")
+    suspend fun getXrayObservatoryHistory(
+        @Path("tag") tag: String,
+        @Path("bucket") bucket: Int,
+    ): Response<ServerHistoryResponseDto>
 
     /**
      * Toggle inbound enable. JSON body `{"enable": true|false}` per api.txt.
@@ -212,6 +276,20 @@ interface XuiApi {
     suspend fun deleteClient(
         @Path("inboundId") inboundId: Int,
         @Path("clientKey") clientKey: String,
+    ): Response<LoginResponseDto>
+
+    /** Delete a client identified by email rather than UUID. Two path params. */
+    @POST("panel/api/inbounds/{inboundId}/delClientByEmail/{email}")
+    suspend fun deleteClientByEmail(
+        @Path("inboundId") inboundId: Int,
+        @Path("email") email: String,
+    ): Response<LoginResponseDto>
+
+    /** Manually adjust client upload/download counters. Body `{upload, download}` in bytes. */
+    @POST("panel/api/inbounds/updateClientTraffic/{email}")
+    suspend fun updateClientTraffic(
+        @Path("email") email: String,
+        @Body body: com.firesin.xuipanel.core.xui.dto.UpdateClientTrafficRequestDto,
     ): Response<LoginResponseDto>
 
     @POST("panel/api/inbounds/{inboundId}/resetClientTraffic/{email}")
@@ -411,6 +489,142 @@ interface XuiApi {
     /** One-shot CSRF token mint. Stable per session; we re-fetch on each settings call. */
     @GET("csrf-token")
     suspend fun csrfToken(): Response<CsrfTokenResponseDto>
+
+    /**
+     * List all API tokens. Under `/panel/setting/` — requires cookie session + X-CSRF-Token,
+     * Bearer middleware does NOT cover this path.
+     */
+    @GET("panel/setting/apiTokens")
+    suspend fun listApiTokens(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<ApiTokensListResponseDto>
+
+    /**
+     * Create a new API token. Under `/panel/setting/` — requires cookie + X-CSRF-Token.
+     * Returns `{success:false, msg:"a token with that name already exists"}` on name collision.
+     */
+    @POST("panel/setting/apiTokens/create")
+    suspend fun createApiToken(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body body: CreateApiTokenRequestDto,
+    ): Response<CreateApiTokenResponseDto>
+
+    /** Delete an API token by id. Under `/panel/setting/` — requires cookie + X-CSRF-Token. */
+    @POST("panel/setting/apiTokens/delete/{id}")
+    suspend fun deleteApiToken(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: Int,
+    ): Response<LoginResponseDto>
+
+    /** Enable or disable an API token. Under `/panel/setting/` — requires cookie + X-CSRF-Token. */
+    @POST("panel/setting/apiTokens/setEnabled/{id}")
+    suspend fun setApiTokenEnabled(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: Int,
+        @Body body: SetApiTokenEnabledRequestDto,
+    ): Response<LoginResponseDto>
+
+    /** Full panel settings blob (~70 fields). Cookie + X-CSRF-Token. */
+    @POST("panel/setting/all")
+    suspend fun getAllSettings(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<PanelAllSettingsResponseDto>
+
+    /**
+     * Persist the entire settings blob. Body shape mirrors `getAllSettings`.obj — pass the
+     * fetched JsonObject with only the desired fields replaced to avoid clobbering anything.
+     */
+    @POST("panel/setting/update")
+    suspend fun updateAllSettings(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body body: JsonObject,
+    ): Response<LoginResponseDto>
+
+    /** Rotate admin credentials. Server validates old pair before applying new one. */
+    @POST("panel/setting/updateUser")
+    suspend fun updateUser(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body body: UpdateUserRequestDto,
+    ): Response<LoginResponseDto>
+
+    /** Restart the whole 3x-ui process (5-10s downtime). Connection drops immediately. */
+    @POST("panel/setting/restartPanel")
+    suspend fun restartPanel(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<LoginResponseDto>
+
+    // ---- Outbounds (cookie+CSRF, under /panel/xray/) ----
+    // NOTE: /panel/xray/ is NOT covered by Bearer middleware (returns 307 redirect),
+    // so all calls go through cookie session + CSRF, like /panel/setting/.
+
+    /** Per-outbound traffic stats. */
+    @GET("panel/xray/getOutboundsTraffic")
+    suspend fun getOutboundsTraffic(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<OutboundsTrafficResponseDto>
+
+    /** Last Xray stdout/stderr — useful when an outbound config refuses to start. */
+    @GET("panel/xray/getXrayResult")
+    suspend fun getXrayResult(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<XrayResultResponseDto>
+
+    /** Reset counters for a single outbound by tag. */
+    @retrofit2.http.FormUrlEncoded
+    @POST("panel/xray/resetOutboundsTraffic")
+    suspend fun resetOutboundsTraffic(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @retrofit2.http.Field("tag") tag: String,
+    ): Response<LoginResponseDto>
+
+    /** Xray config template + tag lists + outboundTestUrl. */
+    @POST("panel/xray/")
+    suspend fun getXrayTemplate(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<com.firesin.xuipanel.core.xui.dto.XrayTemplateResponseDto>
+
+    /**
+     * Test an outbound. Form fields:
+     *  - outbound (required): JSON string of a single outbound
+     *  - allOutbounds (optional): JSON array for dialerProxy resolution
+     *  - mode (optional): "tcp" for fast dial-only probe, empty/missing for full HTTP probe
+     */
+    @retrofit2.http.FormUrlEncoded
+    @POST("panel/xray/testOutbound")
+    suspend fun testOutbound(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @retrofit2.http.Field("outbound") outbound: String,
+        @retrofit2.http.Field("allOutbounds") allOutbounds: String? = null,
+        @retrofit2.http.Field("mode") mode: String? = null,
+    ): Response<com.firesin.xuipanel.core.xui.dto.TestOutboundResponseDto>
+
+    /**
+     * Cloudflare WARP control. Actions: `data | del | config | reg | license`. Form fields
+     * are sent only for `reg` (privateKey, publicKey) and `license`.
+     */
+    @retrofit2.http.FormUrlEncoded
+    @POST("panel/xray/warp/{action}")
+    suspend fun warpAction(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("action") action: String,
+        @retrofit2.http.Field("privateKey") privateKey: String? = null,
+        @retrofit2.http.Field("publicKey") publicKey: String? = null,
+        @retrofit2.http.Field("license") license: String? = null,
+    ): Response<com.firesin.xuipanel.core.xui.dto.WarpNordResponseDto>
+
+    /**
+     * NordVPN control. Actions: `countries | servers | reg | setKey | data | del | config`.
+     * Form fields: `countryId` for `servers`, `token` for `reg`, `key` for `setKey`.
+     */
+    @retrofit2.http.FormUrlEncoded
+    @POST("panel/xray/nord/{action}")
+    suspend fun nordAction(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("action") action: String,
+        @retrofit2.http.Field("countryId") countryId: String? = null,
+        @retrofit2.http.Field("token") token: String? = null,
+        @retrofit2.http.Field("key") key: String? = null,
+    ): Response<com.firesin.xuipanel.core.xui.dto.WarpNordResponseDto>
 
     /**
      * Return the raw Xray config JSON currently running on this host.

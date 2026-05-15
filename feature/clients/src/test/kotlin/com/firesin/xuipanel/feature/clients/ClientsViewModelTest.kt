@@ -4,6 +4,10 @@ import app.cash.turbine.test
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.WsNotification
+import com.firesin.xuipanel.core.common.WsUiEventBus
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.data.model.toAuth
 import com.firesin.xuipanel.core.data.model.toPanelTls
@@ -38,6 +42,10 @@ class ClientsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: PanelRepository
     private lateinit var xuiClient: XuiClient
+    private val wsBus: WsUiEventBus = object : WsUiEventBus {
+        override val notifications = MutableSharedFlow<WsNotification>().asSharedFlow()
+        override val invalidations = MutableSharedFlow<String>().asSharedFlow()
+    }
 
     @BeforeEach
     fun setUp() {
@@ -59,7 +67,7 @@ class ClientsViewModelTest {
     fun `no active panel produces NoActivePanel state`() = runTest {
         every { repository.observeActive() } returns flowOf(null)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertInstanceOf(ClientsUiState.NoActivePanel::class.java, vm.uiState.value)
@@ -73,7 +81,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
 
         vm.uiState.test {
             skipItems(1) // initial NoActivePanel
@@ -97,7 +105,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value
@@ -115,7 +123,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val newClient = fakeVmessClient("new@test.com")
@@ -145,7 +153,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -171,7 +179,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.updateClient(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val updatedClient = fakeVmessClient("updated@test.com")
@@ -203,7 +211,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.updateClient(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -225,7 +233,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.deleteClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val client = fakeVmessClient("del@test.com")
@@ -256,7 +264,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.deleteClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("err")))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -278,7 +286,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.resetClientTraffic(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(Unit)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val client = fakeVmessClient("reset@test.com")
@@ -308,7 +316,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.resetClientTraffic(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.Network(RuntimeException("timeout")))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.errorMessage.test {
@@ -329,7 +337,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound1, inbound2))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Initial selection is inbound1 (first)
@@ -354,7 +362,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.fetchInbounds(any(), any(), any(), any()) } returns
             Result.Success(listOf(inbound))
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val content = vm.uiState.value as ClientsUiState.Content
@@ -371,7 +379,7 @@ class ClientsViewModelTest {
         coEvery { xuiClient.addClient(any(), any(), any(), any(), any(), any()) } returns
             Result.Failure(DomainError.InvalidCredentials)
 
-        val vm = ClientsViewModel(repository, xuiClient)
+        val vm = ClientsViewModel(repository, xuiClient, wsBus)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.addClient(inbound.id, fakeVmessClient("e@test.com"))

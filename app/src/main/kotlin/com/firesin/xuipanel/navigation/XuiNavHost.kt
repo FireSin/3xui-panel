@@ -3,8 +3,11 @@ package com.firesin.xuipanel.navigation
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.firesin.xuipanel.ui.WsToastHost
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -36,6 +39,7 @@ fun XuiNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute in XuiTopLevelRoutes
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         // Top/side insets are consumed by each screen's own Scaffold (TopAppBar with
@@ -43,6 +47,7 @@ fun XuiNavHost(
         // disable its window-inset contribution to avoid stacking a second status-bar
         // gap above every screen's title.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { WsToastHost(snackbarHostState = snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 XuiBottomBar(

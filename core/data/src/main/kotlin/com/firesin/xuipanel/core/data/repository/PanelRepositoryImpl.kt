@@ -61,10 +61,15 @@ class PanelRepositoryImpl @Inject constructor(
             TlsMode.SYSTEM -> Triple(TlsMode.SYSTEM, null, null)
         }
 
+        val panelId = UUID.randomUUID().toString()
+        val resolvedTls = PanelTls(resolvedTlsMode, resolvedSpki)
+        val resolvedApiToken = draft.apiToken.takeUnless { it.isNullOrBlank() }
+            ?: autoCreateApiToken(panelId, draft, resolvedTls)
+
         val existing = dao.getAll()
         val isFirst = existing.isEmpty()
         val panel = Panel(
-            id = UUID.randomUUID().toString(),
+            id = panelId,
             name = draft.name,
             baseUrl = draft.baseUrl,
             login = draft.login,
@@ -75,11 +80,37 @@ class PanelRepositoryImpl @Inject constructor(
             isActive = isFirst,
             createdAt = now,
             lastLoginAt = now,
-            apiToken = draft.apiToken,
+            apiToken = resolvedApiToken,
             twoFactorEnabled = draft.twoFactorEnabled,
         )
         dao.insert(panel.toEntity())
         return Result.Success(panel)
+    }
+
+    /**
+     * Creates a fresh API token on the panel for this app's exclusive use. Returns
+     * `null` if creation fails — in that case the panel falls back to cookie-only auth.
+     * The random suffix avoids name collisions across multiple installs.
+     */
+    private suspend fun autoCreateApiToken(
+        panelId: String,
+        draft: PanelDraft,
+        tls: PanelTls,
+    ): String? {
+        if (draft.login.isBlank() || draft.password.isBlank()) return null
+        val tokenName = "3xui-panel-app-${UUID.randomUUID().toString().take(8)}"
+        val result = xuiClient.createApiToken(
+            panelId = panelId,
+            baseUrl = draft.baseUrl,
+            username = draft.login,
+            password = draft.password,
+            tls = tls,
+            name = tokenName,
+        )
+        return when (result) {
+            is Result.Success -> result.data.token
+            is Result.Failure -> null
+        }
     }
 
     override suspend fun update(id: String, draft: PanelDraft): Result<Panel, DomainError> {
@@ -132,7 +163,7 @@ class PanelRepositoryImpl @Inject constructor(
             isActive = existing.isActive != 0,
             createdAt = Instant.ofEpochMilli(existing.createdAt),
             lastLoginAt = now,
-            apiToken = draft.apiToken,
+            apiToken = draft.apiToken.takeUnless { it.isNullOrBlank() } ?: existingPanel.apiToken,
             twoFactorEnabled = draft.twoFactorEnabled,
         )
         dao.insert(updated.toEntity())
@@ -177,7 +208,7 @@ class PanelRepositoryImpl @Inject constructor(
             isActive = existing.isActive != 0,
             createdAt = Instant.ofEpochMilli(existing.createdAt),
             lastLoginAt = now,
-            apiToken = draft.apiToken,
+            apiToken = draft.apiToken.takeUnless { it.isNullOrBlank() } ?: existingPanel.apiToken,
         )
         dao.insert(updated.toEntity())
         return Result.Success(updated)
