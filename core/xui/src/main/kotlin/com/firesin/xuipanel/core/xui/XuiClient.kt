@@ -1595,7 +1595,15 @@ class XuiClient @Inject constructor(
             .build()
             .create(XuiApi::class.java)
         runCatching {
-            api.getTwoFactorEnable()
+            // The endpoint requires X-CSRF-Token on recent forks. We fetch it on
+            // the same transient client so the session cookie travels along; empty
+            // is tolerated by older builds.
+            val csrf = runCatching { api.csrfToken() }
+                .getOrNull()
+                ?.takeIf { it.isSuccessful }
+                ?.body()?.obj
+                .orEmpty()
+            api.getTwoFactorEnable(csrf)
         }.fold(
             onSuccess = { response ->
                 when {

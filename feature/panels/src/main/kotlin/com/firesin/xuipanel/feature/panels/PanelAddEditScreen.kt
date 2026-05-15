@@ -646,10 +646,20 @@ private fun PinMismatchDialog(
 private fun DomainError.toSubmitErrorMessage(): String = when (this) {
     is DomainError.InvalidCredentials -> stringResource(R.string.error_invalid_credentials)
     is DomainError.Tls -> stringResource(R.string.error_tls, message)
-    is DomainError.Network -> stringResource(R.string.error_network)
-    is DomainError.PanelUnreachable -> stringResource(R.string.error_panel_unreachable)
-    is DomainError.PanelResponse -> stringResource(R.string.error_unexpected)
-    is DomainError.Unexpected -> stringResource(R.string.error_unexpected)
+    is DomainError.Network -> {
+        // Include the underlying exception class + message so probe failures stop
+        // looking like a generic «no connection» — useful when the panel is
+        // reachable but the request itself fails (CSRF, unexpected redirect, …).
+        val detail = cause.message?.takeIf { it.isNotBlank() } ?: cause::class.java.simpleName
+        stringResource(R.string.error_network) + " · " + detail
+    }
+    is DomainError.PanelUnreachable -> stringResource(R.string.error_panel_unreachable) +
+        (httpCode?.let { " · HTTP $it" } ?: "")
+    is DomainError.PanelResponse -> stringResource(R.string.error_unexpected) +
+        if (body.isNotBlank()) " · $body" else ""
+    is DomainError.Unexpected ->
+        stringResource(R.string.error_unexpected) + " · " +
+            (cause.message?.takeIf { it.isNotBlank() } ?: cause::class.java.simpleName)
     is DomainError.PinMismatch -> stringResource(R.string.error_pin_mismatch)
 }
 

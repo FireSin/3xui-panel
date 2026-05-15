@@ -68,8 +68,15 @@ interface XuiApi {
      * Open endpoint — no auth required. Returns whether the panel has 2FA (TOTP) enabled.
      * Call before login to decide whether to ask the user for an OTP.
      */
-    @POST("panel/api/getTwoFactorEnable")
-    suspend fun getTwoFactorEnable(): Response<TwoFactorResponseDto>
+    /**
+     * 2FA toggle probe — lives at the *root* `/getTwoFactorEnable`, NOT under
+     * `panel/api/`. Bearer middleware doesn't cover it; recent forks gate the
+     * call behind `X-CSRF-Token`. Empty header is accepted by older builds.
+     */
+    @POST("getTwoFactorEnable")
+    suspend fun getTwoFactorEnable(
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<TwoFactorResponseDto>
 
     @GET("panel/api/inbounds/list")
     suspend fun listInbounds(): Response<InboundListResponseDto>

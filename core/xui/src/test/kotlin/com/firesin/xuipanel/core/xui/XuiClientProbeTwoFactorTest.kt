@@ -110,27 +110,37 @@ class XuiClientProbeTwoFactorTest {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun mockTransientResponse(code: Int, body: String) {
-        val fakeResponse = Response.Builder()
-            .request(Request.Builder().url("https://panel.example.com:2053/panel/api/getTwoFactorEnable").build())
-            .protocol(Protocol.HTTP_1_1)
-            .code(code)
-            .message(if (code == 200) "OK" else "Error")
-            .body(body.toResponseBody("application/json".toMediaType()))
-            .build()
-
-        val mockCall = mockk<Call>()
-        every { mockCall.execute() } returns fakeResponse
-        every { mockCall.cancel() } just Runs
-        every { mockCall.isExecuted() } returns false
-        every { mockCall.isCanceled() } returns false
-        every { mockCall.enqueue(any()) } answers {
-            firstArg<okhttp3.Callback>().onResponse(mockCall, fakeResponse)
-        }
-
+        // probeTwoFactorEnabled now does GET /csrf-token first, then POST
+        // /getTwoFactorEnable with the X-CSRF-Token header. Both calls hit this
+        // mock, so we route by request path: csrf-token gets a stub Success body
+        // and the real expectation goes to the 2FA endpoint.
         val mockClient = mockk<OkHttpClient>()
-        every { mockClient.newCall(any()) } returns mockCall
         every { mockClient.newBuilder() } returns OkHttpClient.Builder()
-
+        every { mockClient.newCall(any()) } answers {
+            val request = firstArg<Request>()
+            val responseBody = if (request.url.encodedPath.endsWith("/csrf-token")) {
+                """{"success":true,"obj":"stub-csrf"}"""
+            } else {
+                body
+            }
+            val responseCode = if (request.url.encodedPath.endsWith("/csrf-token")) 200 else code
+            val fakeResponse = Response.Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(responseCode)
+                .message(if (responseCode in 200..299) "OK" else "Error")
+                .body(responseBody.toResponseBody("application/json".toMediaType()))
+                .build()
+            val mockCall = mockk<Call>()
+            every { mockCall.execute() } returns fakeResponse
+            every { mockCall.cancel() } just Runs
+            every { mockCall.isExecuted() } returns false
+            every { mockCall.isCanceled() } returns false
+            every { mockCall.enqueue(any()) } answers {
+                firstArg<okhttp3.Callback>().onResponse(mockCall, fakeResponse)
+            }
+            mockCall
+        }
         coEvery { clientFactory.buildTransient(any()) } returns Pair(mockClient, null)
     }
 
