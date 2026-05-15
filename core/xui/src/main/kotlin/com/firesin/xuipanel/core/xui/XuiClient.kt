@@ -1721,10 +1721,14 @@ class XuiClient @Inject constructor(
             }
             return Result.Failure(error)
         }
-        val error = when {
-            this is XuiAuthException -> DomainError.InvalidCredentials
-            this is SSLException -> DomainError.Tls(message ?: javaClass.simpleName)
-            this is IOException -> DomainError.Network(this)
+        if (this is XuiAuthException) return Result.Failure(DomainError.InvalidCredentials)
+        // Walk the cause chain — wrapped SSL handshake failures must surface as
+        // DomainError.Tls, not as the generic «Network» fallback (see
+        // toProbeDomainError for the same logic).
+        val sslEx = generateSequence(this) { it.cause }.filterIsInstance<SSLException>().firstOrNull()
+        if (sslEx != null) return Result.Failure(DomainError.Tls(sslEx.message ?: sslEx.javaClass.simpleName))
+        val error = when (this) {
+            is IOException -> DomainError.Network(this)
             else -> DomainError.Unexpected(this)
         }
         return Result.Failure(error)
@@ -1928,14 +1932,18 @@ class XuiClient @Inject constructor(
 
 /** Probe path: no panelId yet; [SpkiPinMismatchException] from redirect-conflict is still typed. */
 private fun Throwable.toProbeDomainError(): Result.Failure<DomainError> {
-    val pinEx = generateSequence(this) { it.cause }
-        .filterIsInstance<SpkiPinMismatchException>()
-        .firstOrNull()
+    val chain = generateSequence(this) { it.cause }
+    val pinEx = chain.filterIsInstance<SpkiPinMismatchException>().firstOrNull()
     if (pinEx != null) return Result.Failure(DomainError.PinMismatch(panelId = "", observedSpki = pinEx.observedSpki))
+    // Some Android/OkHttp/coroutines paths wrap SSL handshake failures in a generic
+    // IOException. Walk the cause chain so a self-signed certificate surfaces as
+    // a TLS error («certificate not trusted») instead of a misleading «нет
+    // соединения с панелью» which suggests a transport-level outage.
+    val sslEx = generateSequence(this) { it.cause }.filterIsInstance<SSLException>().firstOrNull()
+    if (sslEx != null) return Result.Failure(DomainError.Tls(sslEx.message ?: sslEx.javaClass.simpleName))
     return Result.Failure(
-        when {
-            this is SSLException -> DomainError.Tls(message ?: javaClass.simpleName)
-            this is IOException -> DomainError.Network(this)
+        when (this) {
+            is IOException -> DomainError.Network(this)
             else -> DomainError.Unexpected(this)
         },
     )

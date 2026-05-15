@@ -26,7 +26,10 @@ data class PanelFormState(
     val baseUrl: String = "",
     val login: String = "",
     val password: String = "",
-    val tlsMode: TlsMode = TlsMode.SYSTEM,
+    // Default to PINNED with lazy TOFU capture so self-signed certs (a common
+    // home/lab setup for 3x-ui panels) work out of the box. SYSTEM is still
+    // available via the TLS selector; users with a real CA cert can switch.
+    val tlsMode: TlsMode = TlsMode.PINNED,
     val pinnedAt: Instant? = null,
     val authMode: AuthMode = AuthMode.LOGIN,
     val apiToken: String = "",
