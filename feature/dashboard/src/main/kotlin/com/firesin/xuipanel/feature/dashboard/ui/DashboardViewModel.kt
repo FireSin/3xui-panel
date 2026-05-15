@@ -13,10 +13,12 @@ import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -68,6 +70,14 @@ class DashboardViewModel @Inject constructor(
 
     private val _isHistoryLoading = MutableStateFlow(false)
     val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading
+
+    /** All known panels — used by the in-screen panel switcher chip/sheet. */
+    val allPanels: StateFlow<List<Panel>> = repository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun setActivePanel(id: String) {
+        viewModelScope.launch { repository.setActive(id) }
+    }
 
     init {
         repository.observeActive()

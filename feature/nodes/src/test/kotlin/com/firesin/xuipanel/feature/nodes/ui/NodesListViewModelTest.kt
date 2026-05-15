@@ -41,6 +41,7 @@ class NodesListViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
         xuiClient = mockk()
+        every { repository.observeAll() } returns flowOf(emptyList())
     }
 
     @AfterEach

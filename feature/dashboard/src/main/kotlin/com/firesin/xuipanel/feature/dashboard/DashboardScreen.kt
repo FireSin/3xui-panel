@@ -73,6 +73,10 @@ import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import com.firesin.xuipanel.core.designsystem.component.GroupCard
 import com.firesin.xuipanel.core.designsystem.component.GroupRow
+import com.firesin.xuipanel.core.designsystem.component.PanelChip
+import com.firesin.xuipanel.core.designsystem.component.PanelStatus
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherEntry
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherSheet
 import com.firesin.xuipanel.core.designsystem.component.RingStat
 import com.firesin.xuipanel.core.designsystem.component.SectionHeader
 import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
@@ -109,6 +113,7 @@ fun DashboardScreen(
     val selectedMetric by viewModel.selectedMetric.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
     val isHistoryLoading by viewModel.isHistoryLoading.collectAsStateWithLifecycle()
+    val allPanels by viewModel.allPanels.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val restartSuccessMessage = stringResource(R.string.dashboard_action_restart_success)
@@ -152,6 +157,8 @@ fun DashboardScreen(
         history = history,
         isHistoryLoading = isHistoryLoading,
         onMetricSelect = viewModel::selectMetric,
+        allPanels = allPanels,
+        onSelectPanel = viewModel::setActivePanel,
     )
 }
 
@@ -174,9 +181,12 @@ private fun DashboardContent(
     history: List<ServerHistoryPointDto> = emptyList(),
     isHistoryLoading: Boolean = false,
     onMetricSelect: (HistoryMetric) -> Unit = {},
+    allPanels: List<Panel> = emptyList(),
+    onSelectPanel: (String) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<ServerAction?>(null) }
+    var showSwitcher by remember { mutableStateOf(false) }
     val hasActivePanel = uiState !is DashboardUiState.NoActivePanel
     val panel = when (uiState) {
         is DashboardUiState.Content -> uiState.panel
@@ -191,7 +201,7 @@ private fun DashboardContent(
                 LargeTopAppBar(
                     title = {
                         Text(
-                            text = panel?.name ?: stringResource(R.string.dashboard_title),
+                            text = stringResource(R.string.dashboard_title),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -247,21 +257,15 @@ private fun DashboardContent(
                     ),
                 )
                 if (panel != null) {
-                    val subtitle = panel.baseUrl
-                        .removePrefix("https://")
-                        .removePrefix("http://")
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = MonoFontFamily,
-                            fontSize = 12.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    PanelChip(
+                        name = panel.name,
+                        host = panel.baseUrl
+                            .removePrefix("https://")
+                            .removePrefix("http://"),
+                        status = PanelStatus.Up,
+                        onClick = { showSwitcher = true },
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
                     )
-                    Spacer(Modifier.height(4.dp))
                 }
             }
         },
@@ -325,7 +329,31 @@ private fun DashboardContent(
             onDismiss = { pendingAction = null },
         )
     }
+
+    if (showSwitcher) {
+        PanelSwitcherSheet(
+            entries = allPanels.map { it.toSwitcherEntry(activeId = panel?.id) },
+            onSelect = { id ->
+                onSelectPanel(id)
+                showSwitcher = false
+            },
+            onAddPanel = {
+                showSwitcher = false
+                onAddPanel()
+            },
+            onDismiss = { showSwitcher = false },
+        )
+    }
 }
+
+private fun Panel.toSwitcherEntry(activeId: String?): PanelSwitcherEntry =
+    PanelSwitcherEntry(
+        id = id,
+        name = name,
+        host = baseUrl.removePrefix("https://").removePrefix("http://"),
+        status = PanelStatus.Up,
+        active = id == activeId,
+    )
 
 private enum class ServerAction { Restart, Stop }
 

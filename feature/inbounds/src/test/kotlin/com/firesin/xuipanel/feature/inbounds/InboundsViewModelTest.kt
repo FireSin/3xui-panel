@@ -47,6 +47,8 @@ class InboundsViewModelTest {
         xuiClient = mockk()
         // Default: nodes fetch returns empty list (most tests don't care about nodes)
         coEvery { xuiClient.fetchNodes(any(), any(), any(), any()) } returns Result.Success(emptyList())
+        // Default: panel list is empty (consumed by the in-screen switcher chip/sheet)
+        every { repository.observeAll() } returns flowOf(emptyList())
     }
 
     @AfterEach

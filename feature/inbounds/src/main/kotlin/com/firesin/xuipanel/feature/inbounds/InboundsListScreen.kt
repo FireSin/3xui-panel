@@ -25,6 +25,10 @@ import androidx.compose.material.icons.filled.MoreVert
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import com.firesin.xuipanel.core.designsystem.component.IosToggle
+import com.firesin.xuipanel.core.designsystem.component.PanelChip
+import com.firesin.xuipanel.core.designsystem.component.PanelStatus
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherEntry
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherSheet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -96,6 +100,7 @@ fun InboundsListScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val nodeNames by viewModel.nodeNames.collectAsStateWithLifecycle()
+    val allPanels by viewModel.allPanels.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
@@ -110,6 +115,9 @@ fun InboundsListScreen(
 
     // importInbounds dialog
     var showImportDialog by remember { mutableStateOf(false) }
+
+    // panel switcher sheet
+    var showSwitcher by remember { mutableStateOf(false) }
 
     // snackbar messages for success operations
     val copySuccessMsg = stringResource(R.string.inbounds_copy_clients_success)
@@ -164,6 +172,7 @@ fun InboundsListScreen(
         },
         onCopyClientsClick = { targetId -> copyClientsTargetId = targetId },
         onImportClick = { showImportDialog = true },
+        onPanelChipClick = { showSwitcher = true },
     )
 
     pendingDeleteId?.let { id ->
@@ -216,6 +225,32 @@ fun InboundsListScreen(
             onDismiss = { showImportDialog = false },
         )
     }
+
+    if (showSwitcher) {
+        val activeId = (uiState as? InboundsUiState.Content)?.panel?.id
+            ?: (uiState as? InboundsUiState.Loading)?.panel?.id
+            ?: (uiState as? InboundsUiState.Error)?.panel?.id
+        PanelSwitcherSheet(
+            entries = allPanels.map {
+                PanelSwitcherEntry(
+                    id = it.id,
+                    name = it.name,
+                    host = it.baseUrl.removePrefix("https://").removePrefix("http://"),
+                    status = PanelStatus.Up,
+                    active = it.id == activeId,
+                )
+            },
+            onSelect = { id ->
+                viewModel.setActivePanel(id)
+                showSwitcher = false
+            },
+            onAddPanel = {
+                showSwitcher = false
+                onAddPanel()
+            },
+            onDismiss = { showSwitcher = false },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -235,6 +270,7 @@ private fun InboundsContent(
     onDeleteInbound: (inboundId: Int, name: String) -> Unit = { _, _ -> },
     onCopyClientsClick: (targetInboundId: Int) -> Unit = {},
     onImportClick: () -> Unit = {},
+    onPanelChipClick: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -245,6 +281,7 @@ private fun InboundsContent(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
+            Column {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.inbounds_title)) },
                 actions = {
@@ -280,6 +317,16 @@ private fun InboundsContent(
                 },
                 scrollBehavior = scrollBehavior,
             )
+            if (panel != null) {
+                PanelChip(
+                    name = panel.name,
+                    host = panel.baseUrl.removePrefix("https://").removePrefix("http://"),
+                    status = PanelStatus.Up,
+                    onClick = onPanelChipClick,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                )
+            }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->

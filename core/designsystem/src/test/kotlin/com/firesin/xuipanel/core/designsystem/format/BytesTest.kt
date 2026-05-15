@@ -39,7 +39,7 @@ class BytesTest {
     }
 
     @Test
-    fun `1.5 GB formats correctly`() {
+    fun `one and a half GB formats correctly`() {
         val bytes = (1.5 * 1024 * 1024 * 1024).toLong()
         val result = formatBytes(bytes)
         assertEquals("1.50 GB", result)
@@ -60,7 +60,7 @@ class BytesTest {
 
     @Test
     fun `10 GB`() {
-        val result = formatBytes((10 * 1024 * 1024 * 1024).toLong())
+        val result = formatBytes(10L * 1024 * 1024 * 1024)
         assertEquals("10.00 GB", result)
     }
 }

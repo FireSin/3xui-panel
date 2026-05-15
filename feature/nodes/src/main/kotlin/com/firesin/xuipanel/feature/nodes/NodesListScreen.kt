@@ -63,9 +63,14 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.util.secondsToCompact
+import com.firesin.xuipanel.core.data.model.Panel
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
 import com.firesin.xuipanel.core.designsystem.component.IosToggle
+import com.firesin.xuipanel.core.designsystem.component.PanelChip
+import com.firesin.xuipanel.core.designsystem.component.PanelStatus
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherEntry
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherSheet
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.NodeDto
@@ -86,10 +91,12 @@ fun NodesListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val allPanels by viewModel.allPanels.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteName by remember { mutableStateOf("") }
+    var showSwitcher by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
@@ -118,6 +125,7 @@ fun NodesListScreen(
             pendingDeleteId = id
             pendingDeleteName = name
         },
+        onPanelChipClick = { showSwitcher = true },
     )
 
     pendingDeleteId?.let { id ->
@@ -130,7 +138,34 @@ fun NodesListScreen(
             onDismiss = { pendingDeleteId = null },
         )
     }
+
+    if (showSwitcher) {
+        val activeId = when (val s = uiState) {
+            is NodesUiState.Content -> s.panel.id
+            is NodesUiState.Loading -> s.panel.id
+            is NodesUiState.Error -> s.panel.id
+            NodesUiState.NoActivePanel -> null
+        }
+        PanelSwitcherSheet(
+            entries = allPanels.map { it.toSwitcherEntry(activeId = activeId) },
+            onSelect = { id ->
+                viewModel.setActivePanel(id)
+                showSwitcher = false
+            },
+            onAddPanel = { showSwitcher = false },
+            onDismiss = { showSwitcher = false },
+        )
+    }
 }
+
+private fun Panel.toSwitcherEntry(activeId: String?): PanelSwitcherEntry =
+    PanelSwitcherEntry(
+        id = id,
+        name = name,
+        host = baseUrl.removePrefix("https://").removePrefix("http://"),
+        status = PanelStatus.Up,
+        active = id == activeId,
+    )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,12 +181,20 @@ private fun NodesContent(
     onSetEnable: (nodeId: Int, enable: Boolean) -> Unit = { _, _ -> },
     onProbe: (nodeId: Int) -> Unit = {},
     onDeleteNode: (nodeId: Int, name: String) -> Unit = { _, _ -> },
+    onPanelChipClick: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val panel = when (uiState) {
+        is NodesUiState.Content -> uiState.panel
+        is NodesUiState.Loading -> uiState.panel
+        is NodesUiState.Error -> uiState.panel
+        NodesUiState.NoActivePanel -> null
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
+            Column {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.nodes_title)) },
                 actions = {
@@ -165,6 +208,16 @@ private fun NodesContent(
                 },
                 scrollBehavior = scrollBehavior,
             )
+            if (panel != null) {
+                PanelChip(
+                    name = panel.name,
+                    host = panel.baseUrl.removePrefix("https://").removePrefix("http://"),
+                    status = PanelStatus.Up,
+                    onClick = onPanelChipClick,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                )
+            }
+            }
         },
         floatingActionButton = {
             if (uiState is NodesUiState.Content || uiState is NodesUiState.Error) {

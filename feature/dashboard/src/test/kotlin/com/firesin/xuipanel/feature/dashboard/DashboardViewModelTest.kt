@@ -49,6 +49,7 @@ class DashboardViewModelTest {
         xuiClient = mockk()
         coEvery { xuiClient.fetchServerHistory(any(), any(), any(), any(), any(), any()) } returns
             com.firesin.xuipanel.core.common.Result.Success(emptyList())
+        every { repository.observeAll() } returns flowOf(emptyList())
     }
 
     @AfterEach
