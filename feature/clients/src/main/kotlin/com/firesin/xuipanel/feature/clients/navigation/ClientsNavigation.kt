@@ -145,9 +145,14 @@ fun NavGraphBuilder.clientsGraph(
                 onCancel = { navController.popBackStack() },
                 onShare = { onNavigateShare(inboundId, clientKey) },
                 onResetTraffic = { viewModel.resetTraffic(inboundId, existing) },
-                onDelete = {
-                    viewModel.deleteClient(inboundId, existing)
-                    navController.popBackStack()
+                // Panel rejects deletion of the last remaining client — hide the option.
+                onDelete = if ((content.clients.size) > 1) {
+                    {
+                        viewModel.deleteClient(inboundId, existing)
+                        navController.popBackStack()
+                    }
+                } else {
+                    null
                 },
                 clientIpsState = ipsState,
                 onLoadIps = { viewModel.loadClientIps(existing.email) },

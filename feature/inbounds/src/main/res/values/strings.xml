@@ -32,6 +32,12 @@
     <string name="inbound_delete_confirm">Удалить</string>
     <string name="inbound_delete_cancel">Отмена</string>
 
+    <!-- Disabling a node inbound — server removes it on next sync -->
+    <string name="inbound_node_disable_title">Выключить \"%s\"?</string>
+    <string name="inbound_node_disable_message">Этот инбаунд развёрнут на ноде. Выключение приведёт к его удалению с ноды при следующей синхронизации (на ноде disabled-инбаунды не хранятся).</string>
+    <string name="inbound_node_disable_confirm">Выключить</string>
+    <string name="inbound_node_disable_cancel">Отмена</string>
+
     <!-- AddInboundScreen -->
     <string name="add_inbound_title">Новый инбаунд</string>
     <string name="edit_inbound_title">Редактировать инбаунд</string>

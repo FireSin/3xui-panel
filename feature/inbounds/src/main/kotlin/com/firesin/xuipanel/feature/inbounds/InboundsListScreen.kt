@@ -101,6 +101,10 @@ fun InboundsListScreen(
     var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteName by remember { mutableStateOf("") }
 
+    // Disabling a node inbound: ask for confirmation (server removes it on next sync).
+    var pendingDisableNodeId by remember { mutableStateOf<Int?>(null) }
+    var pendingDisableNodeName by remember { mutableStateOf("") }
+
     // copyClients dialog: target inbound id and full inbounds list for source selection
     var copyClientsTargetId by remember { mutableStateOf<Int?>(null) }
 
@@ -142,7 +146,15 @@ fun InboundsListScreen(
         onRefresh = viewModel::refresh,
         onAddPanel = onAddPanel,
         onManageClients = onManageClients,
-        onToggleEnabled = viewModel::toggle,
+        onToggleEnabled = { id, enable ->
+            val inbound = allInbounds.find { it.id == id }
+            if (!enable && inbound?.nodeId != null) {
+                pendingDisableNodeId = id
+                pendingDisableNodeName = inbound.displayName()
+            } else {
+                viewModel.toggle(id, enable)
+            }
+        },
         onMenuClick = onMenuClick,
         onAddInboundClick = onNavigateAddInbound,
         onEditInbound = onNavigateEditInbound,
@@ -162,6 +174,17 @@ fun InboundsListScreen(
                 pendingDeleteId = null
             },
             onDismiss = { pendingDeleteId = null },
+        )
+    }
+
+    pendingDisableNodeId?.let { id ->
+        NodeInboundDisableConfirmDialog(
+            inboundName = pendingDisableNodeName,
+            onConfirm = {
+                viewModel.toggle(id, false)
+                pendingDisableNodeId = null
+            },
+            onDismiss = { pendingDisableNodeId = null },
         )
     }
 
