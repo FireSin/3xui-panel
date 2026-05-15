@@ -22,6 +22,7 @@ import com.firesin.xuipanel.core.xui.dto.NewX25519ResponseDto
 import com.firesin.xuipanel.core.xui.dto.NodeListResponseDto
 import com.firesin.xuipanel.core.xui.dto.NodeResponseDto
 import com.firesin.xuipanel.core.xui.dto.OnlinesResponseDto
+import com.firesin.xuipanel.core.xui.dto.PanelSettingsResponseDto
 import com.firesin.xuipanel.core.xui.dto.PanelUpdateInfoDto
 import com.firesin.xuipanel.core.xui.dto.ServerHistoryResponseDto
 import com.firesin.xuipanel.core.xui.dto.ServerStatusResponseDto
@@ -376,6 +377,17 @@ interface XuiApi {
      */
     @POST("panel/api/server/updateGeofile/{fileName}")
     suspend fun updateGeofileByName(@Path("fileName") fileName: String): Response<LoginResponseDto>
+
+    /**
+     * Panel-level settings (sub URI, sub-clash URI, sub-JSON URI, …). Used by the share
+     * screen to build subscription URLs as `subURI + client.subId`.
+     *
+     * NOTE: this endpoint is under `/panel/setting/` (no `/api`) and is form-binder,
+     * not Bearer-friendly — requires the cookie session. The exposed fields are a strict
+     * subset of [PanelSettingsDto].
+     */
+    @POST("panel/setting/defaultSettings")
+    suspend fun panelSettings(): Response<PanelSettingsResponseDto>
 
     /**
      * Return the raw Xray config JSON currently running on this host.

@@ -340,6 +340,34 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Panel-level settings — used by the share screen to assemble the subscription
+     * and Clash URLs (base URI + [ClientConfig.subId]).
+     */
+    suspend fun fetchPanelSettings(
+        panelId: String,
+        baseUrl: String,
+        auth: PanelAuth,
+        tls: PanelTls,
+    ): Result<com.firesin.xuipanel.core.xui.dto.PanelSettingsDto, DomainError> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                withSession(panelId, baseUrl, auth, tls) { api ->
+                    api.panelSettings()
+                }
+            }.fold(
+                onSuccess = { response ->
+                    val obj = response.obj
+                    if (response.success && obj != null) {
+                        Result.Success(obj)
+                    } else {
+                        Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                    }
+                },
+                onFailure = { cause -> cause.toDomainError(panelId) },
+            )
+        }
+
+    /**
      * Returns every protocol URL for clients matching [subId]. Empty list when nothing matches.
      */
     suspend fun fetchSubLinks(

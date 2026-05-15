@@ -25,7 +25,13 @@ import javax.inject.Inject
 sealed class ShareUiState {
     data object Loading : ShareUiState()
     data class Content(
+        /** Direct protocol URL (vless://, vmess://, …) — always present. */
         val uri: String,
+        /** HTTP subscription URL (`subURI + subId`) — null if subscription is disabled
+         *  on the panel or the client has no subId. */
+        val subUri: String? = null,
+        /** Clash subscription URL (`subClashURI + subId`) — null when disabled. */
+        val clashUri: String? = null,
         val client: ClientConfig,
         val inbound: InboundDto,
     ) : ShareUiState()
@@ -120,9 +126,36 @@ class ShareViewModel @Inject constructor(
                         null
                     }
 
+                    // Subscription / Clash URLs are computed from panel settings
+                    // (`subURI + subId`, `subClashURI + subId`). Best-effort: any failure
+                    // here just leaves them null and the share screen hides the toggle.
+                    val (subUri, clashUri) = run {
+                        val settingsResult = xuiClient.fetchPanelSettings(
+                            panelId = panel.id,
+                            baseUrl = panel.baseUrl,
+                            auth = panel.toAuth(),
+                            tls = panel.toPanelTls(),
+                        )
+                        val settings = (settingsResult as? Result.Success)?.data
+                        if (settings == null || client.subId.isBlank()) {
+                            null to null
+                        } else {
+                            val sub = if (settings.subEnable && settings.subUri.isNotBlank()) {
+                                settings.subUri + client.subId
+                            } else null
+                            val clash =
+                                if (settings.subClashEnable && settings.subClashUri.isNotBlank()) {
+                                    settings.subClashUri + client.subId
+                                } else null
+                            sub to clash
+                        }
+                    }
+
                     if (serverUrl != null) {
                         _uiState.value = ShareUiState.Content(
                             uri = serverUrl,
+                            subUri = subUri,
+                            clashUri = clashUri,
                             client = client,
                             inbound = inbound,
                         )
@@ -131,6 +164,8 @@ class ShareViewModel @Inject constructor(
                         _uiState.value = when (uriResult) {
                             is Result.Success -> ShareUiState.Content(
                                 uri = uriResult.data,
+                                subUri = subUri,
+                                clashUri = clashUri,
                                 client = client,
                                 inbound = inbound,
                             )

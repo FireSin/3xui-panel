@@ -15,7 +15,12 @@
     <!-- New strings for direction-A redesign -->
     <string name="share_caption_for">Конфигурация для</string>
     <string name="share_qr_hint">Сканируйте в v2rayNG, Streisand, Karing…</string>
-    <string name="share_link_section">LINK</string>
+    <string name="share_link_section">Прямая ссылка</string>
+    <string name="share_section_sub">Подписка (subscription)</string>
+    <string name="share_section_clash">Clash</string>
+    <string name="share_format_direct">Ссылка</string>
+    <string name="share_format_subscription">Подписка</string>
+    <string name="share_format_clash">Clash</string>
     <string name="share_cd_share">Отправить</string>
 
     <!-- Error messages -->

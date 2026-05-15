@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
@@ -81,6 +82,8 @@ import kotlinx.coroutines.withContext
 private val QR_SIZE_DP = 240.dp
 private val QrCardShape = RoundedCornerShape(22.dp)
 private val LinkCardShape = RoundedCornerShape(14.dp)
+
+private enum class ShareFormat { Direct, Subscription, Clash }
 
 @Composable
 fun ClientShareScreen(
@@ -178,11 +181,27 @@ private fun ContentBody(
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val surfaceColor = MaterialTheme.colorScheme.surface
 
+    // Build the list of formats the panel actually offers. Direct link is always
+    // first; subscription and Clash appear only when the panel returned URIs for them.
+    val availableFormats = remember(state.subUri, state.clashUri) {
+        buildList {
+            add(ShareFormat.Direct)
+            if (!state.subUri.isNullOrBlank()) add(ShareFormat.Subscription)
+            if (!state.clashUri.isNullOrBlank()) add(ShareFormat.Clash)
+        }
+    }
+    var selectedFormat by remember(state.uri) { mutableStateOf(ShareFormat.Direct) }
+    val displayedUri = when (selectedFormat) {
+        ShareFormat.Direct -> state.uri
+        ShareFormat.Subscription -> state.subUri ?: state.uri
+        ShareFormat.Clash -> state.clashUri ?: state.uri
+    }
+
     var qrBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
-    LaunchedEffect(state.uri, onSurfaceColor, surfaceColor) {
+    LaunchedEffect(displayedUri, onSurfaceColor, surfaceColor) {
         qrBitmap = withContext(Dispatchers.Default) {
-            generateQrBitmap(state.uri, qrSizePx, onSurfaceColor, surfaceColor)
+            generateQrBitmap(displayedUri, qrSizePx, onSurfaceColor, surfaceColor)
         }
     }
 
@@ -257,6 +276,16 @@ private fun ContentBody(
             }
         }
 
+        if (availableFormats.size > 1) {
+            SegmentedPicker(
+                options = availableFormats,
+                selected = selectedFormat,
+                onSelect = { selectedFormat = it },
+                label = { it.label() },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         // Link card
         Surface(
             shape = LinkCardShape,
@@ -271,7 +300,7 @@ private fun ContentBody(
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    text = stringResource(R.string.share_link_section),
+                    text = selectedFormat.sectionTitle(),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -281,7 +310,7 @@ private fun ContentBody(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = state.uri,
+                    text = displayedUri,
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
@@ -297,7 +326,7 @@ private fun ContentBody(
                         onClick = {
                             val clipboard =
                                 context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("share_uri", state.uri))
+                            clipboard.setPrimaryClip(ClipData.newPlainText("share_uri", displayedUri))
                             onCopied()
                         },
                     ) {
@@ -313,7 +342,7 @@ private fun ContentBody(
                         onClick = {
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, state.uri)
+                                putExtra(Intent.EXTRA_TEXT, displayedUri)
                             }
                             context.startActivity(Intent.createChooser(sendIntent, null))
                         },
@@ -330,6 +359,20 @@ private fun ContentBody(
             }
         }
     }
+}
+
+@Composable
+private fun ShareFormat.label(): String = when (this) {
+    ShareFormat.Direct -> stringResource(R.string.share_format_direct)
+    ShareFormat.Subscription -> stringResource(R.string.share_format_subscription)
+    ShareFormat.Clash -> stringResource(R.string.share_format_clash)
+}
+
+@Composable
+private fun ShareFormat.sectionTitle(): String = when (this) {
+    ShareFormat.Direct -> stringResource(R.string.share_link_section)
+    ShareFormat.Subscription -> stringResource(R.string.share_section_sub)
+    ShareFormat.Clash -> stringResource(R.string.share_section_clash)
 }
 
 @Composable
