@@ -73,6 +73,9 @@ class XuiClient @Inject constructor(
         isLenient = true
     }
 
+    private fun String.ensureTrailingSlash(): String =
+        if (endsWith("/")) this else "$this/"
+
     private fun apiFor(baseUrl: String, panelId: String, tls: PanelTls, bearer: String? = null): XuiApi {
         val baseClient = clientFactory.getClient(panelId, tls)
         val client = if (bearer != null) {
@@ -88,9 +91,8 @@ class XuiClient @Inject constructor(
         } else {
             baseClient
         }
-        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
         return Retrofit.Builder()
-            .baseUrl(normalized)
+            .baseUrl(baseUrl.ensureTrailingSlash())
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
             .build()
@@ -1532,7 +1534,7 @@ class XuiClient @Inject constructor(
         val tls = PanelTls(mode = tlsMode, pinnedSpkiSha256 = pinnedSpkiSha256)
         val (client, _) = clientFactory.buildTransient(tls)
         val api = Retrofit.Builder()
-            .baseUrl(baseUrl)
+            .baseUrl(baseUrl.ensureTrailingSlash())
             .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
             .client(client)
             .build()
@@ -1573,7 +1575,7 @@ class XuiClient @Inject constructor(
             val (client, probeCaptureListener) = clientFactory.buildTransient(tls)
 
             val apiBase = Retrofit.Builder()
-                .baseUrl(credentials.baseUrl)
+                .baseUrl(credentials.baseUrl.ensureTrailingSlash())
                 .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
 
             if (!credentials.apiToken.isNullOrBlank()) {

@@ -36,7 +36,10 @@ fun NavGraphBuilder.panelsGraph(
         PanelsListScreen(
             onAddPanel = { navController.navigate(PanelAddRoute) },
             onEditPanel = { id -> navController.navigate(panelEditRoute(id)) },
-            onPanelSelected = { navController.navigate(DashboardRoute) },
+            // Tapping a panel just makes it active; stay on the Panels tab.
+            // For panel-scoped views (Dashboard / Inbounds / Nodes) the user
+            // now switches via the PanelChip in those tabs' top bars.
+            onPanelSelected = {},
             onNavigateToSettings = onNavigateToSettings,
             onMenuClick = onMenuClick,
         )

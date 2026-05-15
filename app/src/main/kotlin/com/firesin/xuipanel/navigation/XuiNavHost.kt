@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -37,6 +38,11 @@ fun XuiNavHost(
     val showBottomBar = currentRoute in XuiTopLevelRoutes
 
     Scaffold(
+        // Top/side insets are consumed by each screen's own Scaffold (TopAppBar with
+        // status-bar inset). The outer Scaffold only owns the bottom-bar slot, so we
+        // disable its window-inset contribution to avoid stacking a second status-bar
+        // gap above every screen's title.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
                 XuiBottomBar(
