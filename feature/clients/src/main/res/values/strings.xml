@@ -11,6 +11,10 @@
     <string name="clients_error_title">Ошибка загрузки</string>
     <string name="clients_add_panel">Добавить панель</string>
     <string name="clients_retry">Повторить</string>
+    <!-- Summary cards above the search bar -->
+    <string name="clients_summary_total">Всего</string>
+    <string name="clients_summary_online">Онлайн</string>
+    <string name="clients_summary_expiring">Истекает &lt; 7д</string>
     <!-- Inbound-level actions in TopAppBar -->
     <string name="clients_inbound_cd_delete">Удалить инбаунд</string>
     <string name="clients_inbound_cd_more">Действия с инбаундом</string>

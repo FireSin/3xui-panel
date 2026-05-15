@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -563,6 +564,7 @@ private fun InboundCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Top,
             ) {
                 if (hasClients) {
                     StatColumn(
@@ -570,10 +572,56 @@ private fun InboundCard(
                         value = (inbound.clientStats?.size ?: 0).toString(),
                     )
                 }
-                StatColumn(
+                TrafficStatColumn(
                     caption = stringResource(R.string.inbounds_stat_traffic),
-                    value = inbound.trafficLabel(),
+                    label = inbound.trafficLabel(),
+                    progress = inbound.trafficProgress(),
                     modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrafficStatColumn(
+    caption: String,
+    label: String,
+    progress: Float,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = "$caption · $label",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.4.sp,
+                fontFamily = MonoFontFamily,
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .height(4.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = RoundedCornerShape(2.dp),
+                ),
+        ) {
+            if (progress > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .background(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(2.dp),
+                        ),
                 )
             }
         }
@@ -830,6 +878,13 @@ private fun InboundDto.trafficLabel(): String {
     val used = prettyBytes(up + down)
     val limit = if (total > 0L) prettyBytes(total) else "∞"
     return "$used / $limit"
+}
+
+/** 0..1 ratio of used traffic against the limit. Returns 0 when there is no limit. */
+private fun InboundDto.trafficProgress(): Float {
+    if (total <= 0L) return 0f
+    val used = (up + down).toFloat()
+    return (used / total.toFloat()).coerceIn(0f, 1f)
 }
 
 private fun String.isEditableProtocol(): Boolean =

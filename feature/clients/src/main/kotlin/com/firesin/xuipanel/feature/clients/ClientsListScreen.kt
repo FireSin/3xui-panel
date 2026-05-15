@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.feature.clients
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -398,6 +399,20 @@ private fun ClientsContent(
                         }
                     }
 
+                    // Summary cards (Total / Online / Expiring soon)
+                    item {
+                        ClientsSummaryCards(
+                            total = uiState.clients.size,
+                            online = if (uiState.onlinesAvailable) {
+                                uiState.clients.count { it.email in uiState.onlineEmails }
+                            } else null,
+                            expiringSoon = uiState.clients.count { it.isExpiringWithin(EXPIRING_WINDOW_DAYS) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        )
+                    }
+
                     // Search bar
                     item {
                         SearchBar(
@@ -458,6 +473,80 @@ private fun ClientsContent(
                     }
                 }
             }
+        }
+    }
+}
+
+private const val EXPIRING_WINDOW_DAYS = 7L
+private const val DAY_MS = 86_400_000L
+
+private fun ClientConfig.isExpiringWithin(days: Long): Boolean {
+    if (expiryTime <= 0L) return false
+    val remaining = expiryTime - System.currentTimeMillis()
+    return remaining in 0..(days * DAY_MS)
+}
+
+@Composable
+private fun ClientsSummaryCards(
+    total: Int,
+    online: Int?,
+    expiringSoon: Int,
+    modifier: Modifier = Modifier,
+) {
+    val items = buildList {
+        add(SummaryItem(stringResource(R.string.clients_summary_total), total.toString(), warn = false))
+        if (online != null) {
+            add(SummaryItem(stringResource(R.string.clients_summary_online), online.toString(), warn = false))
+        }
+        add(SummaryItem(
+            caption = stringResource(R.string.clients_summary_expiring),
+            value = expiringSoon.toString(),
+            warn = expiringSoon > 0,
+        ))
+    }
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items.forEach { entry ->
+            SummaryCard(entry = entry, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+private data class SummaryItem(val caption: String, val value: String, val warn: Boolean)
+
+@Composable
+private fun SummaryCard(entry: SummaryItem, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = entry.caption,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = entry.value,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = MonoFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                ),
+                color = if (entry.warn) MaterialTheme.colorScheme.tertiary
+                else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
     }
 }
