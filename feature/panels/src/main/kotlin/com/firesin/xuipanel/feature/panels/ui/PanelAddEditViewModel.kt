@@ -145,11 +145,9 @@ class PanelAddEditViewModel @Inject constructor(
         _uiState.value = PanelAddEditUiState.Saving(form)
 
         viewModelScope.launch {
-            val isTokenAuth = form.authMode == AuthMode.TOKEN
-
-            // For login/password auth: probe 2FA before attempting login.
-            // If the panel requires 2FA and no OTP entered yet — show the OTP field.
-            if (!isTokenAuth && !form.twoFactorRequired) {
+            // 2FA probe uses login/password (cookie session). Always run when the
+            // user hasn't yet been prompted for an OTP code.
+            if (!form.twoFactorRequired) {
                 val probeDraft = PanelDraft(
                     name = form.name.trim(),
                     baseUrl = form.baseUrl.trim(),
@@ -180,15 +178,16 @@ class PanelAddEditViewModel @Inject constructor(
                 }
             }
 
+            val apiToken = form.apiToken.trim().takeIf { it.isNotBlank() }
             val draft = PanelDraft(
                 name = form.name.trim(),
                 baseUrl = form.baseUrl.trim(),
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = form.tlsMode,
-                apiToken = if (isTokenAuth) form.apiToken.trim() else null,
-                twoFactorCode = if (!isTokenAuth && form.twoFactorRequired) form.twoFactorCode.trim() else null,
-                twoFactorEnabled = !isTokenAuth && form.twoFactorRequired,
+                apiToken = apiToken,
+                twoFactorCode = form.twoFactorCode.trim().takeIf { form.twoFactorRequired },
+                twoFactorEnabled = form.twoFactorRequired,
             )
             val result = if (panelId == null) {
                 repository.add(draft)
@@ -236,9 +235,7 @@ class PanelAddEditViewModel @Inject constructor(
         _uiState.value = PanelAddEditUiState.Saving(form)
 
         viewModelScope.launch {
-            val isTokenAuth = form.authMode == AuthMode.TOKEN
-
-            if (!isTokenAuth && !form.twoFactorRequired) {
+            if (!form.twoFactorRequired) {
                 val probeDraft = PanelDraft(
                     name = form.name.trim(),
                     baseUrl = form.baseUrl.trim(),
@@ -275,8 +272,8 @@ class PanelAddEditViewModel @Inject constructor(
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = TlsMode.PINNED,
-                apiToken = if (isTokenAuth) form.apiToken.trim() else null,
-                twoFactorCode = if (!isTokenAuth && form.twoFactorRequired) form.twoFactorCode.trim() else null,
+                apiToken = form.apiToken.trim().takeIf { it.isNotBlank() },
+                twoFactorCode = form.twoFactorCode.trim().takeIf { form.twoFactorRequired },
             )
             when (val result = repository.rePin(id, draft)) {
                 is Result.Success -> _uiState.value = PanelAddEditUiState.Saved
@@ -305,9 +302,7 @@ class PanelAddEditViewModel @Inject constructor(
         _uiState.value = PanelAddEditUiState.Saving(form)
 
         viewModelScope.launch {
-            val isTokenAuth = form.authMode == AuthMode.TOKEN
-
-            if (!isTokenAuth && !form.twoFactorRequired) {
+            if (!form.twoFactorRequired) {
                 val probeDraft = PanelDraft(
                     name = form.name.trim(),
                     baseUrl = form.baseUrl.trim(),
@@ -343,8 +338,8 @@ class PanelAddEditViewModel @Inject constructor(
                 login = form.login.trim(),
                 password = form.password,
                 tlsMode = TlsMode.PINNED,
-                apiToken = if (isTokenAuth) form.apiToken.trim() else null,
-                twoFactorCode = if (!isTokenAuth && form.twoFactorRequired) form.twoFactorCode.trim() else null,
+                apiToken = form.apiToken.trim().takeIf { it.isNotBlank() },
+                twoFactorCode = form.twoFactorCode.trim().takeIf { form.twoFactorRequired },
             )
             when (val result = repository.rePin(id, draft)) {
                 is Result.Success -> _uiState.value = PanelAddEditUiState.Saved
@@ -399,24 +394,17 @@ class PanelAddEditViewModel @Inject constructor(
         }
     }
 
-    private fun validate(form: PanelFormState): PanelFormErrors {
-        val baseUrlValid = form.baseUrl.trim().let { url ->
-            url.startsWith("https://") && isValidUrl(url)
-        }
-        return when (form.authMode) {
-            AuthMode.TOKEN -> PanelFormErrors(
-                name = if (form.name.isBlank()) "" else null,
-                baseUrl = if (!baseUrlValid) "" else null,
-                apiToken = if (form.apiToken.isBlank()) "" else null,
-            )
-            AuthMode.LOGIN -> PanelFormErrors(
-                name = if (form.name.isBlank()) "" else null,
-                baseUrl = if (!baseUrlValid) "" else null,
-                login = if (form.login.isBlank()) "" else null,
-                password = if (form.password.isBlank()) "" else null,
-            )
-        }
-    }
+    /**
+     * Login + password are always required; API token is optional. The single
+     * form now serves both auth paths — see [submit] for how `apiToken` flips
+     * the in-flight probe from cookie login to Bearer.
+     */
+    private fun validate(form: PanelFormState): PanelFormErrors = PanelFormErrors(
+        name = if (form.name.isBlank()) "" else null,
+        baseUrl = if (form.baseUrl.trim().let { it.startsWith("https://") && isValidUrl(it) }) null else "",
+        login = if (form.login.isBlank()) "" else null,
+        password = if (form.password.isBlank()) "" else null,
+    )
 
     private fun isValidUrl(url: String): Boolean = runCatching {
         val parsed = URL(url)

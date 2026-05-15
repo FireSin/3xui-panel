@@ -168,7 +168,15 @@ class XuiClient @Inject constructor(
     }
 
     private suspend fun login(api: XuiApi, panelId: String, username: String, password: String) {
-        val response = api.login(LoginRequestDto(username = username, password = password))
+        // Recent 3x-ui forks gate POST /login behind X-CSRF-Token; older builds accept
+        // an empty header. Fetching csrf-token also seeds the cookie jar with a session
+        // cookie that the login response then upgrades into the authenticated session.
+        val csrf = runCatching { api.csrfToken() }
+            .getOrNull()
+            ?.takeIf { it.isSuccessful }
+            ?.body()?.obj
+            .orEmpty()
+        val response = api.login(csrf, LoginRequestDto(username = username, password = password))
         if (!response.isSuccessful || response.body()?.success != true) {
             throw XuiAuthException(panelId)
         }
@@ -1656,7 +1664,13 @@ class XuiClient @Inject constructor(
             } else {
                 val api = apiBase.client(client).build().create(XuiApi::class.java)
                 runCatching {
+                    val csrf = runCatching { api.csrfToken() }
+                        .getOrNull()
+                        ?.takeIf { it.isSuccessful }
+                        ?.body()?.obj
+                        .orEmpty()
                     api.login(
+                        csrf,
                         LoginRequestDto(
                             username = credentials.login,
                             password = credentials.password,

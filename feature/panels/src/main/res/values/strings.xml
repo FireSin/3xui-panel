@@ -54,7 +54,8 @@
     <string name="panel_auth_mode_login">Логин/Пароль</string>
     <string name="panel_auth_mode_token">API токен</string>
     <!-- PanelAddEditScreen — api token field -->
-    <string name="panel_field_api_token_label">API токен</string>
+    <string name="panel_field_api_token_label">API токен (опционально)</string>
+    <string name="panel_field_api_token_placeholder">для быстрого Bearer-доступа</string>
     <string name="panel_error_api_token_empty">Введите API токен</string>
     <!-- PanelAddEditScreen — delete -->
     <string name="panel_delete_action">Удалить панель</string>

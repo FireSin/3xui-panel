@@ -52,8 +52,17 @@ interface XuiApi {
      * JSON login. Successful response sets the `3x-ui` session cookie.
      * `twoFactorCode` is required only when 2FA is enabled — omit otherwise.
      */
+    /**
+     * Cookie-session login. Recent 3x-ui builds reject this POST unless the
+     * `X-CSRF-Token` header is set — fetch it first via [csrfToken] (which doesn't
+     * itself need a CSRF token), then pass the value here. Older panels accept
+     * an empty header.
+     */
     @POST("login")
-    suspend fun login(@Body body: LoginRequestDto): Response<LoginResponseDto>
+    suspend fun login(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body body: LoginRequestDto,
+    ): Response<LoginResponseDto>
 
     /**
      * Open endpoint — no auth required. Returns whether the panel has 2FA (TOTP) enabled.

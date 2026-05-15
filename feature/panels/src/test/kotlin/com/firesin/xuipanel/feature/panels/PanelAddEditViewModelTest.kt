@@ -308,13 +308,19 @@ class PanelAddEditViewModelTest {
     }
 
     @Test
-    fun `submit Bearer-token panel - no 2FA probe called`() = runTest {
+    fun `submit panel with optional API token saves it alongside login_password`() = runTest {
+        // The form no longer toggles between LOGIN / TOKEN modes — login/password
+        // are always required and the API token is an optional Bearer accelerator.
+        // The 2FA probe runs unconditionally because it relies on the cookie
+        // session, which any modern panel needs anyway.
+        coEvery { repository.probeTwoFactor(any()) } returns Result.Success(false)
         coEvery { repository.add(any()) } returns Result.Success(fakePanel("token-id"))
 
         val vm = createViewModel()
         vm.updateName("My Panel")
         vm.updateBaseUrl("https://panel.example.com:2053")
-        vm.updateAuthMode(AuthMode.TOKEN)
+        vm.updateLogin("admin")
+        vm.updatePassword("secret")
         vm.updateApiToken("mytoken123")
 
         vm.uiState.test {
@@ -329,9 +335,10 @@ class PanelAddEditViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        // probeTwoFactor must not be called for Bearer auth
-        coVerify(exactly = 0) { repository.probeTwoFactor(any()) }
-        coVerify { repository.add(any()) }
+        coVerify(exactly = 1) { repository.probeTwoFactor(any()) }
+        coVerify {
+            repository.add(match { it.apiToken == "mytoken123" && it.login == "admin" })
+        }
     }
 
     @Test

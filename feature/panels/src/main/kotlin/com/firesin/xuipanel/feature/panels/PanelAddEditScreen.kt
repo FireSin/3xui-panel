@@ -312,76 +312,60 @@ private fun PanelAddEditContent(
             Spacer(Modifier.height(16.dp))
 
             // ── Credentials group ────────────────────────────────────────────
+            // Login + password are always required (used for cookie-session calls like
+            // /panel/setting/defaultSettings, which Bearer auth can't reach). API token
+            // is optional — when provided, the app uses Bearer for /panel/api/* to skip
+            // the CSRF round-trip.
             GroupCard(title = stringResource(R.string.panel_credentials_section_title)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                ) {
-                    SegmentedPicker(
-                        options = AuthMode.entries,
-                        selected = form.authMode,
-                        onSelect = onAuthModeChange,
-                        label = { mode -> mode.toLabel() },
-                        modifier = Modifier.fillMaxWidth(),
+                FieldRow(
+                    label = stringResource(R.string.panel_field_login_label),
+                    value = form.login,
+                    onValueChange = onLoginChange,
+                    placeholder = "admin",
+                    isError = errors?.login != null,
+                    enabled = !isSaving,
+                    monoValue = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                )
+                PasswordFieldRow(
+                    value = form.password,
+                    onValueChange = onPasswordChange,
+                    isError = errors?.password != null,
+                    enabled = !isSaving,
+                )
+                if (form.twoFactorRequired) {
+                    FieldRow(
+                        label = stringResource(R.string.panel_field_otp_label),
+                        value = form.twoFactorCode,
+                        onValueChange = onTwoFactorCodeChange,
+                        placeholder = stringResource(R.string.panel_field_otp_placeholder),
+                        isError = false,
+                        enabled = !isSaving,
+                        topDivider = true,
+                        monoValue = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword,
+                            imeAction = ImeAction.Done,
+                        ),
                     )
                 }
-                when (form.authMode) {
-                    AuthMode.LOGIN -> {
-                        FieldRow(
-                            label = stringResource(R.string.panel_field_login_label),
-                            value = form.login,
-                            onValueChange = onLoginChange,
-                            placeholder = "admin",
-                            isError = errors?.login != null,
-                            enabled = !isSaving,
-                            topDivider = true,
-                            monoValue = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        )
-                        PasswordFieldRow(
-                            value = form.password,
-                            onValueChange = onPasswordChange,
-                            isError = errors?.password != null,
-                            enabled = !isSaving,
-                        )
-                        if (form.twoFactorRequired) {
-                            FieldRow(
-                                label = stringResource(R.string.panel_field_otp_label),
-                                value = form.twoFactorCode,
-                                onValueChange = onTwoFactorCodeChange,
-                                placeholder = stringResource(R.string.panel_field_otp_placeholder),
-                                isError = false,
-                                enabled = !isSaving,
-                                topDivider = true,
-                                monoValue = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.NumberPassword,
-                                    imeAction = ImeAction.Done,
-                                ),
-                            )
-                        }
-                    }
-                    AuthMode.TOKEN -> {
-                        FieldRow(
-                            label = stringResource(R.string.panel_field_api_token_label),
-                            value = form.apiToken,
-                            onValueChange = onApiTokenChange,
-                            placeholder = "",
-                            isError = errors?.apiToken != null,
-                            enabled = !isSaving,
-                            topDivider = true,
-                            monoValue = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done,
-                            ),
-                        )
-                    }
-                }
+                FieldRow(
+                    label = stringResource(R.string.panel_field_api_token_label),
+                    value = form.apiToken,
+                    onValueChange = onApiTokenChange,
+                    placeholder = stringResource(R.string.panel_field_api_token_placeholder),
+                    isError = false,
+                    enabled = !isSaving,
+                    topDivider = true,
+                    monoValue = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    ),
+                )
             }
 
-            if (form.authMode == AuthMode.LOGIN && form.twoFactorRequired) {
+            if (form.twoFactorRequired) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.panel_two_factor_hint),
@@ -391,10 +375,7 @@ private fun PanelAddEditContent(
                 )
             }
 
-            val credentialErrors = when (form.authMode) {
-                AuthMode.LOGIN -> errors?.login != null || errors?.password != null
-                AuthMode.TOKEN -> errors?.apiToken != null
-            }
+            val credentialErrors = errors?.login != null || errors?.password != null
             if (credentialErrors) {
                 Spacer(Modifier.height(4.dp))
                 when (form.authMode) {
