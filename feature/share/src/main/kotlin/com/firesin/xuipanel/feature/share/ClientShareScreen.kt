@@ -60,12 +60,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.core.xui.dto.ClientConfig
@@ -82,8 +82,6 @@ import kotlinx.coroutines.withContext
 private val QR_SIZE_DP = 240.dp
 private val QrCardShape = RoundedCornerShape(22.dp)
 private val LinkCardShape = RoundedCornerShape(14.dp)
-
-private enum class ShareFormat { Direct, Subscription, Clash }
 
 @Composable
 fun ClientShareScreen(
@@ -181,27 +179,14 @@ private fun ContentBody(
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val surfaceColor = MaterialTheme.colorScheme.surface
 
-    // Build the list of formats the panel actually offers. Direct link is always
-    // first; subscription and Clash appear only when the panel returned URIs for them.
-    val availableFormats = remember(state.subUri, state.clashUri) {
-        buildList {
-            add(ShareFormat.Direct)
-            if (!state.subUri.isNullOrBlank()) add(ShareFormat.Subscription)
-            if (!state.clashUri.isNullOrBlank()) add(ShareFormat.Clash)
-        }
-    }
-    var selectedFormat by remember(state.uri) { mutableStateOf(ShareFormat.Direct) }
-    val displayedUri = when (selectedFormat) {
-        ShareFormat.Direct -> state.uri
-        ShareFormat.Subscription -> state.subUri ?: state.uri
-        ShareFormat.Clash -> state.clashUri ?: state.uri
-    }
-
+    // QR always shows the direct protocol URL — that's what client apps (v2rayNG,
+    // Karing, Streisand, …) actually consume by scanning. Subscription / Clash
+    // URLs are shown below as separate cards with copy/send buttons.
     var qrBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
-    LaunchedEffect(displayedUri, onSurfaceColor, surfaceColor) {
+    LaunchedEffect(state.uri, onSurfaceColor, surfaceColor) {
         qrBitmap = withContext(Dispatchers.Default) {
-            generateQrBitmap(displayedUri, qrSizePx, onSurfaceColor, surfaceColor)
+            generateQrBitmap(state.uri, qrSizePx, onSurfaceColor, surfaceColor)
         }
     }
 
@@ -276,103 +261,109 @@ private fun ContentBody(
             }
         }
 
-        if (availableFormats.size > 1) {
-            SegmentedPicker(
-                options = availableFormats,
-                selected = selectedFormat,
-                onSelect = { selectedFormat = it },
-                label = { it.label() },
-                modifier = Modifier.fillMaxWidth(),
+        // All available link formats — stacked. Direct is always shown; Subscription
+        // and Clash only when the panel exposes them. Long URLs are clipped to two
+        // lines + ellipsis so the cards don't dominate the screen.
+        LinkCard(
+            title = stringResource(R.string.share_link_section),
+            uri = state.uri,
+            onCopied = onCopied,
+        )
+        state.subUri?.takeIf { it.isNotBlank() }?.let { sub ->
+            LinkCard(
+                title = stringResource(R.string.share_section_sub),
+                uri = sub,
+                onCopied = onCopied,
             )
         }
-
-        // Link card
-        Surface(
-            shape = LinkCardShape,
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = LinkCardShape,
-                ),
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    text = selectedFormat.sectionTitle(),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.4.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = displayedUri,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 18.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val clipboard =
-                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("share_uri", displayedUri))
-                            onCopied()
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(modifier = Modifier.size(6.dp))
-                        Text(stringResource(R.string.share_copy))
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, displayedUri)
-                            }
-                            context.startActivity(Intent.createChooser(sendIntent, null))
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(modifier = Modifier.size(6.dp))
-                        Text(stringResource(R.string.share_send))
-                    }
-                }
-            }
+        state.clashUri?.takeIf { it.isNotBlank() }?.let { clash ->
+            LinkCard(
+                title = stringResource(R.string.share_section_clash),
+                uri = clash,
+                onCopied = onCopied,
+            )
         }
     }
 }
 
 @Composable
-private fun ShareFormat.label(): String = when (this) {
-    ShareFormat.Direct -> stringResource(R.string.share_format_direct)
-    ShareFormat.Subscription -> stringResource(R.string.share_format_subscription)
-    ShareFormat.Clash -> stringResource(R.string.share_format_clash)
-}
-
-@Composable
-private fun ShareFormat.sectionTitle(): String = when (this) {
-    ShareFormat.Direct -> stringResource(R.string.share_link_section)
-    ShareFormat.Subscription -> stringResource(R.string.share_section_sub)
-    ShareFormat.Clash -> stringResource(R.string.share_section_clash)
+private fun LinkCard(
+    title: String,
+    uri: String,
+    onCopied: () -> Unit,
+) {
+    val context = LocalContext.current
+    Surface(
+        shape = LinkCardShape,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 0.5.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = LinkCardShape,
+            ),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = uri,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 18.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("share_uri", uri))
+                        onCopied()
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text(stringResource(R.string.share_copy))
+                }
+                OutlinedButton(
+                    onClick = {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, uri)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, null))
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text(stringResource(R.string.share_send))
+                }
+            }
+        }
+    }
 }
 
 @Composable
