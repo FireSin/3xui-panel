@@ -1605,6 +1605,14 @@ class XuiClient @Inject constructor(
                     response.isSuccessful ->
                         Result.Success(false)
 
+                    // 404 from this probe means the panel build doesn't expose a 2FA
+                    // toggle at all (some forks dropped /getTwoFactorEnable entirely
+                    // even though /login still accepts an OTP). Treating it as «no
+                    // 2FA» lets the add-panel flow proceed; if login actually needs
+                    // an OTP, the next /login call will surface the real error.
+                    response.code() == HTTP_NOT_FOUND ->
+                        Result.Success(false)
+
                     else ->
                         Result.Failure(DomainError.PanelUnreachable(response.code()))
                 }
@@ -1914,6 +1922,7 @@ class XuiClient @Inject constructor(
     private companion object {
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_FORBIDDEN = 403
+        const val HTTP_NOT_FOUND = 404
     }
 }
 
