@@ -33,4 +33,21 @@ class AddInboundRequestDtoTest {
         val encoded = json.encodeToString(AddInboundRequestDto.serializer(), dto)
         assertTrue(encoded.contains("\"nodeId\":1"), "nodeId must be present when non-null, but was: $encoded")
     }
+
+    @Test
+    fun `enable=true is present in serialized JSON even though it is the Kotlin default`() {
+        val dto = minimalDto()
+        val encoded = json.encodeToString(AddInboundRequestDto.serializer(), dto)
+        assertTrue(
+            encoded.contains("\"enable\":true"),
+            "enable must always be serialised — server defaults missing field to false. Encoded: $encoded",
+        )
+    }
+
+    @Test
+    fun `enable=false is present in serialized JSON`() {
+        val dto = minimalDto().copy(enable = false)
+        val encoded = json.encodeToString(AddInboundRequestDto.serializer(), dto)
+        assertTrue(encoded.contains("\"enable\":false"), "Encoded: $encoded")
+    }
 }

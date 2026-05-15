@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AddInboundRequestDto(
+    /** Always serialised: server defaults missing `enable` to false, which silently disables the inbound. */
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("enable") val enable: Boolean = true,
     @SerialName("remark") val remark: String,
     @SerialName("listen") val listen: String = "",
