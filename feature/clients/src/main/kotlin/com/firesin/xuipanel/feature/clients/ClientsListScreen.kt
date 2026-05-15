@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PeopleOutline
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Search
 import com.firesin.xuipanel.core.designsystem.component.EmptyState
 import com.firesin.xuipanel.core.designsystem.component.ErrorState
@@ -91,6 +92,7 @@ fun ClientsListScreen(
     onAddPanel: () -> Unit = {},
     onNavigateAdd: (inboundId: Int) -> Unit = {},
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
+    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
     onPopBackStack: () -> Unit = {},
     viewModel: ClientsViewModel = hiltViewModel(),
 ) {
@@ -131,6 +133,7 @@ fun ClientsListScreen(
         onAddPanel = onAddPanel,
         onNavigateAdd = onNavigateAdd,
         onNavigateEdit = { inboundId, key -> onNavigateEdit(inboundId, key) },
+        onNavigateShare = { inboundId, key -> onNavigateShare(inboundId, key) },
         onDeleteInboundRequest = { pendingDeleteInbound = true },
         onDeleteDepletedRequest = { pendingDeleteDepleted = true },
         onResetAllTrafficsRequest = { pendingResetAllTraffics = true },
@@ -238,6 +241,7 @@ private fun ClientsContent(
     onAddPanel: () -> Unit,
     onNavigateAdd: (inboundId: Int) -> Unit,
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit,
+    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
     onDeleteInboundRequest: () -> Unit,
     onDeleteDepletedRequest: () -> Unit = {},
     onResetAllTrafficsRequest: () -> Unit = {},
@@ -465,6 +469,7 @@ private fun ClientsContent(
                                             isSupported = isSupported,
                                             showTopDivider = index > 0,
                                             onEdit = onNavigateEdit,
+                                            onShare = onNavigateShare,
                                         )
                                     }
                                 }
@@ -612,6 +617,7 @@ private fun ClientRow(
     isSupported: Boolean,
     showTopDivider: Boolean,
     onEdit: (inboundId: Int, clientKey: String) -> Unit,
+    onShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val expiry = classifyExpiry(client.expiryTime)
@@ -675,6 +681,19 @@ private fun ClientRow(
                     LastSeenBadge(epochSec = lastSeenEpochSec)
                 }
                 ExpiryText(expiry = expiry)
+                if (isSupported) {
+                    IconButton(
+                        onClick = { onShare(inboundId, client.urlKey) },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode,
+                            contentDescription = stringResource(R.string.clients_share_cd),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
             }
 
             // Progress row

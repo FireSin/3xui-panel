@@ -70,6 +70,7 @@ fun NavGraphBuilder.clientsGraph(
             onAddPanel = { navController.navigate(panelsAddRoute) },
             onNavigateAdd = { inboundId -> navController.navigateToAddClient(inboundId) },
             onNavigateEdit = { inboundId, key -> navController.navigateToEditClient(inboundId, key) },
+            onNavigateShare = { inboundId, key -> onNavigateShare(inboundId, key) },
             onPopBackStack = { navController.popBackStack() },
         )
     }

@@ -12,6 +12,7 @@ fun ClientsScreen(
     onAddPanel: () -> Unit = {},
     onNavigateAdd: (inboundId: Int) -> Unit = {},
     onNavigateEdit: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
+    onNavigateShare: (inboundId: Int, clientKey: String) -> Unit = { _, _ -> },
     onPopBackStack: () -> Unit = {},
 ) {
     ClientsListScreen(
@@ -19,6 +20,7 @@ fun ClientsScreen(
         onAddPanel = onAddPanel,
         onNavigateAdd = onNavigateAdd,
         onNavigateEdit = onNavigateEdit,
+        onNavigateShare = onNavigateShare,
         onPopBackStack = onPopBackStack,
     )
 }

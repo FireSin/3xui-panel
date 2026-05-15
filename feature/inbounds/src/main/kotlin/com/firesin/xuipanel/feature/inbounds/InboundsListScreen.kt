@@ -41,7 +41,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -283,7 +283,7 @@ private fun InboundsContent(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             Column {
-            LargeTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.inbounds_title)) },
                 actions = {
                     var topBarMenuExpanded by remember { mutableStateOf(false) }

@@ -7,12 +7,15 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import com.firesin.xuipanel.feature.dashboard.navigation.DashboardRoute
 import com.firesin.xuipanel.feature.inbounds.navigation.InboundsRoute
 import com.firesin.xuipanel.feature.nodes.navigation.NodesListRoute
@@ -47,7 +50,18 @@ internal fun XuiBottomBar(
                 selected = selected,
                 onClick = { if (!selected) onNavigate(tab.route) },
                 icon = { Icon(tab.icon, contentDescription = null) },
-                label = { Text(tab.label) },
+                label = {
+                    // «Подключения» (11 chars) is wider than the slot at default
+                    // labelSmall size and was wrapping to two lines. Drop the
+                    // font a hair and force single-line ellipsis.
+                    Text(
+                        text = tab.label,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(),
             )
         }

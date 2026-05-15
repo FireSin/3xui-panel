@@ -36,7 +36,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -198,7 +198,7 @@ private fun DashboardContent(
     Scaffold(
         topBar = {
             Column {
-                LargeTopAppBar(
+                TopAppBar(
                     title = {
                         Text(
                             text = stringResource(R.string.dashboard_title),
@@ -251,7 +251,7 @@ private fun DashboardContent(
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
                         scrolledContainerColor = MaterialTheme.colorScheme.background,
                     ),
@@ -756,7 +756,7 @@ private fun ServerSection(status: ServerStatusDto) {
 @Composable
 private fun MoreSection(
     onNavigateToStats: () -> Unit,
-    onNavigateToInbounds: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onNavigateToInbounds: () -> Unit,
 ) {
     SectionHeader(stringResource(R.string.dashboard_section_more))
 
@@ -767,13 +767,6 @@ private fun MoreSection(
             leadingIcon = Icons.AutoMirrored.Filled.ShowChart,
             showChevron = true,
             onClick = onNavigateToStats,
-        )
-        GroupRow(
-            label = stringResource(R.string.dashboard_more_inbounds_label),
-            leadingIcon = Icons.AutoMirrored.Filled.List,
-            showChevron = true,
-            topDivider = true,
-            onClick = onNavigateToInbounds,
         )
     }
 }
