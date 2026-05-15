@@ -342,25 +342,44 @@ class XuiClient @Inject constructor(
     /**
      * Panel-level settings — used by the share screen to assemble the subscription
      * and Clash URLs (base URI + [ClientConfig.subId]).
+     *
+     * The `panel/setting/` path family isn't covered by the Bearer-API middleware,
+     * so this call always uses a cookie session (login → CSRF-token → POST). Callers
+     * that only have a Bearer token (no login/password stored) must pass blank
+     * credentials — the call short-circuits and returns [DomainError.InvalidCredentials]
+     * so the share screen can degrade gracefully.
      */
     suspend fun fetchPanelSettings(
         panelId: String,
         baseUrl: String,
-        auth: PanelAuth,
+        username: String,
+        password: String,
         tls: PanelTls,
     ): Result<com.firesin.xuipanel.core.xui.dto.PanelSettingsDto, DomainError> =
         withContext(Dispatchers.IO) {
+            if (username.isBlank() || password.isBlank()) {
+                return@withContext Result.Failure(DomainError.InvalidCredentials)
+            }
             runCatching {
-                withSession(panelId, baseUrl, auth, tls) { api ->
-                    api.panelSettings()
+                val api = apiFor(baseUrl, panelId, tls)
+                // Force a fresh login so the cookie jar holds the session under which
+                // the upcoming CSRF token is valid. Skipping this and reusing a
+                // possibly-stale cached session may yield 403s.
+                login(api, panelId, username, password)
+                val csrfResponse = api.csrfToken()
+                val csrf = csrfResponse.body()?.obj.orEmpty()
+                if (!csrfResponse.isSuccessful || csrf.isBlank()) {
+                    error("csrf token unavailable for panel $panelId")
                 }
+                api.panelSettings(csrf)
             }.fold(
                 onSuccess = { response ->
-                    val obj = response.obj
-                    if (response.success && obj != null) {
+                    val body = response.body()
+                    val obj = body?.obj
+                    if (response.isSuccessful && body?.success == true && obj != null) {
                         Result.Success(obj)
                     } else {
-                        Result.Failure(DomainError.PanelResponse(0, response.msg.orEmpty()))
+                        Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
                     }
                 },
                 onFailure = { cause -> cause.toDomainError(panelId) },

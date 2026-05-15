@@ -3,6 +3,7 @@ package com.firesin.xuipanel.core.xui
 import com.firesin.xuipanel.core.xui.dto.AddCustomGeoRequestDto
 import com.firesin.xuipanel.core.xui.dto.AddInboundRequestDto
 import com.firesin.xuipanel.core.xui.dto.CopyClientsRequestDto
+import com.firesin.xuipanel.core.xui.dto.CsrfTokenResponseDto
 import com.firesin.xuipanel.core.xui.dto.ClientTrafficResponseDto
 import com.firesin.xuipanel.core.xui.dto.TwoFactorResponseDto
 import com.firesin.xuipanel.core.xui.dto.AddNodeRequestDto
@@ -38,6 +39,7 @@ import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
@@ -382,12 +384,17 @@ interface XuiApi {
      * Panel-level settings (sub URI, sub-clash URI, sub-JSON URI, …). Used by the share
      * screen to build subscription URLs as `subURI + client.subId`.
      *
-     * NOTE: this endpoint is under `/panel/setting/` (no `/api`) and is form-binder,
-     * not Bearer-friendly — requires the cookie session. The exposed fields are a strict
-     * subset of [PanelSettingsDto].
+     * NOTE: this endpoint is under `/panel/setting/` (no `/api`) — Bearer middleware does
+     * not cover it, so it requires a *cookie* session **and** the `X-CSRF-Token` header.
+     * Callers go through [XuiClient.fetchPanelSettings], which establishes the session
+     * via `/login` and adds the CSRF header explicitly.
      */
     @POST("panel/setting/defaultSettings")
-    suspend fun panelSettings(): Response<PanelSettingsResponseDto>
+    suspend fun panelSettings(@Header("X-CSRF-Token") csrfToken: String): Response<PanelSettingsResponseDto>
+
+    /** One-shot CSRF token mint. Stable per session; we re-fetch on each settings call. */
+    @GET("csrf-token")
+    suspend fun csrfToken(): Response<CsrfTokenResponseDto>
 
     /**
      * Return the raw Xray config JSON currently running on this host.

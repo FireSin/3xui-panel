@@ -127,28 +127,29 @@ class ShareViewModel @Inject constructor(
                     }
 
                     // Subscription / Clash URLs are computed from panel settings
-                    // (`subURI + subId`, `subClashURI + subId`). Best-effort: any failure
-                    // here just leaves them null and the share screen hides the toggle.
+                    // (`subURI + subId`, `subClashURI + subId`). The endpoint sits on
+                    // `/panel/setting/*` which requires a cookie session + CSRF, so we
+                    // pass login/password directly — Bearer-only panels can't reach it
+                    // and gracefully degrade to «direct link only».
                     val (subUri, clashUri) = run {
+                        if (client.subId.isBlank()) return@run null to null
                         val settingsResult = xuiClient.fetchPanelSettings(
                             panelId = panel.id,
                             baseUrl = panel.baseUrl,
-                            auth = panel.toAuth(),
+                            username = panel.login,
+                            password = panel.password,
                             tls = panel.toPanelTls(),
                         )
                         val settings = (settingsResult as? Result.Success)?.data
-                        if (settings == null || client.subId.isBlank()) {
-                            null to null
-                        } else {
-                            val sub = if (settings.subEnable && settings.subUri.isNotBlank()) {
-                                settings.subUri + client.subId
+                            ?: return@run null to null
+                        val sub = if (settings.subEnable && settings.subUri.isNotBlank()) {
+                            settings.subUri + client.subId
+                        } else null
+                        val clash =
+                            if (settings.subClashEnable && settings.subClashUri.isNotBlank()) {
+                                settings.subClashUri + client.subId
                             } else null
-                            val clash =
-                                if (settings.subClashEnable && settings.subClashUri.isNotBlank()) {
-                                    settings.subClashUri + client.subId
-                                } else null
-                            sub to clash
-                        }
+                        sub to clash
                     }
 
                     if (serverUrl != null) {

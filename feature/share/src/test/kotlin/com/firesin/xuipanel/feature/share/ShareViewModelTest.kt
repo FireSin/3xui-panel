@@ -44,7 +44,7 @@ class ShareViewModelTest {
         coEvery { xuiClient.fetchClientLinks(any(), any(), any(), any(), any(), any()) } returns
             Result.Success(emptyList())
         // Default stub for panel settings — tests don't care, return an empty disabled config.
-        coEvery { xuiClient.fetchPanelSettings(any(), any(), any(), any()) } returns
+        coEvery { xuiClient.fetchPanelSettings(any(), any(), any(), any(), any()) } returns
             Result.Success(com.firesin.xuipanel.core.xui.dto.PanelSettingsDto())
     }
 
