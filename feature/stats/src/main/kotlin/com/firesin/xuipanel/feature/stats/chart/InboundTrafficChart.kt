@@ -33,8 +33,11 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesian
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.compose.common.shape.rounded
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.core.cartesian.axis.Axis
@@ -147,8 +150,16 @@ fun InboundTrafficChart(
             }
         }
     }
+    val markerLabel = rememberTextComponent(
+        color = MaterialTheme.colorScheme.onSurface,
+        background = rememberShapeComponent(
+            fill = fill(MaterialTheme.colorScheme.surfaceContainerHighest),
+            shape = CorneredShape.rounded(allPercent = 25),
+        ),
+        padding = com.patrykandpatrick.vico.core.common.Insets(8f, 4f),
+    )
     val marker = rememberDefaultCartesianMarker(
-        label = rememberTextComponent(),
+        label = markerLabel,
         valueFormatter = markerFormatter,
     )
 

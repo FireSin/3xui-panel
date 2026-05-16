@@ -486,7 +486,10 @@ private fun HistorySection(
                     CircularProgressIndicator()
                 }
             } else {
-                HistoryLineChart(points = history)
+                HistoryLineChart(
+                    points = history,
+                    valueFormatter = { formatMetric(selectedMetric, it) },
+                )
                 Spacer(Modifier.height(6.dp))
                 HistorySummary(metric = selectedMetric, points = history)
             }

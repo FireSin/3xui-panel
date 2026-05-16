@@ -15,10 +15,12 @@ import com.firesin.xuipanel.core.xui.dto.ServerHistoryPointDto
 fun HistoryLineChart(
     points: List<ServerHistoryPointDto>,
     modifier: Modifier = Modifier,
+    valueFormatter: ((Double) -> String)? = null,
 ) {
     HistoryLineChart(
         values = points.map { it.v },
         noDataLabel = stringResource(R.string.dashboard_history_no_data),
         modifier = modifier,
+        valueFormatter = valueFormatter,
     )
 }
