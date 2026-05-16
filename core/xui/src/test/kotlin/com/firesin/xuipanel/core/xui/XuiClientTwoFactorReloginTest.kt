@@ -1,5 +1,6 @@
 package com.firesin.xuipanel.core.xui
 
+import com.firesin.xuipanel.core.common.NoOpPanelLookup
 import com.firesin.xuipanel.core.common.PanelAuth
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.Result
@@ -68,7 +69,7 @@ class XuiClientTwoFactorReloginTest {
     @Test
     fun `2FA relogin - OTP is requested and login succeeds`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "123456")
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus)
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
 
         // No cached session → first login call returns 200 (login succeeds)
         // Then the actual API call returns 401 → triggers re-auth with OTP → login again → retry returns 200
@@ -129,7 +130,7 @@ class XuiClientTwoFactorReloginTest {
     @Test
     fun `2FA relogin - user cancels OTP throws XuiAuthException mapped to InvalidCredentials`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = null)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus)
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
 
         val mockClient = mockk<OkHttpClient>()
         every { mockClient.newBuilder() } returns OkHttpClient.Builder()
@@ -178,7 +179,7 @@ class XuiClientTwoFactorReloginTest {
     @Test
     fun `non-2FA relogin - OTP bus is NOT consulted on 401`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "should-not-be-called")
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus)
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
 
         val callCount = AtomicInteger(0)
         val mockClient = mockk<OkHttpClient>()

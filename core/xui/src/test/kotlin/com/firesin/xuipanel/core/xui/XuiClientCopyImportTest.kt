@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.PanelAuth
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
+import com.firesin.xuipanel.core.common.NoOpPanelLookup
 import com.firesin.xuipanel.core.common.twofactor.NoOpTwoFactorOtpBus
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import io.mockk.Runs
@@ -46,7 +47,7 @@ class XuiClientCopyImportTest {
     fun setUp() {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), NoOpTwoFactorOtpBus)
+        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), NoOpTwoFactorOtpBus, NoOpPanelLookup)
         coEvery { sessionCache.get(any()) } returns XuiSession("p1")
     }
 

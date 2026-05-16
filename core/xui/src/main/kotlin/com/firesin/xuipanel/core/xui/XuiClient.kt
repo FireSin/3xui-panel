@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.PanelAuth
+import com.firesin.xuipanel.core.common.PanelLookup
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.PinMismatchEvent
 import com.firesin.xuipanel.core.common.Result
@@ -91,6 +92,7 @@ class XuiClient @Inject constructor(
     private val pinMismatchEvents: PinMismatchEventDispatcher,
     private val wsUiEvents: WsUiEventDispatcher,
     private val twoFactorOtpBus: TwoFactorOtpBus,
+    private val panelLookup: PanelLookup,
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -2840,6 +2842,27 @@ class XuiClient @Inject constructor(
     }
 
     /**
+     * Performs login, requesting an OTP via [twoFactorOtpBus] when [panelLookup]
+     * reports that the panel has 2FA enabled. Falls back to plain login otherwise.
+     * Used by [cookieSessionCsrf] which does not have a [PanelAuth] object available.
+     */
+    private suspend fun loginWithOptionalOtp(
+        api: XuiApi,
+        panelId: String,
+        username: String,
+        password: String,
+    ) {
+        val meta = panelLookup.lookup(panelId)
+        if (meta?.twoFactorEnabled == true) {
+            val otp = twoFactorOtpBus.requestOtp(panelId, meta.name)
+            if (otp.isNullOrBlank()) throw XuiAuthException(panelId)
+            login(api, panelId, username, password, twoFactorCode = otp)
+        } else {
+            login(api, panelId, username, password)
+        }
+    }
+
+    /**
      * Login + CSRF flow for /panel/setting/ endpoints. Returns the csrf token string.
      *
      * Reuses the cached session when present — the cookie jar attached to the shared
@@ -2854,13 +2877,13 @@ class XuiClient @Inject constructor(
         password: String,
     ): String {
         if (sessionCache.get(panelId) == null) {
-            login(api, panelId, username, password)
+            loginWithOptionalOtp(api, panelId, username, password)
         }
         var csrfResponse = api.csrfToken()
         if (csrfResponse.code() == HTTP_UNAUTHORIZED || csrfResponse.code() == HTTP_FORBIDDEN) {
             // Cached session lost on the server side — re-login and retry once.
             sessionCache.invalidate(panelId)
-            login(api, panelId, username, password)
+            loginWithOptionalOtp(api, panelId, username, password)
             csrfResponse = api.csrfToken()
         }
         val csrf = csrfResponse.body()?.obj.orEmpty()
