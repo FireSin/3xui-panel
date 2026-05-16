@@ -56,6 +56,7 @@ junitAndroid = "1.2.1"
 espressoCore = "3.6.1"
 mockk = "1.13.16"
 turbine = "1.2.0"
+okhttpMockWebServer = "4.12.0"
 
 [libraries]
 # Core
@@ -116,6 +117,7 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+okhttp-mock-web-server = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttpMockWebServer" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 
 # Biometric

@@ -8,4 +8,5 @@ sealed class DomainError {
     data class PanelResponse(val code: Int, val body: String) : DomainError()
     data class Unexpected(val cause: Throwable) : DomainError()
     data class PinMismatch(val panelId: String, val observedSpki: String) : DomainError()
+    data class NotFound(val message: String) : DomainError()
 }

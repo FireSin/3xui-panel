@@ -296,6 +296,15 @@
     <string name="warp_nord_cancel">Отмена</string>
     <string name="warp_nord_confirm">Удалить</string>
 
+    <!-- App update section -->
+    <string name="settings_update_check_button">Проверить обновление</string>
+    <string name="settings_update_up_to_date">Версия актуальна</string>
+    <string name="settings_update_available_title">Доступно обновление</string>
+    <string name="settings_update_download_install">Скачать и установить</string>
+    <string name="settings_update_cancel">Отмена</string>
+    <string name="settings_update_install_again">Установить ещё раз</string>
+    <string name="settings_update_retry">Повторить</string>
+
     <!-- Xray template viewer -->
     <string name="settings_xray_template_entry">Xray template</string>
     <string name="settings_xray_template_entry_description">Просмотр текущего шаблона xray-config (read-only)</string>

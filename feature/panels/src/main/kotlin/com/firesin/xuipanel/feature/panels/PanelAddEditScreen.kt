@@ -632,6 +632,7 @@ private fun DomainError.toSubmitErrorMessage(): String = when (this) {
         stringResource(R.string.error_unexpected) + " · " +
             (cause.message?.takeIf { it.isNotBlank() } ?: cause::class.java.simpleName)
     is DomainError.PinMismatch -> stringResource(R.string.error_pin_mismatch)
+    is DomainError.NotFound -> message
 }
 
 // ── Previews ──────────────────────────────────────────────────────────────────

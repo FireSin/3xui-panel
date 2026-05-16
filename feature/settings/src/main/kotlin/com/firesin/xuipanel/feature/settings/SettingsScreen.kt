@@ -74,6 +74,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.firesin.xuipanel.core.common.ThemeMode
 import com.firesin.xuipanel.core.designsystem.component.SegmentedPicker
 import com.firesin.xuipanel.core.designsystem.theme.MonoFontFamily
+import androidx.compose.material3.LinearProgressIndicator
+import com.firesin.xuipanel.feature.settings.update.AppUpdateViewModel
+import com.firesin.xuipanel.feature.settings.update.UpdateUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -270,7 +273,10 @@ fun SettingsScreen(
                 onTriggerNow = viewModel::triggerAutoBackupNow,
             )
             Spacer(Modifier.height(8.dp))
-            AboutCard(installId = installId)
+            AboutCard(
+                installId = installId,
+                updateViewModel = hiltViewModel(),
+            )
         }
     }
 
@@ -955,8 +961,9 @@ private fun ApiTokensCard(
 }
 
 @Composable
-private fun AboutCard(
+internal fun AboutCard(
     installId: String,
+    updateViewModel: AppUpdateViewModel,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -967,6 +974,25 @@ private fun AboutCard(
         }.getOrNull() ?: "—"
     }
     val copiedMessage = stringResource(R.string.settings_about_install_id_copied)
+    val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+
+    var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
+
+    // When state becomes Available, show dialog
+    LaunchedEffect(updateState) {
+        if (updateState is UpdateUiState.Available) {
+            showUpdateDialog = true
+        }
+    }
+
+    // Auto-install when APK is ready
+    LaunchedEffect(updateState) {
+        val s = updateState
+        if (s is UpdateUiState.ReadyToInstall) {
+            com.firesin.xuipanel.core.common.update.ApkInstaller.install(context, s.file)
+        }
+    }
+
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -1012,6 +1038,139 @@ private fun AboutCard(
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            // ---- App update section ----
+            Spacer(Modifier.height(12.dp))
+            AppUpdateSection(
+                state = updateState,
+                onCheck = updateViewModel::checkForUpdate,
+                onDownloadAndInstall = updateViewModel::downloadAndInstall,
+                onInstallAgain = { s ->
+                    com.firesin.xuipanel.core.common.update.ApkInstaller.install(context, s.file)
+                },
+                onReset = updateViewModel::reset,
+            )
+        }
+    }
+
+    // Dialog when update available
+    if (showUpdateDialog && updateState is UpdateUiState.Available) {
+        val info = (updateState as UpdateUiState.Available).info
+        AlertDialog(
+            onDismissRequest = {
+                showUpdateDialog = false
+                updateViewModel.reset()
+            },
+            title = { Text(stringResource(R.string.settings_update_available_title)) },
+            text = {
+                val notes = info.releaseNotes
+                if (!notes.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 280.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        Text(
+                            text = notes,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUpdateDialog = false
+                        updateViewModel.downloadAndInstall()
+                    },
+                ) {
+                    Text(stringResource(R.string.settings_update_download_install))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showUpdateDialog = false
+                        updateViewModel.reset()
+                    },
+                ) {
+                    Text(stringResource(R.string.settings_update_cancel))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun AppUpdateSection(
+    state: UpdateUiState,
+    onCheck: () -> Unit,
+    onDownloadAndInstall: () -> Unit,
+    onInstallAgain: (UpdateUiState.ReadyToInstall) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        when (state) {
+            is UpdateUiState.Idle, is UpdateUiState.UpToDate, is UpdateUiState.Error -> {
+                TextButton(
+                    onClick = onCheck,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_update_check_button))
+                }
+                if (state is UpdateUiState.UpToDate) {
+                    Text(
+                        text = stringResource(R.string.settings_update_up_to_date),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (state is UpdateUiState.Error) {
+                    Text(
+                        text = state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.settings_update_retry))
+                    }
+                }
+            }
+            is UpdateUiState.Checking -> {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+            is UpdateUiState.Available -> {
+                // Dialog is shown from the parent; nothing inline here
+            }
+            is UpdateUiState.Downloading -> {
+                val progress = if (state.total > 0L) {
+                    state.downloaded.toFloat() / state.total.toFloat()
+                } else {
+                    0f
+                }
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            is UpdateUiState.ReadyToInstall -> {
+                TextButton(
+                    onClick = { onInstallAgain(state) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_update_install_again))
                 }
             }
         }

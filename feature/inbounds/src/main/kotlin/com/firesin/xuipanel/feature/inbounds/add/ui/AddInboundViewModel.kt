@@ -392,5 +392,6 @@ class AddInboundViewModel @Inject constructor(
             "Неожиданная ошибка ($detail)"
         }
         is DomainError.PinMismatch -> "Сертификат панели изменился"
+        is DomainError.NotFound -> message
     }
 }

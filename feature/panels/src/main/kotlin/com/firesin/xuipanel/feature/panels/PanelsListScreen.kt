@@ -684,6 +684,7 @@ private fun DomainError.toUserMessage(): String = when (this) {
     is DomainError.PanelResponse -> stringResource(R.string.error_unexpected)
     is DomainError.Unexpected -> stringResource(R.string.error_unexpected)
     is DomainError.PinMismatch -> stringResource(R.string.error_pin_mismatch)
+    is DomainError.NotFound -> message
 }
 
 // ── Previews ──────────────────────────────────────────────────────────────────

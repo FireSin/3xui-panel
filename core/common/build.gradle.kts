@@ -26,6 +26,7 @@ android {
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.hilt.android)
+    implementation(libs.androidx.core.ktx)
     ksp(libs.hilt.android.compiler)
 
     testImplementation(libs.junit5.api)

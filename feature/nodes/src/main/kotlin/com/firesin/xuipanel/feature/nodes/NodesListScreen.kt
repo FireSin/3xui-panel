@@ -620,6 +620,7 @@ private fun DomainError.toUserMessage(): String = when (this) {
         "$base ($detail)"
     }
     is DomainError.PinMismatch -> stringResource(R.string.nodes_error_pin_mismatch)
+    is DomainError.NotFound -> message
 }
 
 @Preview(showBackground = true)
