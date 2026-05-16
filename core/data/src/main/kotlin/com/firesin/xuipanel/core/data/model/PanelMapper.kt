@@ -39,7 +39,13 @@ internal fun Panel.toEntity(): PanelEntity = PanelEntity(
 )
 
 fun Panel.toAuth(): PanelAuth =
-    if (!apiToken.isNullOrBlank()) PanelAuth.Bearer(apiToken) else PanelAuth.Login(login, password)
+    if (!apiToken.isNullOrBlank()) PanelAuth.Bearer(apiToken)
+    else PanelAuth.Login(
+        username = login,
+        password = password,
+        twoFactorEnabled = twoFactorEnabled,
+        panelName = name,
+    )
 
 private fun tlsModeFromString(value: String): TlsMode =
     TlsMode.entries.firstOrNull { it.name == value } ?: TlsMode.SYSTEM
