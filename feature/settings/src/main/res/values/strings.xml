@@ -318,4 +318,16 @@
     <string name="xray_template_copied">Скопировано в буфер обмена</string>
     <string name="xray_template_outbound_test_url">Outbound test URL: %1$s</string>
     <string name="xray_template_warning">Только просмотр. Редактирование такого большого JSON в мобильном приложении слишком рискованно — делайте это через веб-панель.</string>
+    <string name="xray_template_metrics_section">Xray метрики</string>
+    <string name="xray_template_metrics_status_on">Метрики включены — Metrics_in inbound в шаблоне.</string>
+    <string name="xray_template_metrics_status_off">Метрики не настроены.</string>
+    <string name="xray_template_metrics_enable">Включить метрики</string>
+    <string name="xray_template_metrics_disable">Отключить метрики</string>
+    <string name="xray_template_metrics_hint">Добавит в шаблон блок metrics + dokodemo-door inbound на 127.0.0.1:11111 + routing-правило в outbound «api». Xray будет перезапущен.</string>
+    <string name="xray_template_metrics_confirm_enable_title">Включить Xray метрики?</string>
+    <string name="xray_template_metrics_confirm_disable_title">Отключить Xray метрики?</string>
+    <string name="xray_template_metrics_confirm_enable_message">Шаблон Xray будет изменён, а Xray перезапущен — кратковременный обрыв активных соединений.</string>
+    <string name="xray_template_metrics_confirm_disable_message">Из шаблона будут удалены блок metrics, Metrics_in inbound и связанное routing-правило. Xray будет перезапущен.</string>
+    <string name="xray_template_metrics_confirm_apply">Применить</string>
+    <string name="xray_template_metrics_cancel">Отмена</string>
 </resources>

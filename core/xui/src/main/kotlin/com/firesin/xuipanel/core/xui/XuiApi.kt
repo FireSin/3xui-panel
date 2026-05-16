@@ -583,6 +583,15 @@ interface XuiApi {
         @Header("X-CSRF-Token") csrfToken: String,
     ): Response<com.firesin.xuipanel.core.xui.dto.XrayTemplateResponseDto>
 
+    /** Save the Xray JSON config template. Form fields: xraySetting (full JSON), outboundTestUrl. */
+    @retrofit2.http.FormUrlEncoded
+    @POST("panel/xray/update")
+    suspend fun updateXrayTemplate(
+        @Header("X-CSRF-Token") csrfToken: String,
+        @retrofit2.http.Field("xraySetting") xraySetting: String,
+        @retrofit2.http.Field("outboundTestUrl") outboundTestUrl: String? = null,
+    ): Response<LoginResponseDto>
+
     /**
      * Test an outbound. Form fields:
      *  - outbound (required): JSON string of a single outbound

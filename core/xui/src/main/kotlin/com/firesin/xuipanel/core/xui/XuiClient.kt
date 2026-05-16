@@ -64,7 +64,14 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import com.firesin.xuipanel.core.xui.dto.UpdateUserRequestDto
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -2544,6 +2551,132 @@ class XuiClient @Inject constructor(
             },
             onFailure = { cause -> cause.toDomainError(panelId) },
         )
+    }
+
+    /** Save the xraySetting JSON template. Optionally also update outboundTestUrl. */
+    suspend fun updateXrayTemplate(
+        panelId: String,
+        baseUrl: String,
+        username: String,
+        password: String,
+        tls: PanelTls,
+        xraySetting: JsonObject,
+        outboundTestUrl: String? = null,
+    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
+        if (username.isBlank() || password.isBlank()) {
+            return@withContext Result.Failure(DomainError.InvalidCredentials)
+        }
+        runCatching {
+            val api = apiFor(baseUrl, panelId, tls)
+            val csrf = cookieSessionCsrf(api, panelId, username, password)
+            val payload = json.encodeToString(JsonElement.serializer(), xraySetting)
+            api.updateXrayTemplate(csrf, payload, outboundTestUrl)
+        }.fold(
+            onSuccess = { response ->
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
+                }
+            },
+            onFailure = { cause -> cause.toDomainError(panelId) },
+        )
+    }
+
+    /**
+     * Mutate the given xraySetting to enable Xray Metrics:
+     * adds `metrics.tag = Metrics_in` + dokodemo-door inbound + routing rule + stats/policy flags.
+     * Idempotent — calling on an already-enabled config is a no-op.
+     */
+    fun enableXrayMetrics(xraySetting: JsonObject): JsonObject {
+        val mutable = xraySetting.toMutableMap()
+
+        mutable["metrics"] = buildJsonObject { put("tag", "Metrics_in") }
+        if (mutable["stats"] !is JsonObject) mutable["stats"] = JsonObject(emptyMap())
+
+        val policy = (mutable["policy"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        val system = (policy["system"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        listOf(
+            "statsInboundUplink", "statsInboundDownlink",
+            "statsOutboundUplink", "statsOutboundDownlink",
+        ).forEach { if (system[it] !is JsonPrimitive) system[it] = JsonPrimitive(true) }
+        policy["system"] = JsonObject(system)
+        mutable["policy"] = JsonObject(policy)
+
+        val inbounds = (mutable["inbounds"] as? JsonArray)?.toMutableList() ?: mutableListOf()
+        val hasMetricsInbound = inbounds.any {
+            (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull == "Metrics_in"
+        }
+        if (!hasMetricsInbound) {
+            inbounds.add(buildJsonObject {
+                put("tag", "Metrics_in")
+                put("listen", "127.0.0.1")
+                put("port", 11111)
+                put("protocol", "dokodemo-door")
+                putJsonObject("settings") { put("address", "127.0.0.1") }
+            })
+        }
+        mutable["inbounds"] = JsonArray(inbounds)
+
+        val routing = (mutable["routing"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        val rules = (routing["rules"] as? JsonArray)?.toMutableList() ?: mutableListOf()
+        val hasRule = rules.any { r ->
+            val ro = r as? JsonObject ?: return@any false
+            val tags = ro["inboundTag"] as? JsonArray ?: return@any false
+            tags.any { it.jsonPrimitive.contentOrNull == "Metrics_in" } &&
+                ro["outboundTag"]?.jsonPrimitive?.contentOrNull == "api"
+        }
+        if (!hasRule) {
+            rules.add(0, buildJsonObject {
+                put("type", "field")
+                put("inboundTag", buildJsonArray { add(JsonPrimitive("Metrics_in")) })
+                put("outboundTag", "api")
+            })
+        }
+        routing["rules"] = JsonArray(rules)
+        mutable["routing"] = JsonObject(routing)
+
+        return JsonObject(mutable)
+    }
+
+    /**
+     * Mutate the given xraySetting to disable Xray Metrics:
+     * removes `metrics` field, the Metrics_in inbound, and the routing rule that ferries
+     * Metrics_in → api. Leaves `stats`/`policy.system` flags untouched (often used elsewhere).
+     */
+    fun disableXrayMetrics(xraySetting: JsonObject): JsonObject {
+        val mutable = xraySetting.toMutableMap()
+        mutable.remove("metrics")
+
+        val inbounds = (mutable["inbounds"] as? JsonArray)?.filter {
+            (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull != "Metrics_in"
+        } ?: emptyList()
+        mutable["inbounds"] = JsonArray(inbounds)
+
+        val routing = (mutable["routing"] as? JsonObject)?.toMutableMap()
+        if (routing != null) {
+            val rules = (routing["rules"] as? JsonArray)?.filter { r ->
+                val ro = r as? JsonObject ?: return@filter true
+                val tags = ro["inboundTag"] as? JsonArray ?: return@filter true
+                !(tags.any { it.jsonPrimitive.contentOrNull == "Metrics_in" } &&
+                    ro["outboundTag"]?.jsonPrimitive?.contentOrNull == "api")
+            } ?: emptyList()
+            routing["rules"] = JsonArray(rules)
+            mutable["routing"] = JsonObject(routing)
+        }
+
+        return JsonObject(mutable)
+    }
+
+    /** Heuristic: metrics is enabled iff xraySetting has `metrics.tag` and a Metrics_in inbound. */
+    fun isXrayMetricsEnabled(xraySetting: JsonObject): Boolean {
+        val hasMetricsField = (xraySetting["metrics"] as? JsonObject)
+            ?.get("tag")?.jsonPrimitive?.contentOrNull?.isNotBlank() == true
+        val hasMetricsInbound = (xraySetting["inbounds"] as? JsonArray)?.any {
+            (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull == "Metrics_in"
+        } == true
+        return hasMetricsField && hasMetricsInbound
     }
 
     /**
