@@ -29,8 +29,9 @@ import javax.inject.Inject
 enum class HistoryMetric(val apiKey: String) {
     CPU("cpu"),
     MEM("mem"),
-    NET_IN("netIn"),
-    NET_OUT("netOut"),
+    // Newer 3x-ui renamed netIn/netOut to netDown (server-side inbound) / netUp (outbound).
+    NET_IN("netDown"),
+    NET_OUT("netUp"),
     ONLINE("online"),
 }
 

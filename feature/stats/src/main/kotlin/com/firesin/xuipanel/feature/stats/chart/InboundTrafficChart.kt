@@ -30,9 +30,12 @@ import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.core.cartesian.axis.Axis
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
@@ -41,6 +44,9 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.cartesian.marker.CartesianMarker
+import com.patrykandpatrick.vico.core.cartesian.marker.ColumnCartesianLayerMarkerTarget
+import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.core.common.component.LineComponent
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import java.time.Instant
@@ -120,6 +126,32 @@ fun InboundTrafficChart(
         }
     }
 
+    val markerFormatter = remember(points) {
+        object : DefaultCartesianMarker.ValueFormatter {
+            override fun format(
+                context: CartesianDrawingContext,
+                targets: List<CartesianMarker.Target>,
+            ): CharSequence {
+                val target = targets.firstOrNull() as? ColumnCartesianLayerMarkerTarget
+                    ?: return ""
+                val day = points.getOrNull(target.x.toInt())?.let {
+                    DATE_FORMATTER.format(Instant.ofEpochMilli(it.dayEpoch))
+                }.orEmpty()
+                val sb = StringBuilder(day)
+                target.columns.forEachIndexed { idx, col ->
+                    val prefix = if (idx == 0) "↑" else "↓"
+                    if (sb.isNotEmpty()) sb.append("\n")
+                    sb.append(prefix).append(" ").append(prettyBytes(col.entry.y.toLong()))
+                }
+                return sb.toString()
+            }
+        }
+    }
+    val marker = rememberDefaultCartesianMarker(
+        label = rememberTextComponent(),
+        valueFormatter = markerFormatter,
+    )
+
     val chart = rememberCartesianChart(
         rememberColumnCartesianLayer(
             columnProvider = ColumnCartesianLayer.ColumnProvider.series(upColumn, downColumn),
@@ -129,6 +161,7 @@ fun InboundTrafficChart(
             valueFormatter = xFormatter,
             itemPlacer = HorizontalAxis.ItemPlacer.segmented(),
         ),
+        marker = marker,
     )
 
     Column(modifier = modifier.fillMaxWidth()) {
