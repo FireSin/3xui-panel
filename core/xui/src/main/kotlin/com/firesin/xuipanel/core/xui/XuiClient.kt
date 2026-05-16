@@ -1941,7 +1941,7 @@ class XuiClient @Inject constructor(
      * Maps a mid-session throwable to a [Result.Failure]. On [DomainError.PinMismatch], also
      * fire-and-forgets a global [PinMismatchEvent] so [MainActivity] can show a kill-switch dialog.
      */
-    private fun Throwable.toDomainError(panelId: String): Result.Failure<DomainError> {
+    internal fun Throwable.toDomainError(panelId: String): Result.Failure<DomainError> {
         val pinEx = generateSequence(this) { it.cause }
             .filterIsInstance<SpkiPinMismatchException>()
             .firstOrNull()
@@ -2864,7 +2864,7 @@ class XuiClient @Inject constructor(
 }
 
 /** Probe path: no panelId yet; [SpkiPinMismatchException] from redirect-conflict is still typed. */
-private fun Throwable.toProbeDomainError(): Result.Failure<DomainError> {
+internal fun Throwable.toProbeDomainError(): Result.Failure<DomainError> {
     val chain = generateSequence(this) { it.cause }
     val pinEx = chain.filterIsInstance<SpkiPinMismatchException>().firstOrNull()
     if (pinEx != null) return Result.Failure(DomainError.PinMismatch(panelId = "", observedSpki = pinEx.observedSpki))
