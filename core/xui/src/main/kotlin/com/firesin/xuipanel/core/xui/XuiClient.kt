@@ -2582,7 +2582,9 @@ class XuiClient @Inject constructor(
                 ?: throw IllegalStateException("no outbounds array in xraySetting")
             val target = outbounds.firstOrNull {
                 it.jsonObject["tag"]?.jsonPrimitive?.contentOrNull == tag
-            } ?: throw IllegalStateException("outbound with tag '$tag' not found")
+            } ?: throw IllegalStateException(
+                "Аутбаунд '$tag' есть в статистике, но отсутствует в текущем шаблоне Xray (был удалён или переименован).",
+            )
             val outboundJson = json.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), target)
             val allOutboundsJson = json.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), outbounds)
             api.testOutbound(

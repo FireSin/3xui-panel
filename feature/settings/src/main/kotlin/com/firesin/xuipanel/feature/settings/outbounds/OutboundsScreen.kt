@@ -235,11 +235,13 @@ private fun OutboundCard(item: OutboundTrafficDto, onReset: () -> Unit, onTest: 
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                IconButton(onClick = onTest) {
-                    Icon(
-                        Icons.Filled.NetworkCheck,
-                        contentDescription = stringResource(R.string.outbounds_test),
-                    )
+                if (item.tag.isTestableOutbound()) {
+                    IconButton(onClick = onTest) {
+                        Icon(
+                            Icons.Filled.NetworkCheck,
+                            contentDescription = stringResource(R.string.outbounds_test),
+                        )
+                    }
                 }
                 IconButton(onClick = onReset) {
                     Icon(
@@ -287,3 +289,7 @@ private fun StatColumn(label: String, value: String, modifier: Modifier = Modifi
 private fun Centered(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
+
+// Special routing outbounds in xray (no remote endpoint to probe).
+private fun String.isTestableOutbound(): Boolean =
+    this.lowercase() !in setOf("direct", "block", "blocked", "blackhole", "api", "dns-out")
