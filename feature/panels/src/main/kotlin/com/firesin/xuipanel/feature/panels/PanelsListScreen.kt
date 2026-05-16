@@ -28,8 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -267,7 +268,6 @@ private fun PanelsListContent(
     onImportClick: () -> Unit,
     onNavigateToSettings: () -> Unit,
 ) {
-    var overflowExpanded by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
@@ -276,45 +276,23 @@ private fun PanelsListContent(
             TopAppBar(
                 title = { Text(stringResource(R.string.panels_title)) },
                 actions = {
+                    IconButton(onClick = onImportClick) {
+                        Icon(
+                            imageVector = Icons.Default.FileUpload,
+                            contentDescription = stringResource(R.string.panels_overflow_import),
+                        )
+                    }
+                    IconButton(onClick = onExportClick) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = stringResource(R.string.panels_overflow_export),
+                        )
+                    }
                     IconButton(onClick = onAddPanel) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = stringResource(R.string.panels_add),
                         )
-                    }
-                    Box {
-                        IconButton(onClick = { overflowExpanded = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.panels_cd_overflow_menu),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = overflowExpanded,
-                            onDismissRequest = { overflowExpanded = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.panels_overflow_export)) },
-                                onClick = {
-                                    overflowExpanded = false
-                                    onExportClick()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.panels_overflow_import)) },
-                                onClick = {
-                                    overflowExpanded = false
-                                    onImportClick()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.panels_overflow_settings)) },
-                                onClick = {
-                                    overflowExpanded = false
-                                    onNavigateToSettings()
-                                },
-                            )
-                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,

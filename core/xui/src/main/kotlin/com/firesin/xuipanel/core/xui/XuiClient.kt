@@ -2527,9 +2527,17 @@ class XuiClient @Inject constructor(
         }.fold(
             onSuccess = { response ->
                 val body = response.body()
-                val obj = body?.obj
-                if (response.isSuccessful && body?.success == true && obj != null) {
-                    Result.Success(obj)
+                val objStr = body?.obj
+                if (response.isSuccessful && body?.success == true && !objStr.isNullOrBlank()) {
+                    runCatching {
+                        json.decodeFromString(
+                            com.firesin.xuipanel.core.xui.dto.XrayTemplateObjDto.serializer(),
+                            objStr,
+                        )
+                    }.fold(
+                        onSuccess = { Result.Success(it) },
+                        onFailure = { Result.Failure(DomainError.Unexpected(it)) },
+                    )
                 } else {
                     Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
                 }
@@ -2560,11 +2568,17 @@ class XuiClient @Inject constructor(
         runCatching {
             val api = apiFor(baseUrl, panelId, tls)
             val csrf = cookieSessionCsrf(api, panelId, username, password)
-            // Fetch template, parse xraySetting, find outbound by tag.
+            // Fetch template, find outbound by tag.
+            // Wire shape: response.obj is a JSON-encoded string of XrayTemplateObjDto.
+            // After decoding, xraySetting is a structured object — no second parse needed.
             val tmplResp = api.getXrayTemplate(csrf)
-            val tmpl = tmplResp.body()?.obj ?: throw IllegalStateException("xray template unavailable")
-            val xraySetting = json.parseToJsonElement(tmpl.xraySetting).jsonObject
-            val outbounds = xraySetting["outbounds"]?.jsonArray
+            val tmplStr = tmplResp.body()?.obj?.takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("xray template unavailable")
+            val tmpl = json.decodeFromString(
+                com.firesin.xuipanel.core.xui.dto.XrayTemplateObjDto.serializer(),
+                tmplStr,
+            )
+            val outbounds = tmpl.xraySetting["outbounds"]?.jsonArray
                 ?: throw IllegalStateException("no outbounds array in xraySetting")
             val target = outbounds.firstOrNull {
                 it.jsonObject["tag"]?.jsonPrimitive?.contentOrNull == tag

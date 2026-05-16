@@ -219,7 +219,6 @@ fun SettingsScreen(
                 onResetAllTraffics = { viewModel.resetAllTraffics(it.first, it.second) },
                 onUpdatePanel = { viewModel.updatePanel(it.first, it.second) },
                 onInstallXray = { version, msgs -> viewModel.installXray(version, msgs.first, msgs.second) },
-                onBackupToTgBot = { viewModel.backupToTgBot(it.first, it.second) },
             )
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
@@ -275,7 +274,6 @@ private fun SystemActionsSection(
     onResetAllTraffics: (Pair<String, String>) -> Unit,
     onUpdatePanel: (Pair<String, String>) -> Unit,
     onInstallXray: (String, Pair<String, String>) -> Unit,
-    onBackupToTgBot: (Pair<String, String>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val successReset = stringResource(R.string.settings_reset_traffics_success)
@@ -284,13 +282,10 @@ private fun SystemActionsSection(
     val errorUpdate = stringResource(R.string.settings_update_panel_error)
     val successInstall = stringResource(R.string.settings_install_xray_success)
     val errorInstall = stringResource(R.string.settings_install_xray_error)
-    val successBackup = stringResource(R.string.settings_backup_tg_success)
-    val errorBackup = stringResource(R.string.settings_backup_tg_error)
 
     var showResetDialog by rememberSaveable { mutableStateOf(false) }
     var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
     var showInstallDialog by rememberSaveable { mutableStateOf(false) }
-    var showBackupDialog by rememberSaveable { mutableStateOf(false) }
 
     val updateAvailable = (panelUpdateInfo as? PanelUpdateState.Loaded)?.info?.isUpdatable == true
     val latestVersion = (panelUpdateInfo as? PanelUpdateState.Loaded)?.info?.latestVersion
@@ -365,13 +360,6 @@ private fun SystemActionsSection(
                 ),
             )
         }
-        Spacer(Modifier.height(8.dp))
-        SystemActionCard(
-            title = stringResource(R.string.settings_backup_tg_title),
-            subtitle = stringResource(R.string.settings_backup_tg_subtitle),
-            enabled = !isLoading,
-            onClick = { showBackupDialog = true },
-        )
     }
 
     // Dialogs
@@ -409,18 +397,6 @@ private fun SystemActionsSection(
         )
     }
 
-    if (showBackupDialog) {
-        ConfirmActionDialog(
-            title = stringResource(R.string.settings_backup_tg_dialog_title),
-            message = stringResource(R.string.settings_backup_tg_dialog_msg),
-            confirmLabel = stringResource(R.string.settings_backup_tg_confirm),
-            onConfirm = {
-                showBackupDialog = false
-                onBackupToTgBot(successBackup to errorBackup)
-            },
-            onDismiss = { showBackupDialog = false },
-        )
-    }
 }
 
 @Composable
@@ -1247,7 +1223,6 @@ private fun SystemActionsSectionPreview() {
         onResetAllTraffics = {},
         onUpdatePanel = {},
         onInstallXray = { _, _ -> },
-        onBackupToTgBot = {},
     )
 }
 
@@ -1267,7 +1242,6 @@ private fun SystemActionsSectionUpdateAvailablePreview() {
         onResetAllTraffics = {},
         onUpdatePanel = {},
         onInstallXray = { _, _ -> },
-        onBackupToTgBot = {},
     )
 }
 
@@ -1281,7 +1255,6 @@ private fun SystemActionsSectionLoadingPreview() {
         onResetAllTraffics = {},
         onUpdatePanel = {},
         onInstallXray = { _, _ -> },
-        onBackupToTgBot = {},
     )
 }
 

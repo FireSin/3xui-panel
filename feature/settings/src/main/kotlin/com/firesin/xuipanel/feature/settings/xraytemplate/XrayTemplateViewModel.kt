@@ -60,11 +60,9 @@ class XrayTemplateViewModel @Inject constructor(
         )
         _state.value = when (result) {
             is Result.Success -> {
-                val rawJson = result.data.xraySetting
                 val pretty = runCatching {
-                    val element = Json.parseToJsonElement(rawJson)
-                    prettyJson.encodeToString(JsonElement.serializer(), element)
-                }.getOrElse { rawJson }
+                    prettyJson.encodeToString(JsonElement.serializer(), result.data.xraySetting)
+                }.getOrDefault("{}")
                 _state.value.copy(
                     isLoading = false,
                     pretty = pretty,

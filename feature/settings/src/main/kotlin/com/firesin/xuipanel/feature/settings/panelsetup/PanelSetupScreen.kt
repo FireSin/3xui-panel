@@ -3,7 +3,6 @@ package com.firesin.xuipanel.feature.settings.panelsetup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,6 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,7 +100,7 @@ fun PanelSetupScreen(
                 is PanelSetupUiState.Content -> Content(
                     flags = s.flags,
                     onChange = viewModel::updateFlags,
-                    onSave = { viewModel.saveSubscription(savedMsg) },
+                    onSave = { viewModel.save(savedMsg) },
                     onChangeCreds = { showChangeCreds = true },
                     onRestart = { showRestartConfirm = true },
                 )
@@ -138,8 +140,8 @@ fun PanelSetupScreen(
 
 @Composable
 private fun Content(
-    flags: SubFlags,
-    onChange: ((SubFlags) -> SubFlags) -> Unit,
+    flags: PanelFlags,
+    onChange: ((PanelFlags) -> PanelFlags) -> Unit,
     onSave: () -> Unit,
     onChangeCreds: () -> Unit,
     onRestart: () -> Unit,
@@ -149,71 +151,210 @@ private fun Content(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Spacer(Modifier.height(8.dp))
-        // Subscription section
+
+        // ── Subscription ────────────────────────────────────────────────────
+        SectionCard(stringResource(R.string.panel_setup_section_sub)) {
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_sub_enable),
+                checked = flags.subEnable,
+                onChange = { v -> onChange { it.copy(subEnable = v) } },
+            )
+            IntField(
+                label = stringResource(R.string.panel_setup_sub_port),
+                value = flags.subPort,
+                onValueChange = { v -> onChange { it.copy(subPort = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_path),
+                value = flags.subPath,
+                onValueChange = { v -> onChange { it.copy(subPath = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_domain),
+                value = flags.subDomain,
+                onValueChange = { v -> onChange { it.copy(subDomain = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_uri),
+                value = flags.subUri,
+                onValueChange = { v -> onChange { it.copy(subUri = v) } },
+            )
+            IntField(
+                label = stringResource(R.string.panel_setup_sub_updates),
+                value = flags.subUpdates,
+                onValueChange = { v -> onChange { it.copy(subUpdates = v) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_sub_routing),
+                checked = flags.subEnableRouting,
+                onChange = { v -> onChange { it.copy(subEnableRouting = v) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_sub_encrypt),
+                checked = flags.subEncrypt,
+                onChange = { v -> onChange { it.copy(subEncrypt = v) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_sub_show_info),
+                checked = flags.subShowInfo,
+                onChange = { v -> onChange { it.copy(subShowInfo = v) } },
+            )
+            HorizontalDivider()
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_sub_json_enable),
+                checked = flags.subJsonEnable,
+                onChange = { v -> onChange { it.copy(subJsonEnable = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_json_path),
+                value = flags.subJsonPath,
+                onValueChange = { v -> onChange { it.copy(subJsonPath = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_json_uri),
+                value = flags.subJsonUri,
+                onValueChange = { v -> onChange { it.copy(subJsonUri = v) } },
+            )
+            HorizontalDivider()
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_sub_clash_enable),
+                checked = flags.subClashEnable,
+                onChange = { v -> onChange { it.copy(subClashEnable = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_clash_path),
+                value = flags.subClashPath,
+                onValueChange = { v -> onChange { it.copy(subClashPath = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_sub_clash_uri),
+                value = flags.subClashUri,
+                onValueChange = { v -> onChange { it.copy(subClashUri = v) } },
+            )
+        }
+
+        // ── Telegram ────────────────────────────────────────────────────────
+        SectionCard(stringResource(R.string.panel_setup_section_tg)) {
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_tg_enable),
+                checked = flags.tgBotEnable,
+                onChange = { v -> onChange { it.copy(tgBotEnable = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_tg_token),
+                value = flags.tgBotToken,
+                onValueChange = { v -> onChange { it.copy(tgBotToken = v) } },
+                isPassword = true,
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_tg_chat_id),
+                value = flags.tgBotChatId,
+                onValueChange = { v -> onChange { it.copy(tgBotChatId = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_tg_proxy),
+                value = flags.tgBotProxy,
+                onValueChange = { v -> onChange { it.copy(tgBotProxy = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_tg_api_server),
+                value = flags.tgBotApiServer,
+                onValueChange = { v -> onChange { it.copy(tgBotApiServer = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_tg_run_time),
+                value = flags.tgRunTime,
+                onValueChange = { v -> onChange { it.copy(tgRunTime = v) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_tg_backup),
+                checked = flags.tgBotBackup,
+                onChange = { v -> onChange { it.copy(tgBotBackup = v) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_tg_login_notify),
+                checked = flags.tgBotLoginNotify,
+                onChange = { v -> onChange { it.copy(tgBotLoginNotify = v) } },
+            )
+            IntField(
+                label = stringResource(R.string.panel_setup_tg_cpu),
+                value = flags.tgCpu,
+                onValueChange = { v -> onChange { it.copy(tgCpu = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_tg_lang),
+                value = flags.tgLang,
+                onValueChange = { v -> onChange { it.copy(tgLang = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_time_location),
+                value = flags.timeLocation,
+                onValueChange = { v -> onChange { it.copy(timeLocation = v) } },
+            )
+        }
+
+        // ── Web / panel host ───────────────────────────────────────────────
+        SectionCard(stringResource(R.string.panel_setup_section_web)) {
+            TextField(
+                label = stringResource(R.string.panel_setup_web_domain),
+                value = flags.webDomain,
+                onValueChange = { v -> onChange { it.copy(webDomain = v) } },
+            )
+            IntField(
+                label = stringResource(R.string.panel_setup_web_port),
+                value = flags.webPort,
+                onValueChange = { v -> onChange { it.copy(webPort = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_web_base_path),
+                value = flags.webBasePath,
+                onValueChange = { v -> onChange { it.copy(webBasePath = v) } },
+            )
+            IntField(
+                label = stringResource(R.string.panel_setup_web_session_max_age),
+                value = flags.sessionMaxAge,
+                onValueChange = { v -> onChange { it.copy(sessionMaxAge = v) } },
+            )
+            IntField(
+                label = stringResource(R.string.panel_setup_web_page_size),
+                value = flags.pageSize,
+                onValueChange = { v -> onChange { it.copy(pageSize = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_web_trusted_cidrs),
+                value = flags.trustedProxyCIDRs,
+                onValueChange = { v -> onChange { it.copy(trustedProxyCIDRs = v) } },
+            )
+            TextField(
+                label = stringResource(R.string.panel_setup_web_datepicker),
+                value = flags.datepicker,
+                onValueChange = { v -> onChange { it.copy(datepicker = v) } },
+            )
+        }
+
+        // ── 2FA ────────────────────────────────────────────────────────────
+        SectionCard(stringResource(R.string.panel_setup_section_2fa)) {
+            ToggleRow(
+                label = stringResource(R.string.panel_setup_2fa_enable),
+                checked = flags.twoFactorEnable,
+                onChange = { v -> onChange { it.copy(twoFactorEnable = v) } },
+            )
+            Text(
+                text = stringResource(R.string.panel_setup_2fa_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // ── Save / dangerous actions ────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.panel_setup_section_sub), style = MaterialTheme.typography.titleMedium)
-
-                ToggleRow(
-                    label = stringResource(R.string.panel_setup_sub_enable),
-                    checked = flags.enable,
-                    onChange = { v -> onChange { it.copy(enable = v) } },
-                )
-                OutlinedTextField(
-                    value = flags.uri,
-                    onValueChange = { v -> onChange { it.copy(uri = v) } },
-                    label = { Text(stringResource(R.string.panel_setup_sub_uri)) },
-                    placeholder = { Text("https://example.com:31102/subfs/") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-
-                HorizontalDivider()
-
-                ToggleRow(
-                    label = stringResource(R.string.panel_setup_sub_json_enable),
-                    checked = flags.jsonEnable,
-                    onChange = { v -> onChange { it.copy(jsonEnable = v) } },
-                )
-                OutlinedTextField(
-                    value = flags.jsonUri,
-                    onValueChange = { v -> onChange { it.copy(jsonUri = v) } },
-                    label = { Text(stringResource(R.string.panel_setup_sub_json_uri)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-
-                HorizontalDivider()
-
-                ToggleRow(
-                    label = stringResource(R.string.panel_setup_sub_clash_enable),
-                    checked = flags.clashEnable,
-                    onChange = { v -> onChange { it.copy(clashEnable = v) } },
-                )
-                OutlinedTextField(
-                    value = flags.clashUri,
-                    onValueChange = { v -> onChange { it.copy(clashUri = v) } },
-                    label = { Text(stringResource(R.string.panel_setup_sub_clash_uri)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-
                 Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.panel_setup_save))
                 }
-            }
-        }
-
-        // Dangerous actions
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.panel_setup_section_admin), style = MaterialTheme.typography.titleMedium)
                 OutlinedButton(onClick = onChangeCreds, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.panel_setup_change_creds))
                 }
@@ -227,11 +368,60 @@ private fun Content(
 }
 
 @Composable
+private fun SectionCard(title: String, content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            content()
+        }
+    }
+}
+
+@Composable
 private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Switch(checked = checked, onCheckedChange = onChange)
     }
+}
+
+@Composable
+private fun TextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isPassword: Boolean = false,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        visualTransformation = if (isPassword) {
+            androidx.compose.ui.text.input.PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
+    )
+}
+
+@Composable
+private fun IntField(label: String, value: Int, onValueChange: (Int) -> Unit) {
+    OutlinedTextField(
+        value = if (value == 0) "" else value.toString(),
+        onValueChange = { raw ->
+            val parsed = raw.filter { it.isDigit() }.toIntOrNull() ?: 0
+            onValueChange(parsed)
+        },
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+    )
 }
 
 @Composable

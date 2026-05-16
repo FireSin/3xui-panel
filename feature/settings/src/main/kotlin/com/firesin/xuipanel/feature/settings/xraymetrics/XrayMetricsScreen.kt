@@ -174,6 +174,11 @@ private fun ObservatoryCard(entries: List<XrayObservatoryEntryDto>) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    stringResource(R.string.xray_metrics_observatory_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else {
                 entries.forEachIndexed { idx, entry ->
                     if (idx > 0) HorizontalDivider()
@@ -188,7 +193,7 @@ private fun ObservatoryCard(entries: List<XrayObservatoryEntryDto>) {
 private fun ObservatoryRow(entry: XrayObservatoryEntryDto) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(text = entry.outbound, style = MaterialTheme.typography.bodyMedium)
+            Text(text = entry.tag, style = MaterialTheme.typography.bodyMedium)
             Text(
                 text = if (entry.alive) {
                     stringResource(R.string.xray_metrics_observatory_alive, entry.delay)

@@ -189,6 +189,42 @@
     <string name="panel_setup_restart_message">Панель будет недоступна примерно 5-10 секунд. Подключения и API-вызовы прервутся.</string>
     <string name="panel_setup_restart_confirm">Перезапустить</string>
     <string name="panel_setup_restart_started">Команда отправлена. Панель перезапускается.</string>
+    <!-- Subscription extras -->
+    <string name="panel_setup_sub_port">Порт подписки (subPort)</string>
+    <string name="panel_setup_sub_path">Путь (subPath)</string>
+    <string name="panel_setup_sub_domain">Домен подписки (subDomain)</string>
+    <string name="panel_setup_sub_updates">subUpdates (часы)</string>
+    <string name="panel_setup_sub_routing">Routing для подписки</string>
+    <string name="panel_setup_sub_encrypt">Шифрование подписки</string>
+    <string name="panel_setup_sub_show_info">Показывать инфо в подписке</string>
+    <string name="panel_setup_sub_json_path">Путь JSON (subJsonPath)</string>
+    <string name="panel_setup_sub_clash_path">Путь Clash (subClashPath)</string>
+    <!-- Telegram section -->
+    <string name="panel_setup_section_tg">Telegram-бот</string>
+    <string name="panel_setup_tg_enable">Включить Telegram-бот</string>
+    <string name="panel_setup_tg_token">Bot token</string>
+    <string name="panel_setup_tg_chat_id">Chat ID</string>
+    <string name="panel_setup_tg_proxy">Прокси (опц., socks5://…)</string>
+    <string name="panel_setup_tg_api_server">Свой API server (опц.)</string>
+    <string name="panel_setup_tg_run_time">Расписание (cron)</string>
+    <string name="panel_setup_tg_backup">Бэкап БД в TG по расписанию</string>
+    <string name="panel_setup_tg_login_notify">Оповещать о входе в панель</string>
+    <string name="panel_setup_tg_cpu">CPU-порог (0 = выкл)</string>
+    <string name="panel_setup_tg_lang">Язык TG</string>
+    <string name="panel_setup_time_location">Часовой пояс (timeLocation)</string>
+    <!-- Web section -->
+    <string name="panel_setup_section_web">Веб-интерфейс</string>
+    <string name="panel_setup_web_domain">webDomain</string>
+    <string name="panel_setup_web_port">webPort</string>
+    <string name="panel_setup_web_base_path">webBasePath</string>
+    <string name="panel_setup_web_session_max_age">sessionMaxAge</string>
+    <string name="panel_setup_web_page_size">pageSize</string>
+    <string name="panel_setup_web_trusted_cidrs">trustedProxyCIDRs</string>
+    <string name="panel_setup_web_datepicker">datepicker (gregorian/jalalian)</string>
+    <!-- 2FA section -->
+    <string name="panel_setup_section_2fa">Двухфакторная аутентификация</string>
+    <string name="panel_setup_2fa_enable">Включить 2FA</string>
+    <string name="panel_setup_2fa_hint">Секрет (twoFactorToken) настраивается в веб-интерфейсе панели — здесь только переключатель.</string>
 
     <!-- Crypto generators screen -->
     <string name="settings_crypto_gen_entry">Криптогенераторы</string>
@@ -214,6 +250,7 @@
     <string name="outbounds_xray_output">Вывод Xray</string>
     <string name="outbounds_no_active_panel">Сначала выберите активную панель.</string>
     <string name="outbounds_empty">На панели нет outbound\'ов.</string>
+    <string name="outbounds_intro">Outbound\'ы — это направления выхода трафика из Xray (direct, blocked, прокси-цепочки). Здесь видно счётчики по каждому тегу, можно проверить связность (значок Wi-Fi) и обнулить трафик (значок круга).</string>
     <string name="outbounds_up">Up</string>
     <string name="outbounds_down">Down</string>
     <string name="outbounds_total">Total</string>
@@ -240,10 +277,11 @@
     <string name="xray_metrics_unknown">Не удалось получить статус.</string>
     <string name="xray_metrics_enabled">Метрики активны — можно подключить графики и алерты.</string>
     <string name="xray_metrics_disabled">Метрики не настроены.</string>
-    <string name="xray_metrics_disabled_hint">Добавьте блок `metrics` в Xray template, перезапустите Xray — после этого появятся графики.</string>
+    <string name="xray_metrics_disabled_hint">Чтобы включить, добавьте блок `metrics` и api-inbound в Xray template и перезапустите Xray. Через приложение шаблон редактировать нельзя — это делается в веб-интерфейсе панели (страница Xray Config) или прямо в config.json.</string>
     <string name="xray_metrics_listen">Listen: %1$s</string>
-    <string name="xray_metrics_history_hint">История доступна через API, графики добавлю когда настроите.</string>
+    <string name="xray_metrics_history_hint">История доступна через API — графики появятся как только метрики начнут сыпать данные.</string>
     <string name="xray_metrics_observatory_empty">Observatory не настроен в xray-template — нет данных о latency outbound\'ов.</string>
+    <string name="xray_metrics_observatory_hint">Включается блоком `observatory` в Xray template + перезапуск Xray. После настройки появятся probe-результаты по тегам outbound\'ов.</string>
     <string name="xray_metrics_observatory_alive">Жив · задержка %1$d мс</string>
     <string name="xray_metrics_observatory_dead">Недоступен</string>
 

@@ -324,7 +324,7 @@ private fun InboundsContent(
                     host = panel.baseUrl.removePrefix("https://").removePrefix("http://"),
                     status = PanelStatus.Up,
                     onClick = onPanelChipClick,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp),
                 )
             }
             }

@@ -28,7 +28,7 @@ data class XrayMetricsStateResponseDto(
 /** One observatory probe entry — populated when xray observatory is configured. */
 @Serializable
 data class XrayObservatoryEntryDto(
-    @SerialName("outbound") val outbound: String = "",
+    @SerialName("tag") val tag: String = "",
     @SerialName("alive") val alive: Boolean = false,
     @SerialName("delay") val delay: Long = 0,
     @SerialName("lastSeenTime") val lastSeenTime: Long = 0,

@@ -194,21 +194,28 @@ private fun OutboundsList(
     onReset: (String) -> Unit,
     onTest: (String) -> Unit,
 ) {
-    if (items.isEmpty()) {
-        Centered { Text(stringResource(R.string.outbounds_empty)) }
-        return
-    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(items, key = { it.id }) { item ->
-            OutboundCard(
-                item = item,
-                onReset = { onReset(item.tag) },
-                onTest = { onTest(item.tag) },
+        item {
+            Text(
+                text = stringResource(R.string.outbounds_intro),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (items.isEmpty()) {
+            item { Text(stringResource(R.string.outbounds_empty)) }
+        } else {
+            items(items, key = { it.id }) { item ->
+                OutboundCard(
+                    item = item,
+                    onReset = { onReset(item.tag) },
+                    onTest = { onTest(item.tag) },
+                )
+            }
         }
     }
 }

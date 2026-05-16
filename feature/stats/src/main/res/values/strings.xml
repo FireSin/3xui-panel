@@ -29,6 +29,10 @@
 
     <string name="stats_section_by_inbound">By Inbound</string>
     <string name="stats_section_top_clients">Top Clients</string>
+    <!-- Tappable summary chips on Stats screen — same UX as Clients tab. -->
+    <string name="stats_summary_total">Всего</string>
+    <string name="stats_summary_online">Онлайн</string>
+    <string name="stats_summary_expiring">Истекает &lt; 7д</string>
     <!-- %1$s = used, %2$s = total -->
     <string name="stats_client_used_of_total">Использовано %1$s из %2$s</string>
     <!-- %1$s = used (no total set) -->

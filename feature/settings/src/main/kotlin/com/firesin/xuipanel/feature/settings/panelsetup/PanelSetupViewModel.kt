@@ -18,7 +18,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 
@@ -60,15 +62,15 @@ class PanelSetupViewModel @Inject constructor(
         }
     }
 
-    fun updateFlags(transform: (SubFlags) -> SubFlags) {
+    fun updateFlags(transform: (PanelFlags) -> PanelFlags) {
         val s = _uiState.value as? PanelSetupUiState.Content ?: return
         _uiState.value = s.copy(flags = transform(s.flags))
     }
 
-    fun saveSubscription(savedMsg: String) {
+    fun save(savedMsg: String) {
         val s = _uiState.value as? PanelSetupUiState.Content ?: return
         val panel = s.panel
-        val merged = patchSubFields(s.raw, s.flags)
+        val merged = patchFields(s.raw, s.flags)
         viewModelScope.launch {
             _isBusy.value = true
             val result = xuiClient.updateAllSettings(
@@ -159,7 +161,7 @@ class PanelSetupViewModel @Inject constructor(
             is Result.Success -> PanelSetupUiState.Content(
                 panel = panel,
                 raw = result.data,
-                flags = extractSubFlags(result.data),
+                flags = extractFlags(result.data),
             )
             is Result.Failure -> PanelSetupUiState.Error(panel, result.error)
         }
@@ -172,23 +174,95 @@ class PanelSetupViewModel @Inject constructor(
         PanelSetupUiState.NoActivePanel -> null
     }
 
-    private fun extractSubFlags(obj: JsonObject) = SubFlags(
-        enable = obj["subEnable"]?.jsonPrimitive?.boolean ?: false,
-        jsonEnable = obj["subJsonEnable"]?.jsonPrimitive?.boolean ?: false,
-        clashEnable = obj["subClashEnable"]?.jsonPrimitive?.boolean ?: false,
-        uri = obj["subURI"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-        jsonUri = obj["subJsonURI"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-        clashUri = obj["subClashURI"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+    private fun JsonObject.bool(key: String, default: Boolean = false): Boolean =
+        this[key]?.jsonPrimitive?.booleanOrNull ?: default
+
+    private fun JsonObject.str(key: String, default: String = ""): String =
+        this[key]?.jsonPrimitive?.contentOrNull ?: default
+
+    private fun JsonObject.int(key: String, default: Int = 0): Int =
+        this[key]?.jsonPrimitive?.intOrNull ?: default
+
+    private fun extractFlags(obj: JsonObject) = PanelFlags(
+        subEnable = obj.bool("subEnable"),
+        subJsonEnable = obj.bool("subJsonEnable"),
+        subClashEnable = obj.bool("subClashEnable"),
+        subUri = obj.str("subURI"),
+        subJsonUri = obj.str("subJsonURI"),
+        subClashUri = obj.str("subClashURI"),
+        subPort = obj.int("subPort"),
+        subPath = obj.str("subPath"),
+        subJsonPath = obj.str("subJsonPath"),
+        subClashPath = obj.str("subClashPath"),
+        subDomain = obj.str("subDomain"),
+        subUpdates = obj.int("subUpdates"),
+        subEnableRouting = obj.bool("subEnableRouting"),
+        subEncrypt = obj.bool("subEncrypt"),
+        subShowInfo = obj.bool("subShowInfo"),
+
+        tgBotEnable = obj.bool("tgBotEnable"),
+        tgBotToken = obj.str("tgBotToken"),
+        tgBotChatId = obj.str("tgBotChatId"),
+        tgBotProxy = obj.str("tgBotProxy"),
+        tgBotApiServer = obj.str("tgBotAPIServer"),
+        tgRunTime = obj.str("tgRunTime"),
+        tgBotBackup = obj.bool("tgBotBackup"),
+        tgBotLoginNotify = obj.bool("tgBotLoginNotify"),
+        tgLang = obj.str("tgLang"),
+        tgCpu = obj.int("tgCpu"),
+        timeLocation = obj.str("timeLocation"),
+
+        webDomain = obj.str("webDomain"),
+        webPort = obj.int("webPort"),
+        webBasePath = obj.str("webBasePath"),
+        sessionMaxAge = obj.int("sessionMaxAge"),
+        pageSize = obj.int("pageSize"),
+        trustedProxyCIDRs = obj.str("trustedProxyCIDRs"),
+        datepicker = obj.str("datepicker"),
+
+        twoFactorEnable = obj.bool("twoFactorEnable"),
     )
 
-    private fun patchSubFields(original: JsonObject, flags: SubFlags): JsonObject {
+    private fun patchFields(original: JsonObject, flags: PanelFlags): JsonObject {
         val patched = original.toMutableMap()
-        patched["subEnable"] = JsonPrimitive(flags.enable)
-        patched["subJsonEnable"] = JsonPrimitive(flags.jsonEnable)
-        patched["subClashEnable"] = JsonPrimitive(flags.clashEnable)
-        patched["subURI"] = JsonPrimitive(flags.uri)
-        patched["subJsonURI"] = JsonPrimitive(flags.jsonUri)
-        patched["subClashURI"] = JsonPrimitive(flags.clashUri)
+        // Subscription
+        patched["subEnable"] = JsonPrimitive(flags.subEnable)
+        patched["subJsonEnable"] = JsonPrimitive(flags.subJsonEnable)
+        patched["subClashEnable"] = JsonPrimitive(flags.subClashEnable)
+        patched["subURI"] = JsonPrimitive(flags.subUri)
+        patched["subJsonURI"] = JsonPrimitive(flags.subJsonUri)
+        patched["subClashURI"] = JsonPrimitive(flags.subClashUri)
+        patched["subPort"] = JsonPrimitive(flags.subPort)
+        patched["subPath"] = JsonPrimitive(flags.subPath)
+        patched["subJsonPath"] = JsonPrimitive(flags.subJsonPath)
+        patched["subClashPath"] = JsonPrimitive(flags.subClashPath)
+        patched["subDomain"] = JsonPrimitive(flags.subDomain)
+        patched["subUpdates"] = JsonPrimitive(flags.subUpdates)
+        patched["subEnableRouting"] = JsonPrimitive(flags.subEnableRouting)
+        patched["subEncrypt"] = JsonPrimitive(flags.subEncrypt)
+        patched["subShowInfo"] = JsonPrimitive(flags.subShowInfo)
+        // Telegram
+        patched["tgBotEnable"] = JsonPrimitive(flags.tgBotEnable)
+        patched["tgBotToken"] = JsonPrimitive(flags.tgBotToken)
+        patched["tgBotChatId"] = JsonPrimitive(flags.tgBotChatId)
+        patched["tgBotProxy"] = JsonPrimitive(flags.tgBotProxy)
+        patched["tgBotAPIServer"] = JsonPrimitive(flags.tgBotApiServer)
+        patched["tgRunTime"] = JsonPrimitive(flags.tgRunTime)
+        patched["tgBotBackup"] = JsonPrimitive(flags.tgBotBackup)
+        patched["tgBotLoginNotify"] = JsonPrimitive(flags.tgBotLoginNotify)
+        patched["tgLang"] = JsonPrimitive(flags.tgLang)
+        patched["tgCpu"] = JsonPrimitive(flags.tgCpu)
+        patched["timeLocation"] = JsonPrimitive(flags.timeLocation)
+        // Web
+        patched["webDomain"] = JsonPrimitive(flags.webDomain)
+        patched["webPort"] = JsonPrimitive(flags.webPort)
+        patched["webBasePath"] = JsonPrimitive(flags.webBasePath)
+        patched["sessionMaxAge"] = JsonPrimitive(flags.sessionMaxAge)
+        patched["pageSize"] = JsonPrimitive(flags.pageSize)
+        patched["trustedProxyCIDRs"] = JsonPrimitive(flags.trustedProxyCIDRs)
+        patched["datepicker"] = JsonPrimitive(flags.datepicker)
+        // 2FA — only the on/off flag; secret rotation is a separate panel-side action.
+        patched["twoFactorEnable"] = JsonPrimitive(flags.twoFactorEnable)
         return JsonObject(patched)
     }
 }

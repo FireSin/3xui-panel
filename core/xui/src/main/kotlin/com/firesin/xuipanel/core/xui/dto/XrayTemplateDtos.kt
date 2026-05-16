@@ -2,18 +2,21 @@ package com.firesin.xuipanel.core.xui.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 /**
  * `POST /panel/xray/` — Xray config template + tag lists.
  *
- * NOTE: `xraySetting` is a raw JSON *string* (escaped), not a nested object. The other tag
- * fields look like raw strings on the wire too but are actually JSON-encoded arrays.
+ * Wire shape: `obj` is a JSON-encoded **string** containing the whole object — not a nested
+ * JSON object. After decoding that outer string, [xraySetting] is itself a structured
+ * Xray config tree (log/api/inbounds/outbounds/policy/routing/stats), so we keep it as a
+ * raw [JsonObject] and let callers traverse/mutate it directly.
  */
 @Serializable
 data class XrayTemplateObjDto(
-    @SerialName("xraySetting") val xraySetting: String = "",
-    @SerialName("inboundTags") val inboundTags: String = "",
-    @SerialName("clientReverseTags") val clientReverseTags: String = "",
+    @SerialName("xraySetting") val xraySetting: JsonObject = JsonObject(emptyMap()),
+    @SerialName("inboundTags") val inboundTags: List<String> = emptyList(),
+    @SerialName("clientReverseTags") val clientReverseTags: List<String> = emptyList(),
     @SerialName("outboundTestUrl") val outboundTestUrl: String = "",
 )
 
@@ -21,7 +24,7 @@ data class XrayTemplateObjDto(
 data class XrayTemplateResponseDto(
     @SerialName("success") val success: Boolean,
     @SerialName("msg") val msg: String? = null,
-    @SerialName("obj") val obj: XrayTemplateObjDto? = null,
+    @SerialName("obj") val obj: String? = null,
 )
 
 /** `POST /panel/xray/testOutbound` — result inside outer envelope. */

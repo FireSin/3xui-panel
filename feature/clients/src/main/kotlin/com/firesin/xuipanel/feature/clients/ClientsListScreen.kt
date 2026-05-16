@@ -1,6 +1,7 @@
 package com.firesin.xuipanel.feature.clients
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -361,13 +362,24 @@ private fun ClientsContent(
             ) {
                 val isSupported = selectedInbound?.protocol?.isSupportedProtocol() ?: false
 
-                // Local search state — filtered inline without touching VM
+                // Local search + summary filter — applied inline, VM stays untouched.
                 var query by remember { mutableStateOf("") }
-                val filteredClients = if (query.isBlank()) {
-                    uiState.clients
-                } else {
-                    uiState.clients.filter { it.email.contains(query, ignoreCase = true) }
-                }
+                var activeFilter by remember { mutableStateOf(ClientsListFilter.None) }
+                val filteredClients = uiState.clients
+                    .let { list ->
+                        when (activeFilter) {
+                            ClientsListFilter.None -> list
+                            ClientsListFilter.Online ->
+                                if (uiState.onlinesAvailable) list.filter { it.email in uiState.onlineEmails }
+                                else list
+                            ClientsListFilter.Expiring ->
+                                list.filter { it.isExpiringWithin(EXPIRING_WINDOW_DAYS) }
+                        }
+                    }
+                    .let { list ->
+                        if (query.isBlank()) list
+                        else list.filter { it.email.contains(query, ignoreCase = true) }
+                    }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -403,7 +415,7 @@ private fun ClientsContent(
                         }
                     }
 
-                    // Summary cards (Total / Online / Expiring soon)
+                    // Summary cards (Total / Online / Expiring soon) — tap to filter.
                     item {
                         ClientsSummaryCards(
                             total = uiState.clients.size,
@@ -411,6 +423,10 @@ private fun ClientsContent(
                                 uiState.clients.count { it.email in uiState.onlineEmails }
                             } else null,
                             expiringSoon = uiState.clients.count { it.isExpiringWithin(EXPIRING_WINDOW_DAYS) },
+                            activeFilter = activeFilter,
+                            onFilterToggle = { f ->
+                                activeFilter = if (activeFilter == f) ClientsListFilter.None else f
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
@@ -491,43 +507,89 @@ private fun ClientConfig.isExpiringWithin(days: Long): Boolean {
     return remaining in 0..(days * DAY_MS)
 }
 
+internal enum class ClientsListFilter { None, Online, Expiring }
+
 @Composable
 private fun ClientsSummaryCards(
     total: Int,
     online: Int?,
     expiringSoon: Int,
+    activeFilter: ClientsListFilter,
+    onFilterToggle: (ClientsListFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val items = buildList {
-        add(SummaryItem(stringResource(R.string.clients_summary_total), total.toString(), warn = false))
+        add(
+            SummaryItem(
+                caption = stringResource(R.string.clients_summary_total),
+                value = total.toString(),
+                warn = false,
+                filter = ClientsListFilter.None,
+            ),
+        )
         if (online != null) {
-            add(SummaryItem(stringResource(R.string.clients_summary_online), online.toString(), warn = false))
+            add(
+                SummaryItem(
+                    caption = stringResource(R.string.clients_summary_online),
+                    value = online.toString(),
+                    warn = false,
+                    filter = ClientsListFilter.Online,
+                ),
+            )
         }
-        add(SummaryItem(
-            caption = stringResource(R.string.clients_summary_expiring),
-            value = expiringSoon.toString(),
-            warn = expiringSoon > 0,
-        ))
+        add(
+            SummaryItem(
+                caption = stringResource(R.string.clients_summary_expiring),
+                value = expiringSoon.toString(),
+                warn = expiringSoon > 0,
+                filter = ClientsListFilter.Expiring,
+            ),
+        )
     }
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items.forEach { entry ->
-            SummaryCard(entry = entry, modifier = Modifier.weight(1f))
+            // Total card resets the filter; Online/Expiring toggle theirs on/off.
+            SummaryCard(
+                entry = entry,
+                selected = entry.filter != ClientsListFilter.None && entry.filter == activeFilter,
+                onClick = {
+                    if (entry.filter == ClientsListFilter.None) onFilterToggle(ClientsListFilter.None)
+                    else onFilterToggle(entry.filter)
+                },
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
 
-private data class SummaryItem(val caption: String, val value: String, val warn: Boolean)
+private data class SummaryItem(
+    val caption: String,
+    val value: String,
+    val warn: Boolean,
+    val filter: ClientsListFilter,
+)
 
 @Composable
-private fun SummaryCard(entry: SummaryItem, modifier: Modifier = Modifier) {
+private fun SummaryCard(
+    entry: SummaryItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val border = if (selected) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+    }
     Surface(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surface,
+        border = border,
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Text(

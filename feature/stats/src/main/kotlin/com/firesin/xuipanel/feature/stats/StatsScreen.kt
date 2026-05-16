@@ -39,8 +39,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -68,6 +72,11 @@ import com.firesin.xuipanel.feature.stats.ui.ExpiryText
 
 private val HeroShape = RoundedCornerShape(18.dp)
 private val ProgressShape = RoundedCornerShape(2.dp)
+
+internal enum class StatsListFilter { None, Online, Expiring }
+
+/** Same window as Clients tab — keeps "expiring" semantics aligned. */
+private const val STATS_EXPIRING_WINDOW_MS = 7L * 24L * 60L * 60L * 1_000L
 private const val PROGRESS_HEIGHT_DP = 4
 private const val LEGEND_DOT_DP = 8
 private const val TOP_CLIENTS_LIMIT = 5
@@ -156,6 +165,26 @@ private fun StatsContent(
                     .fillMaxSize()
                     .padding(padding),
             ) {
+                // Aggregate counts across all inbounds for the summary chips.
+                val allClients = uiState.inbounds.flatMap { it.clientStats.orEmpty() }
+                val totalClients = allClients.size
+                val onlineClients = if (uiState.onlinesAvailable) {
+                    allClients.count { it.email in uiState.onlineEmails }
+                } else null
+                val expiringClients = allClients.count {
+                    it.expiryTime > 0L && it.expiryTime - System.currentTimeMillis() in 0..STATS_EXPIRING_WINDOW_MS
+                }
+                var activeFilter by remember { mutableStateOf(StatsListFilter.None) }
+                fun clientMatches(c: com.firesin.xuipanel.core.xui.dto.ClientStatDto): Boolean =
+                    when (activeFilter) {
+                        StatsListFilter.None -> true
+                        StatsListFilter.Online ->
+                            !uiState.onlinesAvailable || c.email in uiState.onlineEmails
+                        StatsListFilter.Expiring ->
+                            c.expiryTime > 0L &&
+                                c.expiryTime - System.currentTimeMillis() in 0..STATS_EXPIRING_WINDOW_MS
+                    }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp),
@@ -184,6 +213,22 @@ private fun StatsContent(
                         )
                     }
 
+                    // Summary chips — tap Online / Expiring to filter client rows
+                    item {
+                        StatsSummaryChips(
+                            total = totalClients,
+                            online = onlineClients,
+                            expiring = expiringClients,
+                            activeFilter = activeFilter,
+                            onFilterToggle = { f ->
+                                activeFilter = if (activeFilter == f) StatsListFilter.None else f
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+
                     // BY INBOUND section
                     item {
                         SectionHeader(title = stringResource(R.string.stats_section_by_inbound))
@@ -205,6 +250,7 @@ private fun StatsContent(
                                     onlinesAvailable = uiState.onlinesAvailable,
                                     chartPoints = chartPoints,
                                     topDivider = index > 0,
+                                    clientFilter = ::clientMatches,
                                     onToggle = { onToggleExpanded(inbound.id) },
                                     onClient = { emailKey, clientLabel ->
                                         onNavigateToClientStats(
@@ -219,13 +265,14 @@ private fun StatsContent(
                         }
                     }
 
-                    // TOP CLIENTS section
+                    // TOP CLIENTS section — same filter applies
                     val topClients = uiState.inbounds
                         .flatMap { inbound ->
                             inbound.clientStats.orEmpty().map { cs ->
                                 Pair(inbound.id, cs)
                             }
                         }
+                        .filter { (_, cs) -> clientMatches(cs) }
                         .sortedByDescending { (_, cs) -> cs.up + cs.down }
                         .take(TOP_CLIENTS_LIMIT)
 
@@ -374,6 +421,7 @@ private fun InboundRow(
     onlinesAvailable: Boolean,
     chartPoints: List<DailyPoint>,
     topDivider: Boolean,
+    clientFilter: (ClientStatDto) -> Boolean,
     onToggle: () -> Unit,
     onClient: (emailKey: String, clientLabel: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -447,7 +495,7 @@ private fun InboundRow(
         // Expanded: client list + chart
         AnimatedVisibility(visible = expanded) {
             Column {
-                inbound.clientStats.orEmpty().forEach { client ->
+                inbound.clientStats.orEmpty().filter(clientFilter).forEach { client ->
                     ClientRow(
                         client = client,
                         online = client.email in onlineEmails,
@@ -568,5 +616,91 @@ private fun StatsScreenNoActivePanelPreview() {
             onRangeChange = {},
             chartFlow = { _, _ -> kotlinx.coroutines.flow.flowOf(emptyList()) },
         )
+    }
+}
+
+// ── Summary chips (tap to filter expanded client lists + top clients) ────────
+
+@Composable
+private fun StatsSummaryChips(
+    total: Int,
+    online: Int?,
+    expiring: Int,
+    activeFilter: StatsListFilter,
+    onFilterToggle: (StatsListFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val items = buildList {
+        add(StatsChipItem(stringResource(R.string.stats_summary_total), total.toString(), StatsListFilter.None, false))
+        if (online != null) {
+            add(StatsChipItem(stringResource(R.string.stats_summary_online), online.toString(), StatsListFilter.Online, false))
+        }
+        add(StatsChipItem(stringResource(R.string.stats_summary_expiring), expiring.toString(), StatsListFilter.Expiring, expiring > 0))
+    }
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach { entry ->
+            StatsChip(
+                entry = entry,
+                selected = entry.filter != StatsListFilter.None && entry.filter == activeFilter,
+                onClick = {
+                    if (entry.filter == StatsListFilter.None) onFilterToggle(StatsListFilter.None)
+                    else onFilterToggle(entry.filter)
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+private data class StatsChipItem(
+    val caption: String,
+    val value: String,
+    val filter: StatsListFilter,
+    val warn: Boolean,
+)
+
+@Composable
+private fun StatsChip(
+    entry: StatsChipItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val border = if (selected) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+    }
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surface,
+        border = border,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = entry.caption,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = entry.value,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = MonoFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                ),
+                color = if (entry.warn) MaterialTheme.colorScheme.tertiary
+                else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
     }
 }
