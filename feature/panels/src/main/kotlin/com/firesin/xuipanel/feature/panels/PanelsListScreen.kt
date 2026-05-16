@@ -6,9 +6,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +30,6 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -204,7 +201,7 @@ fun PanelsListScreen(
         onMenuClick = onMenuClick,
         onPanelTap = { panel ->
             viewModel.setActive(panel.id)
-            onPanelSelected(panel.id)
+            onEditPanel(panel.id)
         },
         onEditPanel = onEditPanel,
         onDeletePanel = { panel -> pendingDeletePanel = panel },
@@ -393,7 +390,6 @@ private const val AVATAR_SIZE_DP = 38
 private const val STATUS_DOT_SIZE_DP = 12
 private const val STATUS_DOT_BORDER_DP = 2
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun APanelRow(
     panel: Panel,
@@ -405,7 +401,6 @@ private fun APanelRow(
     modifier: Modifier = Modifier,
 ) {
     val isWarn = panel.tlsMode == TlsMode.PINNED
-    var menuExpanded by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (topDivider) {
@@ -419,10 +414,7 @@ private fun APanelRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onTap,
-                    onLongClick = { menuExpanded = true },
-                )
+                .clickable(onClick = onTap)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -463,36 +455,14 @@ private fun APanelRow(
                 )
             }
 
-            // Chevron + context menu
-            Box {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .alpha(0.55f),
-                )
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.panels_menu_edit)) },
-                        onClick = {
-                            menuExpanded = false
-                            onEdit()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.panels_menu_delete)) },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        },
-                    )
-                }
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(20.dp)
+                    .alpha(0.55f),
+            )
         }
     }
 }

@@ -68,10 +68,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -2585,14 +2583,21 @@ class XuiClient @Inject constructor(
     }
 
     /**
-     * Mutate the given xraySetting to enable Xray Metrics:
-     * adds `metrics.tag = Metrics_in` + dokodemo-door inbound + routing rule + stats/policy flags.
-     * Idempotent — calling on an already-enabled config is a no-op.
+     * Mutate the given xraySetting to enable Xray Metrics. Adds the canonical
+     * `metrics: {tag: "metrics_out", listen: "127.0.0.1:11111"}` block — xray spawns its
+     * own expvar HTTP server on that listen, no dokodemo-door inbound needed.
+     * Also ensures `stats: {}` and `policy.system` stats flags exist.
+     * Idempotent; preserves any existing metrics tag if already set.
      */
     fun enableXrayMetrics(xraySetting: JsonObject): JsonObject {
         val mutable = xraySetting.toMutableMap()
 
-        mutable["metrics"] = buildJsonObject { put("tag", "Metrics_in") }
+        val existing = mutable["metrics"] as? JsonObject
+        val tag = existing?.get("tag")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: "metrics_out"
+        mutable["metrics"] = buildJsonObject {
+            put("tag", tag)
+            put("listen", "127.0.0.1:11111")
+        }
         if (mutable["stats"] !is JsonObject) mutable["stats"] = JsonObject(emptyMap())
 
         val policy = (mutable["policy"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
@@ -2604,46 +2609,14 @@ class XuiClient @Inject constructor(
         policy["system"] = JsonObject(system)
         mutable["policy"] = JsonObject(policy)
 
-        val inbounds = (mutable["inbounds"] as? JsonArray)?.toMutableList() ?: mutableListOf()
-        val hasMetricsInbound = inbounds.any {
-            (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull == "Metrics_in"
-        }
-        if (!hasMetricsInbound) {
-            inbounds.add(buildJsonObject {
-                put("tag", "Metrics_in")
-                put("listen", "127.0.0.1")
-                put("port", 11111)
-                put("protocol", "dokodemo-door")
-                putJsonObject("settings") { put("address", "127.0.0.1") }
-            })
-        }
-        mutable["inbounds"] = JsonArray(inbounds)
-
-        val routing = (mutable["routing"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
-        val rules = (routing["rules"] as? JsonArray)?.toMutableList() ?: mutableListOf()
-        val hasRule = rules.any { r ->
-            val ro = r as? JsonObject ?: return@any false
-            val tags = ro["inboundTag"] as? JsonArray ?: return@any false
-            tags.any { it.jsonPrimitive.contentOrNull == "Metrics_in" } &&
-                ro["outboundTag"]?.jsonPrimitive?.contentOrNull == "api"
-        }
-        if (!hasRule) {
-            rules.add(0, buildJsonObject {
-                put("type", "field")
-                put("inboundTag", buildJsonArray { add(JsonPrimitive("Metrics_in")) })
-                put("outboundTag", "api")
-            })
-        }
-        routing["rules"] = JsonArray(rules)
-        mutable["routing"] = JsonObject(routing)
-
         return JsonObject(mutable)
     }
 
     /**
-     * Mutate the given xraySetting to disable Xray Metrics:
-     * removes `metrics` field, the Metrics_in inbound, and the routing rule that ferries
-     * Metrics_in → api. Leaves `stats`/`policy.system` flags untouched (often used elsewhere).
+     * Mutate the given xraySetting to disable Xray Metrics. Removes the `metrics` block.
+     * Leaves `stats`/`policy.system` flags untouched (often used elsewhere for client stats).
+     * Also cleans up any stale Metrics_in dokodemo-door inbound + routing rule from older
+     * versions of [enableXrayMetrics] that mistakenly added them.
      */
     fun disableXrayMetrics(xraySetting: JsonObject): JsonObject {
         val mutable = xraySetting.toMutableMap()
@@ -2651,8 +2624,8 @@ class XuiClient @Inject constructor(
 
         val inbounds = (mutable["inbounds"] as? JsonArray)?.filter {
             (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull != "Metrics_in"
-        } ?: emptyList()
-        mutable["inbounds"] = JsonArray(inbounds)
+        }
+        if (inbounds != null) mutable["inbounds"] = JsonArray(inbounds)
 
         val routing = (mutable["routing"] as? JsonObject)?.toMutableMap()
         if (routing != null) {
@@ -2669,14 +2642,10 @@ class XuiClient @Inject constructor(
         return JsonObject(mutable)
     }
 
-    /** Heuristic: metrics is enabled iff xraySetting has `metrics.tag` and a Metrics_in inbound. */
+    /** Heuristic: metrics is enabled iff `xraySetting.metrics.listen` is non-blank. */
     fun isXrayMetricsEnabled(xraySetting: JsonObject): Boolean {
-        val hasMetricsField = (xraySetting["metrics"] as? JsonObject)
-            ?.get("tag")?.jsonPrimitive?.contentOrNull?.isNotBlank() == true
-        val hasMetricsInbound = (xraySetting["inbounds"] as? JsonArray)?.any {
-            (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull == "Metrics_in"
-        } == true
-        return hasMetricsField && hasMetricsInbound
+        return (xraySetting["metrics"] as? JsonObject)
+            ?.get("listen")?.jsonPrimitive?.contentOrNull?.isNotBlank() == true
     }
 
     /**
