@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.PanelAuth
 import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.PinMismatchEvent
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.twofactor.TwoFactorOtpBus
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
@@ -89,6 +90,7 @@ class XuiClient @Inject constructor(
     private val sessionCache: XuiSessionCache,
     private val pinMismatchEvents: PinMismatchEventDispatcher,
     private val wsUiEvents: WsUiEventDispatcher,
+    private val twoFactorOtpBus: TwoFactorOtpBus,
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -178,7 +180,13 @@ class XuiClient @Inject constructor(
                 if (response.code() == HTTP_UNAUTHORIZED) {
                     sessionCache.invalidate(panelId)
                     clientFactory.getCookieJar(panelId, tls).clear()
-                    login(api, panelId, auth.username, auth.password)
+                    if (auth.twoFactorEnabled) {
+                        val otp = twoFactorOtpBus.requestOtp(panelId, auth.panelName)
+                        if (otp.isNullOrBlank()) throw XuiAuthException(panelId)
+                        login(api, panelId, auth.username, auth.password, twoFactorCode = otp)
+                    } else {
+                        login(api, panelId, auth.username, auth.password)
+                    }
 
                     val retryResponse = call(api)
                     if (retryResponse.code() == HTTP_UNAUTHORIZED) {
@@ -192,7 +200,13 @@ class XuiClient @Inject constructor(
         }
     }
 
-    private suspend fun login(api: XuiApi, panelId: String, username: String, password: String) {
+    private suspend fun login(
+        api: XuiApi,
+        panelId: String,
+        username: String,
+        password: String,
+        twoFactorCode: String? = null,
+    ) {
         // Recent 3x-ui forks gate POST /login behind X-CSRF-Token; older builds accept
         // an empty header. Fetching csrf-token also seeds the cookie jar with a session
         // cookie that the login response then upgrades into the authenticated session.
@@ -201,7 +215,7 @@ class XuiClient @Inject constructor(
             ?.takeIf { it.isSuccessful }
             ?.body()?.obj
             .orEmpty()
-        val response = api.login(csrf, LoginRequestDto(username = username, password = password))
+        val response = api.login(csrf, LoginRequestDto(username = username, password = password, twoFactorCode = twoFactorCode))
         if (!response.isSuccessful || response.body()?.success != true) {
             throw XuiAuthException(panelId)
         }

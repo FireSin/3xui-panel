@@ -2,6 +2,7 @@ package com.firesin.xuipanel.core.xui
 
 import com.firesin.xuipanel.core.common.DomainError
 import com.firesin.xuipanel.core.common.Result
+import com.firesin.xuipanel.core.common.twofactor.NoOpTwoFactorOtpBus
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
 import io.mockk.mockk
@@ -32,7 +33,7 @@ class XuiClientErrorMappingTest {
         val clientFactory: OkHttpClientFactory = mockk(relaxed = true)
         val sessionCache: XuiSessionCache = mockk(relaxed = true)
         val pinMismatchEvents = spyk(PinMismatchEventDispatcher())
-        xuiClient = XuiClient(clientFactory, sessionCache, pinMismatchEvents, WsUiEventDispatcher())
+        xuiClient = XuiClient(clientFactory, sessionCache, pinMismatchEvents, WsUiEventDispatcher(), NoOpTwoFactorOtpBus)
     }
 
     // ---- toDomainError ----

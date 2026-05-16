@@ -12,11 +12,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.firesin.xuipanel.core.designsystem.theme.XuiPanelTheme
 import com.firesin.xuipanel.feature.lock.LockGate
 import com.firesin.xuipanel.feature.panels.navigation.panelEditRoute
 import com.firesin.xuipanel.navigation.XuiNavHost
+import com.firesin.xuipanel.ui.TwoFactorOtpHost
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -67,7 +71,10 @@ class MainActivity : FragmentActivity() {
                 }
                 val installId by viewModel.installId.collectAsStateWithLifecycle()
                 LockGate(onFinishApp = ::finishAffinity) {
-                    XuiNavHost(navController = navController, installId = installId)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        XuiNavHost(navController = navController, installId = installId)
+                        TwoFactorOtpHost()
+                    }
                 }
             }
         }

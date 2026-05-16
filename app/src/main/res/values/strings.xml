@@ -14,4 +14,10 @@
     <string name="label_share">Share</string>
     <string name="label_stats">Stats</string>
     <string name="drawer_nodes">Ноды</string>
+    <!-- 2FA OTP dialog (shown by TwoFactorOtpHost overlay) -->
+    <string name="twofa_dialog_title">Требуется код 2FA</string>
+    <string name="twofa_dialog_body">Сессия панели «%1$s» истекла. Введите OTP-код из приложения-аутентификатора.</string>
+    <string name="twofa_dialog_code_label">6-значный код</string>
+    <string name="twofa_dialog_submit">Войти</string>
+    <string name="twofa_dialog_cancel">Отмена</string>
 </resources>
