@@ -37,6 +37,13 @@ interface PanelRepository {
     suspend fun setActive(id: String): Result<Unit, DomainError>
 
     /**
+     * Updates only the stored API token for a panel. Pass `null`/blank to clear.
+     * Does NOT invalidate session cache or HTTP client — the next call simply picks the
+     * new auth mode via [com.firesin.xuipanel.core.data.model.toAuth].
+     */
+    suspend fun setApiToken(id: String, token: String?): Result<Unit, DomainError>
+
+    /**
      * Replaces ALL panels atomically with [panels].
      * Returns the count of inserted panels on success.
      */

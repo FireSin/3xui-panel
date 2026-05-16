@@ -2727,13 +2727,16 @@ class XuiClient @Inject constructor(
             return@channelFlow
         }
 
-        // Establish cookie session on the long-lived OkHttp client (shared cookie jar).
+        // Re-use the cached cookie session if we already have one — avoids spamming login()
+        // on every panel switch (the WS Flow is re-collected on each active-panel change).
         val api = apiFor(baseUrl, panelId, tls)
-        try {
-            login(api, panelId, username, password)
-        } catch (cause: Throwable) {
-            close(cause)
-            return@channelFlow
+        if (sessionCache.get(panelId) == null) {
+            try {
+                login(api, panelId, username, password)
+            } catch (cause: Throwable) {
+                close(cause)
+                return@channelFlow
+            }
         }
 
         val httpClient = clientFactory.getClient(panelId, tls)

@@ -239,6 +239,13 @@ class PanelRepositoryImpl @Inject constructor(
         return Result.Success(Unit)
     }
 
+    override suspend fun setApiToken(id: String, token: String?): Result<Unit, DomainError> {
+        val existing = dao.getById(id)
+            ?: return Result.Failure(DomainError.Unexpected(NoSuchElementException("Panel $id not found")))
+        dao.insert(existing.copy(apiToken = token?.takeIf { it.isNotBlank() }))
+        return Result.Success(Unit)
+    }
+
     override suspend fun replaceAll(panels: List<Panel>): Result<Int, DomainError> =
         runCatching {
             db.withTransaction {
