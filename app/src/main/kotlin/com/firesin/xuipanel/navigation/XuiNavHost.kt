@@ -94,7 +94,7 @@ fun XuiNavHost(
             shareGraph(navController)
             statsGraph(navController)
             clientStatsGraph(navController)
-            settingsGraph(navController = navController)
+            settingsGraph(navController = navController, panelsAddRoute = PanelAddRoute)
             nodesGraph(navController = navController)
         }
     }

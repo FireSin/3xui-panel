@@ -21,6 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Menu
+import com.firesin.xuipanel.core.designsystem.component.PanelChip
+import com.firesin.xuipanel.core.designsystem.component.PanelStatus
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherEntry
+import com.firesin.xuipanel.core.designsystem.component.PanelSwitcherSheet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -79,9 +83,8 @@ fun SettingsScreen(
     onNavigateToApiTokens: () -> Unit = {},
     onNavigateToPanelSetup: () -> Unit = {},
     onNavigateToCryptoGen: () -> Unit = {},
-    onNavigateToOutbounds: () -> Unit = {},
     onNavigateToWarpNord: () -> Unit = {},
-    onNavigateToXrayTemplate: () -> Unit = {},
+    onAddPanel: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val lockToggleState by viewModel.lockToggleState.collectAsStateWithLifecycle()
@@ -97,6 +100,8 @@ fun SettingsScreen(
     val autoBackupLastResult by viewModel.autoBackupLastResult.collectAsStateWithLifecycle()
     val autoBackupTargetUri by viewModel.autoBackupTargetUri.collectAsStateWithLifecycle()
     val activePanel by viewModel.activePanel.collectAsStateWithLifecycle()
+    val allPanels by viewModel.allPanels.collectAsStateWithLifecycle()
+    var showSwitcher by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var configJsonDialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -194,8 +199,26 @@ fun SettingsScreen(
                 onSelect = viewModel::setThemeMode,
             )
             Spacer(Modifier.height(16.dp))
-            ActivePanelBanner(panelName = activePanel?.name)
-            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.settings_active_panel_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            )
+            activePanel?.let { panel ->
+                PanelChip(
+                    name = panel.name,
+                    host = panel.baseUrl.removePrefix("https://").removePrefix("http://"),
+                    status = PanelStatus.Up,
+                    onClick = { showSwitcher = true },
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            } ?: Text(
+                text = stringResource(R.string.settings_active_panel_none),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+            )
             GeoSourcesCard(onClick = onNavigateToGeoSources)
             Spacer(Modifier.height(8.dp))
             ApiTokensCard(onClick = onNavigateToApiTokens)
@@ -204,11 +227,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             CryptoGenCard(onClick = onNavigateToCryptoGen)
             Spacer(Modifier.height(8.dp))
-            OutboundsCard(onClick = onNavigateToOutbounds)
-            Spacer(Modifier.height(8.dp))
             WarpNordCard(onClick = onNavigateToWarpNord)
-            Spacer(Modifier.height(8.dp))
-            XrayTemplateCard(onClick = onNavigateToXrayTemplate)
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
@@ -260,6 +279,29 @@ fun SettingsScreen(
         ConfigJsonDialog(
             json = json,
             onDismiss = { configJsonDialog = null },
+        )
+    }
+
+    if (showSwitcher) {
+        PanelSwitcherSheet(
+            entries = allPanels.map { p ->
+                PanelSwitcherEntry(
+                    id = p.id,
+                    name = p.name,
+                    host = p.baseUrl.removePrefix("https://").removePrefix("http://"),
+                    status = PanelStatus.Up,
+                    active = p.id == activePanel?.id,
+                )
+            },
+            onSelect = { id ->
+                viewModel.setActivePanel(id)
+                showSwitcher = false
+            },
+            onAddPanel = {
+                showSwitcher = false
+                onAddPanel()
+            },
+            onDismiss = { showSwitcher = false },
         )
     }
 }
@@ -739,29 +781,6 @@ private fun ConfigJsonDialog(
 // ---- Existing cards ----
 
 @Composable
-private fun ActivePanelBanner(panelName: String?, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(
-                text = stringResource(R.string.settings_active_panel_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = panelName ?: stringResource(R.string.settings_active_panel_none),
-                style = MaterialTheme.typography.titleMedium,
-                color = if (panelName != null) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
 private fun GeoSourcesCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -785,39 +804,6 @@ private fun GeoSourcesCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.settings_geo_sources_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun XrayTemplateCard(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.settings_xray_template_entry),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.settings_xray_template_entry_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -864,38 +850,6 @@ private fun WarpNordCard(
     }
 }
 
-@Composable
-private fun OutboundsCard(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.settings_outbounds_entry),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.settings_outbounds_entry_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
 
 @Composable
 private fun CryptoGenCard(

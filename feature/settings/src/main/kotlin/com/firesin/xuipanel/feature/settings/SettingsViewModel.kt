@@ -124,6 +124,14 @@ class SettingsViewModel @Inject constructor(
     val activePanel: StateFlow<Panel?> = panelRepository.observeActive()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** All known panels — feeds the in-screen panel switcher chip/sheet. */
+    val allPanels: StateFlow<List<Panel>> = panelRepository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setActivePanel(id: String) {
+        viewModelScope.launch { panelRepository.setActive(id) }
+    }
+
     // ---- System actions ----
 
     /**
