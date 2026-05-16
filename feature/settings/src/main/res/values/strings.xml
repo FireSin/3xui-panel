@@ -267,23 +267,9 @@
     <string name="outbounds_test_fail">Не удалось</string>
     <string name="outbounds_test_mode">Режим: %1$s</string>
 
-    <!-- Xray metrics screen -->
-    <string name="settings_xray_metrics_entry">Xray метрики и observatory</string>
-    <string name="settings_xray_metrics_entry_description">Состояние xray.metrics + outbound observatory</string>
-    <string name="xray_metrics_title">Xray метрики</string>
-    <string name="xray_metrics_no_active_panel">Сначала выберите активную панель.</string>
-    <string name="xray_metrics_section_state">Состояние</string>
-    <string name="xray_metrics_section_observatory">Observatory</string>
-    <string name="xray_metrics_unknown">Не удалось получить статус.</string>
-    <string name="xray_metrics_enabled">Метрики активны — можно подключить графики и алерты.</string>
-    <string name="xray_metrics_disabled">Метрики не настроены.</string>
-    <string name="xray_metrics_disabled_hint">Чтобы включить, добавьте блок `metrics` и api-inbound в Xray template и перезапустите Xray. Через приложение шаблон редактировать нельзя — это делается в веб-интерфейсе панели (страница Xray Config) или прямо в config.json.</string>
-    <string name="xray_metrics_listen">Listen: %1$s</string>
-    <string name="xray_metrics_history_hint">История доступна через API — графики появятся как только метрики начнут сыпать данные.</string>
-    <string name="xray_metrics_observatory_empty">Observatory не настроен в xray-template — нет данных о latency outbound\'ов.</string>
-    <string name="xray_metrics_observatory_hint">Включается блоком `observatory` в Xray template + перезапуск Xray. После настройки появятся probe-результаты по тегам outbound\'ов.</string>
-    <string name="xray_metrics_observatory_alive">Жив · задержка %1$d мс</string>
-    <string name="xray_metrics_observatory_dead">Недоступен</string>
+    <!-- Active panel banner -->
+    <string name="settings_active_panel_label">Настройки ниже применяются к панели</string>
+    <string name="settings_active_panel_none">Нет активной панели</string>
 
     <!-- WARP / NordVPN screen -->
     <string name="settings_warp_nord_entry">WARP и NordVPN</string>
@@ -318,16 +304,4 @@
     <string name="xray_template_copied">Скопировано в буфер обмена</string>
     <string name="xray_template_outbound_test_url">Outbound test URL: %1$s</string>
     <string name="xray_template_warning">Только просмотр. Редактирование такого большого JSON в мобильном приложении слишком рискованно — делайте это через веб-панель.</string>
-    <string name="xray_template_metrics_section">Xray метрики</string>
-    <string name="xray_template_metrics_status_on">Метрики включены — Metrics_in inbound в шаблоне.</string>
-    <string name="xray_template_metrics_status_off">Метрики не настроены.</string>
-    <string name="xray_template_metrics_enable">Включить метрики</string>
-    <string name="xray_template_metrics_disable">Отключить метрики</string>
-    <string name="xray_template_metrics_hint">Добавит в шаблон блок metrics + dokodemo-door inbound на 127.0.0.1:11111 + routing-правило в outbound «api». Xray будет перезапущен.</string>
-    <string name="xray_template_metrics_confirm_enable_title">Включить Xray метрики?</string>
-    <string name="xray_template_metrics_confirm_disable_title">Отключить Xray метрики?</string>
-    <string name="xray_template_metrics_confirm_enable_message">Шаблон Xray будет изменён, а Xray перезапущен — кратковременный обрыв активных соединений.</string>
-    <string name="xray_template_metrics_confirm_disable_message">Из шаблона будут удалены блок metrics, Metrics_in inbound и связанное routing-правило. Xray будет перезапущен.</string>
-    <string name="xray_template_metrics_confirm_apply">Применить</string>
-    <string name="xray_template_metrics_cancel">Отмена</string>
 </resources>

@@ -120,6 +120,10 @@ class SettingsViewModel @Inject constructor(
     val installId: StateFlow<String> = appSecurityRepository.installId
         .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
+    /** Active panel — drives the "settings apply to <name>" banner. */
+    val activePanel: StateFlow<Panel?> = panelRepository.observeActive()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     // ---- System actions ----
 
     /**

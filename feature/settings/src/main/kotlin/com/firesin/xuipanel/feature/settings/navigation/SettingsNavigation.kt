@@ -14,8 +14,6 @@ import com.firesin.xuipanel.feature.settings.warpnord.navigation.WarpNordRoute
 import com.firesin.xuipanel.feature.settings.warpnord.navigation.warpNordGraph
 import com.firesin.xuipanel.feature.settings.xraytemplate.navigation.XrayTemplateRoute
 import com.firesin.xuipanel.feature.settings.xraytemplate.navigation.xrayTemplateGraph
-import com.firesin.xuipanel.feature.settings.xraymetrics.navigation.XrayMetricsRoute
-import com.firesin.xuipanel.feature.settings.xraymetrics.navigation.xrayMetricsGraph
 import com.firesin.xuipanel.feature.settings.geo.navigation.GeoSourcesRoute
 import com.firesin.xuipanel.feature.settings.geo.navigation.geoSourcesGraph
 import com.firesin.xuipanel.feature.settings.panelsetup.navigation.PanelSetupRoute
@@ -35,7 +33,6 @@ fun NavGraphBuilder.settingsGraph(
             onNavigateToPanelSetup = { navController.navigate(PanelSetupRoute) },
             onNavigateToCryptoGen = { navController.navigate(CryptoGenRoute) },
             onNavigateToOutbounds = { navController.navigate(OutboundsRoute) },
-            onNavigateToXrayMetrics = { navController.navigate(XrayMetricsRoute) },
             onNavigateToWarpNord = { navController.navigate(WarpNordRoute) },
             onNavigateToXrayTemplate = { navController.navigate(XrayTemplateRoute) },
         )
@@ -45,7 +42,6 @@ fun NavGraphBuilder.settingsGraph(
     panelSetupGraph(onBack = { navController.popBackStack() })
     cryptoGenGraph(onBack = { navController.popBackStack() })
     outboundsGraph(onBack = { navController.popBackStack() })
-    xrayMetricsGraph(onBack = { navController.popBackStack() })
     warpNordGraph(onBack = { navController.popBackStack() })
     xrayTemplateGraph(onBack = { navController.popBackStack() })
 }

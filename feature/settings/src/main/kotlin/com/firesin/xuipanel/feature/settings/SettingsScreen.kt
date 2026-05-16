@@ -80,7 +80,6 @@ fun SettingsScreen(
     onNavigateToPanelSetup: () -> Unit = {},
     onNavigateToCryptoGen: () -> Unit = {},
     onNavigateToOutbounds: () -> Unit = {},
-    onNavigateToXrayMetrics: () -> Unit = {},
     onNavigateToWarpNord: () -> Unit = {},
     onNavigateToXrayTemplate: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -97,6 +96,7 @@ fun SettingsScreen(
     val autoBackupLastRunAt by viewModel.autoBackupLastRunAt.collectAsStateWithLifecycle()
     val autoBackupLastResult by viewModel.autoBackupLastResult.collectAsStateWithLifecycle()
     val autoBackupTargetUri by viewModel.autoBackupTargetUri.collectAsStateWithLifecycle()
+    val activePanel by viewModel.activePanel.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var configJsonDialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -193,6 +193,8 @@ fun SettingsScreen(
                 selected = themeMode,
                 onSelect = viewModel::setThemeMode,
             )
+            Spacer(Modifier.height(16.dp))
+            ActivePanelBanner(panelName = activePanel?.name)
             Spacer(Modifier.height(8.dp))
             GeoSourcesCard(onClick = onNavigateToGeoSources)
             Spacer(Modifier.height(8.dp))
@@ -203,8 +205,6 @@ fun SettingsScreen(
             CryptoGenCard(onClick = onNavigateToCryptoGen)
             Spacer(Modifier.height(8.dp))
             OutboundsCard(onClick = onNavigateToOutbounds)
-            Spacer(Modifier.height(8.dp))
-            XrayMetricsCard(onClick = onNavigateToXrayMetrics)
             Spacer(Modifier.height(8.dp))
             WarpNordCard(onClick = onNavigateToWarpNord)
             Spacer(Modifier.height(8.dp))
@@ -739,6 +739,29 @@ private fun ConfigJsonDialog(
 // ---- Existing cards ----
 
 @Composable
+private fun ActivePanelBanner(panelName: String?, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = stringResource(R.string.settings_active_panel_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = panelName ?: stringResource(R.string.settings_active_panel_none),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (panelName != null) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun GeoSourcesCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -828,39 +851,6 @@ private fun WarpNordCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.settings_warp_nord_entry_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun XrayMetricsCard(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.settings_xray_metrics_entry),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.settings_xray_metrics_entry_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -64,12 +64,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import com.firesin.xuipanel.core.xui.dto.UpdateUserRequestDto
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -2549,103 +2544,6 @@ class XuiClient @Inject constructor(
             },
             onFailure = { cause -> cause.toDomainError(panelId) },
         )
-    }
-
-    /** Save the xraySetting JSON template. Optionally also update outboundTestUrl. */
-    suspend fun updateXrayTemplate(
-        panelId: String,
-        baseUrl: String,
-        username: String,
-        password: String,
-        tls: PanelTls,
-        xraySetting: JsonObject,
-        outboundTestUrl: String? = null,
-    ): Result<Unit, DomainError> = withContext(Dispatchers.IO) {
-        if (username.isBlank() || password.isBlank()) {
-            return@withContext Result.Failure(DomainError.InvalidCredentials)
-        }
-        runCatching {
-            val api = apiFor(baseUrl, panelId, tls)
-            val csrf = cookieSessionCsrf(api, panelId, username, password)
-            val payload = json.encodeToString(JsonElement.serializer(), xraySetting)
-            api.updateXrayTemplate(csrf, payload, outboundTestUrl)
-        }.fold(
-            onSuccess = { response ->
-                val body = response.body()
-                if (response.isSuccessful && body?.success == true) {
-                    Result.Success(Unit)
-                } else {
-                    Result.Failure(DomainError.PanelResponse(response.code(), body?.msg.orEmpty()))
-                }
-            },
-            onFailure = { cause -> cause.toDomainError(panelId) },
-        )
-    }
-
-    /**
-     * Mutate the given xraySetting to enable Xray Metrics. Adds the canonical
-     * `metrics: {tag: "metrics_out", listen: "127.0.0.1:11111"}` block — xray spawns its
-     * own expvar HTTP server on that listen, no dokodemo-door inbound needed.
-     * Also ensures `stats: {}` and `policy.system` stats flags exist.
-     * Idempotent; preserves any existing metrics tag if already set.
-     */
-    fun enableXrayMetrics(xraySetting: JsonObject): JsonObject {
-        val mutable = xraySetting.toMutableMap()
-
-        val existing = mutable["metrics"] as? JsonObject
-        val tag = existing?.get("tag")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: "metrics_out"
-        mutable["metrics"] = buildJsonObject {
-            put("tag", tag)
-            put("listen", "127.0.0.1:11111")
-        }
-        if (mutable["stats"] !is JsonObject) mutable["stats"] = JsonObject(emptyMap())
-
-        val policy = (mutable["policy"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
-        val system = (policy["system"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
-        listOf(
-            "statsInboundUplink", "statsInboundDownlink",
-            "statsOutboundUplink", "statsOutboundDownlink",
-        ).forEach { if (system[it] !is JsonPrimitive) system[it] = JsonPrimitive(true) }
-        policy["system"] = JsonObject(system)
-        mutable["policy"] = JsonObject(policy)
-
-        return JsonObject(mutable)
-    }
-
-    /**
-     * Mutate the given xraySetting to disable Xray Metrics. Removes the `metrics` block.
-     * Leaves `stats`/`policy.system` flags untouched (often used elsewhere for client stats).
-     * Also cleans up any stale Metrics_in dokodemo-door inbound + routing rule from older
-     * versions of [enableXrayMetrics] that mistakenly added them.
-     */
-    fun disableXrayMetrics(xraySetting: JsonObject): JsonObject {
-        val mutable = xraySetting.toMutableMap()
-        mutable.remove("metrics")
-
-        val inbounds = (mutable["inbounds"] as? JsonArray)?.filter {
-            (it as? JsonObject)?.get("tag")?.jsonPrimitive?.contentOrNull != "Metrics_in"
-        }
-        if (inbounds != null) mutable["inbounds"] = JsonArray(inbounds)
-
-        val routing = (mutable["routing"] as? JsonObject)?.toMutableMap()
-        if (routing != null) {
-            val rules = (routing["rules"] as? JsonArray)?.filter { r ->
-                val ro = r as? JsonObject ?: return@filter true
-                val tags = ro["inboundTag"] as? JsonArray ?: return@filter true
-                !(tags.any { it.jsonPrimitive.contentOrNull == "Metrics_in" } &&
-                    ro["outboundTag"]?.jsonPrimitive?.contentOrNull == "api")
-            } ?: emptyList()
-            routing["rules"] = JsonArray(rules)
-            mutable["routing"] = JsonObject(routing)
-        }
-
-        return JsonObject(mutable)
-    }
-
-    /** Heuristic: metrics is enabled iff `xraySetting.metrics.listen` is non-blank. */
-    fun isXrayMetricsEnabled(xraySetting: JsonObject): Boolean {
-        return (xraySetting["metrics"] as? JsonObject)
-            ?.get("listen")?.jsonPrimitive?.contentOrNull?.isNotBlank() == true
     }
 
     /**
