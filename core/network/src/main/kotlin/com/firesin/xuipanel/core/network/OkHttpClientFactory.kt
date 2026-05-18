@@ -22,11 +22,15 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
-private data class ClientKey(val panelId: String, val tls: PanelTls)
+/** Identifies a base (no-CSRF) client by panel identity. */
+private data class BaseKey(val panelId: String, val tls: PanelTls)
+
+/** Identifies a CSRF-aware client additionally by the base URL used to mint the token. */
+private data class CsrfKey(val panelId: String, val tls: PanelTls, val csrfBaseUrl: String)
 
 /**
  * Caches one [OkHttpClient] per panel. Re-creates on TLS-configuration change.
- * Each client has its own [PanelCookieJar] for isolated session management.
+ * Each panel has a single [PanelCookieJar] shared across its base and CSRF-aware clients.
  *
  * TLS modes:
  * - [TlsMode.SYSTEM] — use the device trust store; no custom TrustManager.
@@ -39,9 +43,20 @@ private data class ClientKey(val panelId: String, val tls: PanelTls)
 class OkHttpClientFactory @Inject constructor(
     private val loggingInterceptor: HttpLoggingInterceptor,
     private val panelPinWriter: PanelPinWriter,
+    private val csrfTokenStore: CsrfTokenStore,
 ) {
 
-    private val cache = ConcurrentHashMap<ClientKey, Pair<OkHttpClient, PanelCookieJar>>()
+    /**
+     * Base clients (no CSRF interceptor). Keyed by (panelId, tls).
+     * Stores client + cookie jar. The cookie jar is shared with CSRF-aware clients.
+     */
+    private val baseCache = ConcurrentHashMap<BaseKey, Pair<OkHttpClient, PanelCookieJar>>()
+
+    /**
+     * CSRF-aware clients. Keyed by (panelId, tls, csrfBaseUrl).
+     * The OkHttpClient wraps the base client's connection pool but adds [CsrfInterceptor].
+     */
+    private val csrfCache = ConcurrentHashMap<CsrfKey, OkHttpClient>()
 
     /**
      * Shared capture guards, keyed by panelId. Each AtomicBoolean is created with the client and
@@ -52,19 +67,35 @@ class OkHttpClientFactory @Inject constructor(
     /** Scope for async DB writes from [LazyPinCaptureListener] — never blocks OkHttp threads. */
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun getClient(panelId: String, tls: PanelTls): OkHttpClient {
-        val key = ClientKey(panelId, tls)
-        return cache.getOrPut(key) { buildCachedEntry(panelId, tls) }.first
+    /**
+     * Returns a cached [OkHttpClient] for the given panel.
+     *
+     * When [csrfBaseUrl] is non-null, the returned client includes a [CsrfInterceptor] that
+     * automatically injects `X-CSRF-Token` on every non-GET request. The CSRF-aware client
+     * shares the same [PanelCookieJar] as the base client, so session cookies written during
+     * login are visible to both.
+     *
+     * When [csrfBaseUrl] is null, returns the base client (used for WebSocket and probe flows).
+     */
+    fun getClient(panelId: String, tls: PanelTls, csrfBaseUrl: String? = null): OkHttpClient {
+        val baseEntry = baseCache.getOrPut(BaseKey(panelId, tls)) { buildBaseEntry(panelId, tls) }
+        if (csrfBaseUrl == null) return baseEntry.first
+
+        val csrfKey = CsrfKey(panelId, tls, csrfBaseUrl)
+        return csrfCache.getOrPut(csrfKey) {
+            buildCsrfClient(panelId, csrfBaseUrl, baseEntry)
+        }
     }
 
+    /** Returns the [PanelCookieJar] for the given panel. Shared by base and CSRF-aware clients. */
     fun getCookieJar(panelId: String, tls: PanelTls): PanelCookieJar {
-        val key = ClientKey(panelId, tls)
-        return cache.getOrPut(key) { buildCachedEntry(panelId, tls) }.second
+        return baseCache.getOrPut(BaseKey(panelId, tls)) { buildBaseEntry(panelId, tls) }.second
     }
 
-    /** Invalidates the cached client — call when panel URL or TLS config changes. */
+    /** Invalidates all cached clients for [panelId] — call when panel URL or TLS config changes. */
     fun invalidate(panelId: String) {
-        cache.keys.filter { it.panelId == panelId }.forEach { cache.remove(it) }
+        baseCache.keys.filter { it.panelId == panelId }.forEach { baseCache.remove(it) }
+        csrfCache.keys.filter { it.panelId == panelId }.forEach { csrfCache.remove(it) }
         captureGuards.remove(panelId)
     }
 
@@ -78,18 +109,18 @@ class OkHttpClientFactory @Inject constructor(
         return buildProbeClient(cookieJar, tls)
     }
 
-    private fun buildCachedEntry(panelId: String, tls: PanelTls): Pair<OkHttpClient, PanelCookieJar> {
+    private fun buildBaseEntry(panelId: String, tls: PanelTls): Pair<OkHttpClient, PanelCookieJar> {
         val cookieJar = PanelCookieJar()
-        val client = buildClientForPanel(panelId, cookieJar, tls)
+        val client = buildBaseClient(panelId, cookieJar, tls)
         return client to cookieJar
     }
 
     /**
-     * Builds a cached-panel client. For the lazy-TOFU case (PINNED + null pin), attaches a
+     * Builds the base (no-CSRF) client. For the lazy-TOFU case (PINNED + null pin), attaches a
      * [LazyPinCaptureListener] that writes the pin and invalidates this entry on first
      * connection — no polling, no timeout.
      */
-    private fun buildClientForPanel(
+    private fun buildBaseClient(
         panelId: String,
         cookieJar: PanelCookieJar,
         tls: PanelTls,
@@ -111,6 +142,28 @@ class OkHttpClientFactory @Inject constructor(
         }
 
         return builder.build()
+    }
+
+    /**
+     * Builds a CSRF-aware client on top of [baseEntry].
+     *
+     * The new client shares the same [PanelCookieJar] (and therefore session cookies) with
+     * the base client. [CsrfInterceptor] uses the base client as its token-fetch client to
+     * avoid infinite recursion.
+     */
+    private fun buildCsrfClient(
+        panelId: String,
+        csrfBaseUrl: String,
+        baseEntry: Pair<OkHttpClient, PanelCookieJar>,
+    ): OkHttpClient {
+        val (baseClient, cookieJar) = baseEntry
+        val csrfTokenUrl = if (csrfBaseUrl.endsWith("/")) "${csrfBaseUrl}csrf-token"
+                           else "$csrfBaseUrl/csrf-token"
+        // newBuilder() inherits the connection pool, dispatcher, and cookie jar from baseClient.
+        return baseClient.newBuilder()
+            .cookieJar(cookieJar)
+            .addInterceptor(CsrfInterceptor(panelId, csrfTokenUrl, csrfTokenStore, baseClient))
+            .build()
     }
 
     /**

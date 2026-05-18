@@ -5,6 +5,7 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.common.NoOpPanelLookup
 import com.firesin.xuipanel.core.common.twofactor.NoOpTwoFactorOtpBus
+import com.firesin.xuipanel.core.network.CsrfTokenStore
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import io.mockk.coEvery
 import io.mockk.every
@@ -36,7 +37,7 @@ class XuiClientProbeTwoFactorTest {
     fun setUp() {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), NoOpTwoFactorOtpBus, NoOpPanelLookup)
+        xuiClient = XuiClient(clientFactory, sessionCache, CsrfTokenStore(), spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), NoOpTwoFactorOtpBus, NoOpPanelLookup)
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.common.twofactor.TwoFactorOtpBus
 import com.firesin.xuipanel.core.common.twofactor.TwoFactorOtpRequest
+import com.firesin.xuipanel.core.network.CsrfTokenStore
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -69,7 +70,7 @@ class XuiClientTwoFactorReloginTest {
     @Test
     fun `2FA relogin - OTP is requested and login succeeds`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "123456")
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
+        xuiClient = XuiClient(clientFactory, sessionCache, CsrfTokenStore(), spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
 
         // No cached session → first login call returns 200 (login succeeds)
         // Then the actual API call returns 401 → triggers re-auth with OTP → login again → retry returns 200
@@ -110,7 +111,7 @@ class XuiClientTwoFactorReloginTest {
             }
             mockCall
         }
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
         // Simulate no cached session to force initial login
         coEvery { sessionCache.get(any()) } returns null
 
@@ -130,7 +131,7 @@ class XuiClientTwoFactorReloginTest {
     @Test
     fun `2FA relogin - user cancels OTP throws XuiAuthException mapped to InvalidCredentials`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = null)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
+        xuiClient = XuiClient(clientFactory, sessionCache, CsrfTokenStore(), spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
 
         val mockClient = mockk<OkHttpClient>()
         every { mockClient.newBuilder() } returns OkHttpClient.Builder()
@@ -158,7 +159,7 @@ class XuiClientTwoFactorReloginTest {
             }
             mockCall
         }
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
         coEvery { sessionCache.get(any()) } returns null
 
         val auth = PanelAuth.Login(
@@ -179,7 +180,7 @@ class XuiClientTwoFactorReloginTest {
     @Test
     fun `non-2FA relogin - OTP bus is NOT consulted on 401`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "should-not-be-called")
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
+        xuiClient = XuiClient(clientFactory, sessionCache, CsrfTokenStore(), spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), fakeBus, NoOpPanelLookup)
 
         val callCount = AtomicInteger(0)
         val mockClient = mockk<OkHttpClient>()
@@ -210,7 +211,7 @@ class XuiClientTwoFactorReloginTest {
             }
             mockCall
         }
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
         coEvery { sessionCache.get(any()) } returns null
 
         val auth = PanelAuth.Login(

@@ -7,6 +7,7 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.common.twofactor.TwoFactorOtpBus
 import com.firesin.xuipanel.core.common.twofactor.TwoFactorOtpRequest
+import com.firesin.xuipanel.core.network.CsrfTokenStore
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -80,7 +81,7 @@ class XuiClientCookieSessionCsrfTwoFactorTest {
     fun `cookieSessionCsrf cold-start 2FA - OTP is requested before login`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "123456")
         xuiClient = XuiClient(
-            clientFactory, sessionCache,
+            clientFactory, sessionCache, CsrfTokenStore(),
             spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(),
             fakeBus, FakePanelLookup(),
         )
@@ -94,7 +95,7 @@ class XuiClientCookieSessionCsrfTwoFactorTest {
                 else -> 200 to settingsBody
             }
         }
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
 
         val result = xuiClient.fetchPanelSettings("2fa", "https://panel.example.com", "admin", "secret", tls)
 
@@ -107,7 +108,7 @@ class XuiClientCookieSessionCsrfTwoFactorTest {
     fun `cookieSessionCsrf expired session 2FA - OTP requested on re-login`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "654321")
         xuiClient = XuiClient(
-            clientFactory, sessionCache,
+            clientFactory, sessionCache, CsrfTokenStore(),
             spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(),
             fakeBus, FakePanelLookup(),
         )
@@ -126,7 +127,7 @@ class XuiClientCookieSessionCsrfTwoFactorTest {
                 else -> 200 to settingsBody
             }
         }
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
 
         val result = xuiClient.fetchPanelSettings("2fa", "https://panel.example.com", "admin", "secret", tls)
 
@@ -138,7 +139,7 @@ class XuiClientCookieSessionCsrfTwoFactorTest {
     fun `cookieSessionCsrf non-2FA panel - OTP bus not consulted`() = runTest {
         val fakeBus = FakeTwoFactorOtpBus(otpToReturn = "should-not-be-called")
         xuiClient = XuiClient(
-            clientFactory, sessionCache,
+            clientFactory, sessionCache, CsrfTokenStore(),
             spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(),
             fakeBus, FakePanelLookup(),
         )
@@ -151,7 +152,7 @@ class XuiClientCookieSessionCsrfTwoFactorTest {
                 else -> 200 to settingsBody
             }
         }
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
 
         // "other" panelId → FakePanelLookup returns null → non-2FA path
         val result = xuiClient.fetchPanelSettings("other", "https://panel.example.com", "admin", "secret", tls)
