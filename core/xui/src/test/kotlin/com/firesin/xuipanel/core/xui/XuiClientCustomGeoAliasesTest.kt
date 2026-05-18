@@ -7,6 +7,7 @@ import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.TlsMode
 import com.firesin.xuipanel.core.common.NoOpPanelLookup
 import com.firesin.xuipanel.core.common.twofactor.NoOpTwoFactorOtpBus
+import com.firesin.xuipanel.core.network.CsrfTokenStore
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -43,7 +44,7 @@ class XuiClientCustomGeoAliasesTest {
     fun setUp() {
         clientFactory = mockk(relaxed = true)
         sessionCache = mockk(relaxed = true)
-        xuiClient = XuiClient(clientFactory, sessionCache, spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), NoOpTwoFactorOtpBus, NoOpPanelLookup)
+        xuiClient = XuiClient(clientFactory, sessionCache, CsrfTokenStore(), spyk(PinMismatchEventDispatcher()), WsUiEventDispatcher(), NoOpTwoFactorOtpBus, NoOpPanelLookup)
         coEvery { sessionCache.get(any()) } returns XuiSession("p1")
     }
 
@@ -123,7 +124,7 @@ class XuiClientCustomGeoAliasesTest {
         every { mockClient.newCall(any<Request>()) } returns mockCall
         every { mockClient.newBuilder() } returns OkHttpClient.Builder()
 
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
     }
 
     private fun mockThrow(exception: Throwable) {
@@ -140,7 +141,7 @@ class XuiClientCustomGeoAliasesTest {
         every { mockClient.newCall(any<Request>()) } returns mockCall
         every { mockClient.newBuilder() } returns OkHttpClient.Builder()
 
-        coEvery { clientFactory.getClient(any(), any()) } returns mockClient
+        coEvery { clientFactory.getClient(any(), any(), any()) } returns mockClient
     }
 
     private companion object {

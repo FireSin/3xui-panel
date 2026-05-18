@@ -7,6 +7,7 @@ import com.firesin.xuipanel.core.common.PanelTls
 import com.firesin.xuipanel.core.common.PinMismatchEvent
 import com.firesin.xuipanel.core.common.Result
 import com.firesin.xuipanel.core.common.twofactor.TwoFactorOtpBus
+import com.firesin.xuipanel.core.network.CsrfTokenStore
 import com.firesin.xuipanel.core.network.OkHttpClientFactory
 import com.firesin.xuipanel.core.network.tls.ProbePinCaptureListener
 import com.firesin.xuipanel.core.network.tls.SpkiPinMismatchException
@@ -89,6 +90,7 @@ import javax.net.ssl.SSLException
 class XuiClient @Inject constructor(
     private val clientFactory: OkHttpClientFactory,
     private val sessionCache: XuiSessionCache,
+    private val csrfTokenStore: CsrfTokenStore,
     private val pinMismatchEvents: PinMismatchEventDispatcher,
     private val wsUiEvents: WsUiEventDispatcher,
     private val twoFactorOtpBus: TwoFactorOtpBus,
@@ -106,7 +108,9 @@ class XuiClient @Inject constructor(
         if (endsWith("/")) this else "$this/"
 
     private fun apiFor(baseUrl: String, panelId: String, tls: PanelTls, bearer: String? = null): XuiApi {
-        val baseClient = clientFactory.getClient(panelId, tls)
+        // getClient with csrfBaseUrl returns a client that automatically injects X-CSRF-Token
+        // on every non-GET request via CsrfInterceptor inside OkHttpClientFactory.
+        val baseClient = clientFactory.getClient(panelId, tls, baseUrl)
         val client = if (bearer != null) {
             baseClient.newBuilder()
                 .addInterceptor { chain ->
@@ -222,6 +226,11 @@ class XuiClient @Inject constructor(
             throw XuiAuthException(panelId)
         }
         sessionCache.put(panelId)
+        // Cache the CSRF token so that the first POST after login does not need
+        // an extra round-trip to csrf-token. The interceptor will refresh it on 403.
+        if (csrf.isNotBlank()) {
+            csrfTokenStore.put(panelId, csrf)
+        }
     }
 
     /**
