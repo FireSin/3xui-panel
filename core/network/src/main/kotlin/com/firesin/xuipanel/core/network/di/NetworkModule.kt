@@ -24,5 +24,6 @@ object NetworkModule {
             redactHeader("Cookie")
             redactHeader("Set-Cookie")
             redactHeader("Authorization")
+            redactHeader("X-CSRF-Token")
         }
 }
