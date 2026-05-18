@@ -50,6 +50,8 @@ dependencies {
     testRuntimeOnly(libs.junit5.engine)
     testRuntimeOnly(libs.junit5.platform.launcher)
     testImplementation(libs.mockk)
+    testImplementation(libs.okhttp.mock.web.server)
+    testImplementation("org.json:json:20231013")
 }
 
 kotlin {
